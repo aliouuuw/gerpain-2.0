@@ -20,7 +20,7 @@ import { Logger } from "./shared/utils/logger.js";
 const app = new Hono();
 
 // Global middleware
-const corsOrigins = process.env.CORS_ORIGIN?.split(",") || ["http://localhost:3000", "http://localhost:5173"];
+const corsOrigins = process.env.CORS_ORIGIN?.split(",") || ["http://localhost:3000", "http://localhost:5173", "http://localhost:3001"];
 console.log("CORS Origins:", corsOrigins);
 
 app.use("*", cors({
