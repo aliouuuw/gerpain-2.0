@@ -12,6 +12,7 @@ import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { RiCloseLine } from "@remixicon/react"
 import { PanelLeft } from "lucide-react"
 import * as React from "react"
+import Link from "next/link"
 import { Button } from "./Button"
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state"
@@ -270,7 +271,7 @@ const SidebarLink = React.forwardRef<
 >(({ children, isActive, icon, notifications, className, ...props }, ref) => {
   const Icon = icon
   return (
-    <a
+    <Link
       ref={ref}
       aria-current={isActive ? "page" : undefined}
       data-active={isActive}
@@ -279,6 +280,7 @@ const SidebarLink = React.forwardRef<
         "text-stone-700 hover:bg-amber-100/70 hover:text-stone-900",
         "data-[active=true]:bg-amber-100 data-[active=true]:text-amber-900 data-[active=true]:font-medium",
         focusRing,
+        className,
       )}
       {...props}
     >
@@ -291,7 +293,7 @@ const SidebarLink = React.forwardRef<
           {notifications}
         </span>
       )}
-    </a>
+    </Link>
   )
 })
 SidebarLink.displayName = "SidebarLink"
@@ -351,7 +353,7 @@ const SidebarSubLink = React.forwardRef<
   }
 >(({ isActive, children, className, ...props }, ref) => {
   return (
-    <a
+    <Link
       ref={ref}
       aria-current={isActive ? "page" : undefined}
       data-active={isActive}
@@ -360,6 +362,7 @@ const SidebarSubLink = React.forwardRef<
         "text-stone-600 hover:text-stone-900 hover:bg-amber-50",
         "data-[active=true]:bg-white data-[active=true]:text-amber-800 data-[active=true]:font-medium data-[active=true]:shadow-sm",
         focusRing,
+        className,
       )}
       {...props}
     >
@@ -370,7 +373,7 @@ const SidebarSubLink = React.forwardRef<
         />
       )}
       {children}
-    </a>
+    </Link>
   )
 })
 SidebarSubLink.displayName = "SidebarSubLink"
