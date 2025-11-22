@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "../../lib/auth-client";
 
 export default function AuthLayout({
   children,
@@ -21,8 +21,13 @@ export default function AuthLayout({
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <p className="text-sm text-zinc-500">Chargement…</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
+        <div className="text-center">
+          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600"></div>
+          <p className="text-sm font-medium text-stone-600">
+            Vérification de votre session…
+          </p>
+        </div>
       </div>
     );
   }
@@ -32,8 +37,17 @@ export default function AuthLayout({
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-      {children}
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-4">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -left-20 -top-20 size-64 rounded-full bg-amber-200/30 blur-3xl"></div>
+        <div className="absolute -bottom-20 -right-20 size-96 rounded-full bg-orange-200/30 blur-3xl"></div>
+      </div>
+      
+      {/* Content */}
+      <div className="relative z-10">
+        {children}
+      </div>
     </div>
   );
 }

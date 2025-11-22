@@ -2,7 +2,10 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmail } from "@/lib/auth-client";
+import { signInWithEmail } from "../../../lib/auth-client";
+import { Input } from "@/components/Input";
+import { Button } from "@/components/Button";
+import { Logo } from "@/components/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +21,6 @@ export default function LoginPage() {
 
     try {
       await signInWithEmail(email, password);
-
       router.replace("/dashboard");
     } catch (err) {
       setError("Connexion échouée. Vérifiez vos identifiants.");
@@ -28,21 +30,29 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-sm">
-      <h1 className="mb-2 text-2xl font-semibold text-zinc-900">Connexion</h1>
-      <p className="mb-6 text-sm text-zinc-500">
-        Connectez-vous pour accéder à votre espace de gestion Gerpain.
-      </p>
+    <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-8 shadow-xl">
+      {/* Logo and Header */}
+      <div className="mb-8 flex flex-col items-center text-center">
+        <div className="mb-4 flex size-16 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 p-3 shadow-sm">
+          <Logo className="size-10 text-amber-600" />
+        </div>
+        <h1 className="text-2xl font-bold text-stone-900">
+          Gerpain ERP
+        </h1>
+        <p className="mt-2 text-sm text-stone-600">
+          Connectez-vous à votre espace de gestion
+        </p>
+      </div>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
-        <div className="space-y-1">
+      <form className="space-y-5" onSubmit={handleSubmit}>
+        <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-zinc-700"
+            className="block text-sm font-medium text-stone-700"
           >
             Adresse e-mail
           </label>
-          <input
+          <Input
             id="email"
             name="email"
             type="email"
@@ -50,19 +60,19 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none ring-zinc-900/5 focus:border-zinc-900 focus:ring-2"
             placeholder="vous@exemple.com"
+            hasError={!!error}
           />
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-2">
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-zinc-700"
+            className="block text-sm font-medium text-stone-700"
           >
             Mot de passe
           </label>
-          <input
+          <Input
             id="password"
             name="password"
             type="password"
@@ -70,27 +80,33 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none ring-zinc-900/5 focus:border-zinc-900 focus:ring-2"
             placeholder="••••••••"
+            hasError={!!error}
           />
         </div>
 
         {error && (
-          <p className="text-sm text-red-600">{error}</p>
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
         )}
 
-        <button
+        <Button
           type="submit"
           disabled={pending}
-          className="mt-2 w-full rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+          isLoading={pending}
+          loadingText="Connexion en cours"
+          className="mt-4 w-full"
         >
-          {pending ? "Connexion en cours…" : "Se connecter"}
-        </button>
+          Se connecter
+        </Button>
       </form>
 
-      <p className="mt-4 text-xs text-zinc-400">
-        Interface disponible uniquement en français pendant la phase MVP.
-      </p>
+      <div className="mt-6 border-t border-stone-200 pt-6">
+        <p className="text-center text-xs text-stone-500">
+          Système de gestion pour chaînes de boulangeries
+        </p>
+      </div>
     </div>
   );
 }

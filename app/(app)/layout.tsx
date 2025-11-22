@@ -3,7 +3,10 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, useSession } from "@/lib/auth-client";
+import { useSession } from "../../lib/auth-client";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/Sidebar";
+import { AppSidebar } from "@/components/ui/navigation/AppSidebar";
+import { Breadcrumbs } from "@/components/ui/navigation/Breadcrumbs";
 
 export default function AppLayout({
   children,
@@ -21,8 +24,11 @@ export default function AppLayout({
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <p className="text-sm text-zinc-500">Chargement…</p>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
+        <div className="text-center">
+          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600"></div>
+          <p className="text-sm font-medium text-stone-600">Chargement de votre espace…</p>
+        </div>
       </div>
     );
   }
@@ -31,32 +37,37 @@ export default function AppLayout({
     return null;
   }
 
-  const handleLogout = async () => {
-    await signOut();
-    router.replace("/login");
-  };
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <AppShell>{children}</AppShell>
+    </SidebarProvider>
+  );
+}
+
+function AppShell({ children }: { children: ReactNode }) {
+  const { state, isMobile } = useSidebar();
+  const isExpanded = state === "expanded" && !isMobile;
+
+  const insetStyle = isExpanded
+    ? { marginLeft: "var(--sidebar-width)", width: "calc(100% - var(--sidebar-width))" }
+    : { marginLeft: 0, width: "100%" };
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="flex items-center justify-between border-b bg-white px-6 py-4">
-        <div>
-          <h1 className="text-lg font-semibold text-zinc-900">Gerpain ERP</h1>
-          <p className="text-xs text-zinc-500">
-            Tableau de bord de gestion des boulangeries.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-zinc-700">
-          <span>{data.user.name ?? data.user.email}</span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100"
-          >
-            Déconnexion
-          </button>
-        </div>
-      </header>
-      <main className="px-6 py-6">{children}</main>
-    </div>
+    <>
+      <AppSidebar />
+      <div
+        className="flex min-h-svh flex-col transition-[margin-left] duration-150 ease-in-out"
+        style={insetStyle}
+      >
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-stone-200 bg-white/80 px-4 backdrop-blur-sm">
+          <SidebarTrigger className="-ml-1" />
+          <div className="mr-2 h-4 w-px bg-stone-200" />
+          <Breadcrumbs />
+        </header>
+        <main className="page-enter min-h-[calc(100vh-4rem)] bg-gradient-to-br from-stone-50 via-amber-50/30 to-orange-50/20 p-6">
+          {children}
+        </main>
+      </div>
+    </>
   );
 }

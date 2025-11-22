@@ -1,20 +1,32 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Gerpain ERP",
-  description: "ERP de gestion pour chaînes de boulangeries",
+  metadataBase: new URL("https://gerpain.com"),
+  title: {
+    default: "Gerpain ERP",
+    template: "%s | Gerpain ERP"
+  },
+  description: "Système de gestion pour chaînes de boulangeries - Planning, production, ventes et équipe",
+  keywords: ["ERP", "Boulangerie", "Gestion", "Production", "Ventes", "Planning"],
+  authors: [
+    {
+      name: "Gerpain",
+      url: "https://gerpain.com",
+    },
+  ],
+  creator: "Gerpain",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: "https://gerpain.com",
+    title: "Gerpain ERP",
+    description: "Système de gestion pour chaînes de boulangeries",
+    siteName: "Gerpain ERP",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -23,10 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="fr" className="h-full light" suppressHydrationWarning>
+      <body className="h-full antialiased bg-stone-50">
         {children}
       </body>
     </html>
