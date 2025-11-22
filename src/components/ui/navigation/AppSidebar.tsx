@@ -16,91 +16,106 @@ import {
 } from "@/components/Sidebar"
 import { cx, focusRing } from "@/lib/utils"
 import { RiArrowDownSFill } from "@remixicon/react"
-import { Home, ShoppingCart, Package, Users, BarChart3, Settings } from "lucide-react"
+import { Home, ShoppingCart, Package, Users, Wallet } from "lucide-react"
 import * as React from "react"
 import { Logo } from "@/components/Logo"
 import { UserProfile } from "./UserProfile"
 
 const navigation = [
   {
-    name: "Accueil",
+    name: "Tableau de bord",
     href: "/dashboard",
     icon: Home,
     notifications: false,
-    active: true,
-  },
-  {
-    name: "Commandes",
-    href: "/orders",
-    icon: ShoppingCart,
-    notifications: 3,
     active: false,
   },
 ] as const
 
-const navigation2 = [
+const navigationGroups = [
   {
-    name: "Production",
-    href: "#",
+    name: "Ventes",
+    href: "/sales",
+    icon: ShoppingCart,
+    children: [
+      {
+        name: "Vue d'ensemble",
+        href: "/sales",
+        active: false,
+      },
+      {
+        name: "Saisie des ventes",
+        href: "/sales/transactions",
+        active: false,
+      },
+      {
+        name: "Livraisons",
+        href: "/sales/deliveries",
+        active: false,
+      },
+    ],
+  },
+  {
+    name: "Stock / Inventaire",
+    href: "/inventory",
     icon: Package,
     children: [
       {
-        name: "Planning",
-        href: "/production/planning",
+        name: "Vue d'ensemble",
+        href: "/inventory",
         active: false,
       },
       {
-        name: "Recettes",
-        href: "/production/recipes",
+        name: "Ajustements",
+        href: "/inventory/adjustments",
         active: false,
       },
       {
-        name: "Stock matières",
-        href: "/production/stock",
+        name: "Transferts",
+        href: "/inventory/transfers",
         active: false,
       },
     ],
   },
   {
-    name: "Ventes",
-    href: "#",
-    icon: BarChart3,
+    name: "Caisse",
+    href: "/cash",
+    icon: Wallet,
     children: [
       {
-        name: "Points de vente",
-        href: "/sales/locations",
+        name: "Vue d'ensemble",
+        href: "/cash",
         active: false,
       },
       {
-        name: "Rapports",
-        href: "/sales/reports",
+        name: "Collectes",
+        href: "/cash/collections",
         active: false,
       },
       {
-        name: "Clients",
-        href: "/sales/customers",
+        name: "Rapprochements",
+        href: "/cash/reconciliations",
         active: false,
       },
     ],
   },
   {
-    name: "Équipe",
-    href: "#",
+    name: "Employés",
+    href: "/employees",
     icon: Users,
     children: [
       {
-        name: "Personnel",
-        href: "/team/staff",
+        name: "Vue d'ensemble",
+        href: "/employees",
         active: false,
       },
       {
-        name: "Horaires",
-        href: "/team/schedules",
+        name: "Liste",
+        href: "/employees/list",
         active: false,
       },
       {
-        name: "Paie",
-        href: "/team/payroll",
+        name: "Pointage",
+        href: "/employees/attendance",
         active: false,
       },
     ],
@@ -109,8 +124,7 @@ const navigation2 = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [openMenus, setOpenMenus] = React.useState<string[]>([
-    navigation2[0].name,
-    navigation2[1].name,
+    navigationGroups[0].name,
   ])
   const toggleMenu = (name: string) => {
     setOpenMenus((prev: string[]) =>
@@ -170,7 +184,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-4">
-              {navigation2.map((item) => (
+              {navigationGroups.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <button
                     onClick={() => toggleMenu(item.name)}
