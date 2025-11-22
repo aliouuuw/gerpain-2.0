@@ -79,9 +79,9 @@ const DrawerContent = React.forwardRef<
             // base
             "fixed inset-y-2 mx-auto flex w-[95vw] flex-1 flex-col overflow-y-auto rounded-md border p-4 shadow-lg focus:outline-none max-sm:inset-x-2 sm:inset-y-2 sm:right-2 sm:max-w-lg sm:p-6",
             // border color
-            "border-stone-200 dark:border-stone-900",
+            "border-stone-200",
             // background color
-            "bg-white dark:bg-[#090E1A]",
+            "bg-white",
             // transition
             "data-[state=closed]:animate-drawerSlideRightAndFade data-[state=open]:animate-drawerSlideLeftAndFade",
             focusRing,
@@ -103,7 +103,7 @@ const DrawerHeader = React.forwardRef<
   return (
     <div
       ref={ref}
-      className="flex items-start justify-between gap-x-4 border-b border-stone-200 pb-4 dark:border-stone-900"
+      className="flex items-start justify-between gap-x-4 border-b border-stone-200 pb-4"
       {...props}
     >
       <div className={cx("mt-1 flex flex-col gap-y-1", className)}>
@@ -112,7 +112,7 @@ const DrawerHeader = React.forwardRef<
       <DrawerPrimitives.Close asChild>
         <Button
           variant="ghost"
-          className="aspect-square p-1 hover:bg-stone-100 hover:dark:bg-stone-400/10"
+          className="aspect-square p-1 hover:bg-stone-100"
         >
           <RiCloseLine className="size-6" aria-hidden="true" />
         </Button>
@@ -133,7 +133,7 @@ const DrawerTitle = React.forwardRef<
       // base
       "text-base font-semibold",
       // text color
-      "text-stone-900 dark:text-stone-50",
+      "text-stone-900",
       className,
     )}
     {...props}
@@ -157,7 +157,7 @@ const DrawerDescription = React.forwardRef<
   return (
     <DrawerPrimitives.Description
       ref={forwardedRef}
-      className={cx("text-stone-500 dark:text-stone-500", className)}
+      className={cx("text-stone-500", className)}
       {...props}
     />
   )
@@ -172,7 +172,7 @@ const DrawerFooter = ({
   return (
     <div
       className={cx(
-        "flex flex-col-reverse border-t border-stone-200 pt-4 sm:flex-row sm:justify-end sm:space-x-2 dark:border-stone-900",
+        "flex flex-col-reverse border-t border-stone-200 pt-4 sm:flex-row sm:justify-end sm:space-x-2",
         className,
       )}
       {...props}

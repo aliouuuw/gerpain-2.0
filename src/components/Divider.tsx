@@ -15,7 +15,7 @@ const Divider = React.forwardRef<
         // base
         "w-full border-t py-2",
         // border color
-        "border-stone-200 dark:border-stone-800",
+        "border-stone-200",
         className,
       )}
       tremor-id="tremor-raw"

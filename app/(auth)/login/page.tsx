@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signInWithEmail } from "../../../lib/auth-client";
+import { AuthError, signInWithEmail } from "../../../lib/auth-client";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
@@ -23,7 +24,29 @@ export default function LoginPage() {
       await signInWithEmail(email, password);
       router.replace("/dashboard");
     } catch (err) {
-      setError("Connexion échouée. Vérifiez vos identifiants.");
+      if (err instanceof AuthError) {
+        if (err.code === "INVALID_CREDENTIALS") {
+          setError(
+            "Adresse e-mail ou mot de passe incorrect. Vérifiez vos identifiants.",
+          );
+        } else if (err.code === "ACCOUNT_DISABLED") {
+          setError(
+            "Ce compte a été désactivé. Contactez votre responsable ou l’équipe Gerpain.",
+          );
+        } else if (err.code === "NETWORK_ERROR") {
+          setError(
+            "Impossible de se connecter au serveur. Vérifiez votre connexion et réessayez.",
+          );
+        } else {
+          setError(
+            "Un problème technique empêche la connexion. Réessayez dans quelques instants.",
+          );
+        }
+      } else {
+        setError(
+          "Un problème technique empêche la connexion. Réessayez dans quelques instants.",
+        );
+      }
     } finally {
       setPending(false);
     }
@@ -83,6 +106,15 @@ export default function LoginPage() {
             placeholder="••••••••"
             hasError={!!error}
           />
+        </div>
+
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-xs font-medium text-amber-700 hover:text-amber-800"
+          >
+            Mot de passe oublié ?
+          </Link>
         </div>
 
         {error && (

@@ -188,10 +188,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </div>
                     <RiArrowDownSFill
                       className={cx(
+                        "size-5 shrink-0 transform text-stone-400 transition-transform duration-150 ease-in-out",
                         openMenus.includes(item.name)
                           ? "rotate-0"
                           : "-rotate-90",
-                        "size-5 shrink-0 transform text-stone-400 transition-transform duration-150 ease-in-out dark:text-stone-600",
                       )}
                       aria-hidden="true"
                     />

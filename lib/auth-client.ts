@@ -5,17 +5,36 @@ import { useEffect, useState } from "react";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
-async function apiFetch(input: string, init?: RequestInit) {
-  const res = await fetch(`${API_BASE_URL}${input}`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
+type AuthErrorCode =
+  | "INVALID_CREDENTIALS"
+  | "ACCOUNT_DISABLED"
+  | "SERVER_ERROR"
+  | "NETWORK_ERROR";
 
-  return res;
+export class AuthError extends Error {
+  code: AuthErrorCode;
+
+  constructor(code: AuthErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
+async function apiFetch(input: string, init?: RequestInit) {
+  try {
+    const res = await fetch(`${API_BASE_URL}${input}`, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {}),
+      },
+      ...init,
+    });
+
+    return res;
+  } catch {
+    throw new AuthError("NETWORK_ERROR");
+  }
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -24,9 +43,26 @@ export async function signInWithEmail(email: string, password: string) {
     body: JSON.stringify({ email, password }),
   });
 
-  if (!res.ok) {
-    throw new Error("SIGN_IN_FAILED");
+  if (res.ok) {
+    return;
   }
+
+  let code: AuthErrorCode = "SERVER_ERROR";
+
+  try {
+    const data = await res.json();
+    const backendCode = data?.error?.code ?? data?.code;
+
+    if (res.status === 401) {
+      code = "INVALID_CREDENTIALS";
+    } else if (res.status === 403 || backendCode === "ACCOUNT_DISABLED") {
+      code = "ACCOUNT_DISABLED";
+    }
+  } catch {
+    // Ignore JSON parsing issues and fall back to SERVER_ERROR
+  }
+
+  throw new AuthError(code);
 }
 
 export async function signOut() {
