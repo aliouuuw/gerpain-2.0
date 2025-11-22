@@ -16,7 +16,7 @@ import {
 } from "@/components/Sidebar"
 import { cx, focusRing } from "@/lib/utils"
 import { RiArrowDownSFill } from "@remixicon/react"
-import { Home, ShoppingCart, Package, Users, Wallet } from "lucide-react"
+import { Home, ShoppingCart, Package, Users, Wallet, FileText } from "lucide-react"
 import * as React from "react"
 import { Logo } from "@/components/Logo"
 import { UserProfile } from "./UserProfile"
@@ -43,13 +43,46 @@ const navigationGroups = [
         active: false,
       },
       {
-        name: "Saisie des ventes",
+        name: "Livraisons",
+        href: "/sales/deliveries",
+        active: false,
+      },
+      {
+        name: "Vente boutique",
         href: "/sales/transactions",
         active: false,
       },
       {
-        name: "Livraisons",
-        href: "/sales/deliveries",
+        name: "Produits",
+        href: "/sales/products",
+        active: false,
+      },
+      // Plus tard: historique des ventes et des livraisons
+      // {
+      //   name: "Historique",
+      //   href: "/sales/history",
+      //   active: false,
+      // },
+    ],
+  },
+  {
+    name: "Collectes",
+    href: "/cash",
+    icon: Wallet,
+    children: [
+      {
+        name: "Vue d'ensemble",
+        href: "/cash",
+        active: false,
+      },
+      {
+        name: "Encaissements",
+        href: "/cash/collections",
+        active: false,
+      },
+      {
+        name: "Historique",
+        href: "/cash/reconciliations",
         active: false,
       },
     ],
@@ -77,28 +110,6 @@ const navigationGroups = [
     ],
   },
   {
-    name: "Caisse",
-    href: "/cash",
-    icon: Wallet,
-    children: [
-      {
-        name: "Vue d'ensemble",
-        href: "/cash",
-        active: false,
-      },
-      {
-        name: "Collectes",
-        href: "/cash/collections",
-        active: false,
-      },
-      {
-        name: "Rapprochements",
-        href: "/cash/reconciliations",
-        active: false,
-      },
-    ],
-  },
-  {
     name: "Employés",
     href: "/employees",
     icon: Users,
@@ -116,6 +127,38 @@ const navigationGroups = [
       {
         name: "Pointage",
         href: "/employees/attendance",
+        active: false,
+      },
+    ],
+  },
+  {
+    name: "Paie",
+    href: "/payroll",
+    icon: FileText,
+    children: [
+      {
+        name: "Vue d'ensemble",
+        href: "/payroll",
+        active: false,
+      },
+      {
+        name: "Congés & absences",
+        href: "/payroll/leaves",
+        active: false,
+      },
+      {
+        name: "Avances & prêts",
+        href: "/payroll/loans",
+        active: false,
+      },
+      {
+        name: "Primes & bonus",
+        href: "/payroll/bonuses",
+        active: false,
+      },
+      {
+        name: "Bulletins de paie",
+        href: "/payroll/payslips",
         active: false,
       },
     ],
