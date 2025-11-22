@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ReactQueryProvider } from "@/components/ReactQueryProvider";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://gerpain.com"),
@@ -37,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className="h-full light" suppressHydrationWarning>
       <body className="h-full antialiased bg-stone-50">
-        {children}
+        <ReactQueryProvider>{children}</ReactQueryProvider>
       </body>
     </html>
   );
