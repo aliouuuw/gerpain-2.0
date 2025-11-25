@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "../../lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/Sidebar";
 import { AppSidebar } from "@/components/ui/navigation/AppSidebar";
 import { Breadcrumbs } from "@/components/ui/navigation/Breadcrumbs";

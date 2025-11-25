@@ -1,6 +1,6 @@
 "use client"
 
-import { signOut, useSession } from "../../../../lib/auth-client"
+import { signOut, useSession } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { RiLogoutBoxRLine, RiUser3Line } from "@remixicon/react"
 import { cx } from "@/lib/utils"

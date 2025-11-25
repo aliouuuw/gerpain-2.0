@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AuthError, signInWithEmail } from "../../../lib/auth-client";
+import { AuthError, signInWithEmail } from "@/lib/auth-client";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";

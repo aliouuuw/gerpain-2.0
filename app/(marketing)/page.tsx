@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/Button";
 import { Logo } from "@/components/Logo";
 
-export default function Home() {
+export default function MarketingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
       {/* Navigation */}
@@ -45,8 +45,8 @@ export default function Home() {
               <span className="text-amber-600"> Chaînes de Boulangeries</span>
             </h1>
             <p className="mt-6 text-lg leading-8 text-stone-600">
-              Gérez votre production, vos ventes, votre inventaire et votre équipe
-              dans une plateforme unifiée. Conçu spécifiquement pour les besoins
+              Gérez votre production, vos ventes, votre inventaire et votre équipe 
+              dans une plateforme unifiée. Conçu spécifiquement pour les besoins 
               des boulangeries artisanales et industrielles.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">
@@ -74,7 +74,7 @@ export default function Home() {
               Une solution complète pour gérer tous les aspects de votre entreprise
             </p>
           </div>
-
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
@@ -83,7 +83,7 @@ export default function Home() {
               <h3 className="mt-4 text-lg font-semibold text-stone-900">Tableau de bord</h3>
               <p className="mt-2 text-sm text-stone-600">Vue d'ensemble de vos performances en temps réel</p>
             </div>
-
+            
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 🛒
@@ -91,7 +91,7 @@ export default function Home() {
               <h3 className="mt-4 text-lg font-semibold text-stone-900">Gestion des ventes</h3>
               <p className="mt-2 text-sm text-stone-600">Suivi des livraisons et ventes en boutique</p>
             </div>
-
+            
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 📦
@@ -99,7 +99,7 @@ export default function Home() {
               <h3 className="mt-4 text-lg font-semibold text-stone-900">Inventaire</h3>
               <p className="mt-2 text-sm text-stone-600">Gestion des stocks et transferts entre points de vente</p>
             </div>
-
+            
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 👥
