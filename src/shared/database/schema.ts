@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean, integer, numeric, date } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
@@ -145,6 +145,241 @@ export const auditLogs = pgTable("audit_logs", {
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// =====================================================
+// DOMAIN ENTITIES (Gerpain-specific)
+// =====================================================
+
+// Locations table (bakery, shop, warehouse)
+export const locations = pgTable("locations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // "bakery", "shop", "warehouse"
+  address: text("address"),
+  phone: text("phone"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Products table (bakery items)
+export const products = pgTable("products", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // "pain", "viennoiserie", "patisserie", "sandwich", "snack"
+  unitPrice: integer("unit_price").notNull(), // price in XOF (no decimals)
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Employees table (separate from users - employees may not have login)
+export const employees = pgTable("employees", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }), // optional link to user account
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  role: text("role").notNull(), // "delivery", "cashier", "manager", "baker"
+  status: text("status").notNull().default("active"), // "active", "inactive"
+  commissionRate: integer("commission_rate").default(0), // percentage (0-100)
+  hireDate: date("hire_date"),
+  photoUrl: text("photo_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Employee-Location assignments (many-to-many)
+export const employeeLocations = pgTable("employee_locations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id, { onDelete: "cascade" }),
+  isPrimary: boolean("is_primary").default(false),
+  assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+});
+
+// Delivery Runs table
+export const deliveryRuns = pgTable("delivery_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id, { onDelete: "cascade" }),
+  date: date("date").notNull(),
+  status: text("status").notNull().default("draft"), // "draft", "in_progress", "validated"
+  notes: text("notes"),
+  validatedAt: timestamp("validated_at"),
+  validatedBy: uuid("validated_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Delivery Items table
+export const deliveryItems = pgTable("delivery_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => deliveryRuns.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  period: text("period").notNull(), // "Matin", "Après-midi", "Soir"
+  quantityEntrusted: integer("quantity_entrusted").notNull().default(0),
+  quantityReturned: integer("quantity_returned").notNull().default(0),
+  unitPrice: integer("unit_price").notNull(), // snapshot of price at time of delivery
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Cash Collections table
+export const cashCollections = pgTable("cash_collections", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id, { onDelete: "cascade" }),
+  date: date("date").notNull(),
+  expectedAmount: integer("expected_amount").notNull(), // calculated from delivery runs
+  actualAmount: integer("actual_amount"), // total collected
+  cashAmount: integer("cash_amount").default(0),
+  cardAmount: integer("card_amount").default(0),
+  mobileAmount: integer("mobile_amount").default(0),
+  variance: integer("variance"), // actualAmount - expectedAmount
+  status: text("status").notNull().default("pending"), // "pending", "submitted", "validated", "rejected"
+  notes: text("notes"),
+  submittedAt: timestamp("submitted_at"),
+  validatedAt: timestamp("validated_at"),
+  validatedBy: uuid("validated_by").references(() => users.id),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// =====================================================
+// DOMAIN RELATIONS
+// =====================================================
+
+export const locationsRelations = relations(locations, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [locations.organizationId],
+    references: [organizations.id],
+  }),
+  employeeLocations: many(employeeLocations),
+  deliveryRuns: many(deliveryRuns),
+  cashCollections: many(cashCollections),
+}));
+
+export const productsRelations = relations(products, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [products.organizationId],
+    references: [organizations.id],
+  }),
+  deliveryItems: many(deliveryItems),
+}));
+
+export const employeesRelations = relations(employees, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [employees.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [employees.userId],
+    references: [users.id],
+  }),
+  employeeLocations: many(employeeLocations),
+  deliveryRuns: many(deliveryRuns),
+  cashCollections: many(cashCollections),
+}));
+
+export const employeeLocationsRelations = relations(employeeLocations, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeLocations.employeeId],
+    references: [employees.id],
+  }),
+  location: one(locations, {
+    fields: [employeeLocations.locationId],
+    references: [locations.id],
+  }),
+}));
+
+export const deliveryRunsRelations = relations(deliveryRuns, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [deliveryRuns.organizationId],
+    references: [organizations.id],
+  }),
+  employee: one(employees, {
+    fields: [deliveryRuns.employeeId],
+    references: [employees.id],
+  }),
+  location: one(locations, {
+    fields: [deliveryRuns.locationId],
+    references: [locations.id],
+  }),
+  validatedByUser: one(users, {
+    fields: [deliveryRuns.validatedBy],
+    references: [users.id],
+  }),
+  items: many(deliveryItems),
+}));
+
+export const deliveryItemsRelations = relations(deliveryItems, ({ one }) => ({
+  run: one(deliveryRuns, {
+    fields: [deliveryItems.runId],
+    references: [deliveryRuns.id],
+  }),
+  product: one(products, {
+    fields: [deliveryItems.productId],
+    references: [products.id],
+  }),
+}));
+
+export const cashCollectionsRelations = relations(cashCollections, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [cashCollections.organizationId],
+    references: [organizations.id],
+  }),
+  employee: one(employees, {
+    fields: [cashCollections.employeeId],
+    references: [employees.id],
+  }),
+  location: one(locations, {
+    fields: [cashCollections.locationId],
+    references: [locations.id],
+  }),
+  validatedByUser: one(users, {
+    fields: [cashCollections.validatedBy],
+    references: [users.id],
+  }),
+}));
+
+// =====================================================
+// ORIGINAL RELATIONS
+// =====================================================
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -345,3 +580,89 @@ export type NewOrganizationMember = typeof organizationMembers.$inferInsert;
 export type OrganizationInvitation = typeof organizationInvitations.$inferSelect;
 export type NewOrganizationInvitation = typeof organizationInvitations.$inferInsert;
 
+// =====================================================
+// DOMAIN ZOD SCHEMAS
+// =====================================================
+
+export const insertLocationSchema = z.object({
+  organizationId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  type: z.enum(["bakery", "shop", "warehouse"]),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const insertProductSchema = z.object({
+  organizationId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  category: z.enum(["pain", "viennoiserie", "patisserie", "sandwich", "snack"]),
+  unitPrice: z.number().int().positive(),
+  description: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const insertEmployeeSchema = z.object({
+  organizationId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
+  firstName: z.string().min(1).max(100),
+  lastName: z.string().min(1).max(100),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  role: z.enum(["delivery", "cashier", "manager", "baker"]),
+  status: z.enum(["active", "inactive"]).optional(),
+  commissionRate: z.number().int().min(0).max(100).optional(),
+  hireDate: z.string().optional(), // date string
+  photoUrl: z.string().url().optional(),
+});
+
+export const insertDeliveryRunSchema = z.object({
+  organizationId: z.string().uuid(),
+  employeeId: z.string().uuid(),
+  locationId: z.string().uuid(),
+  date: z.string(), // date string
+  status: z.enum(["draft", "in_progress", "validated"]).optional(),
+  notes: z.string().optional(),
+});
+
+export const insertDeliveryItemSchema = z.object({
+  runId: z.string().uuid(),
+  productId: z.string().uuid(),
+  period: z.enum(["Matin", "Après-midi", "Soir"]),
+  quantityEntrusted: z.number().int().min(0),
+  quantityReturned: z.number().int().min(0).optional(),
+  unitPrice: z.number().int().positive(),
+});
+
+export const insertCashCollectionSchema = z.object({
+  organizationId: z.string().uuid(),
+  employeeId: z.string().uuid(),
+  locationId: z.string().uuid(),
+  date: z.string(), // date string
+  expectedAmount: z.number().int().min(0),
+  actualAmount: z.number().int().min(0).optional(),
+  cashAmount: z.number().int().min(0).optional(),
+  cardAmount: z.number().int().min(0).optional(),
+  mobileAmount: z.number().int().min(0).optional(),
+  status: z.enum(["pending", "submitted", "validated", "rejected"]).optional(),
+  notes: z.string().optional(),
+});
+
+// =====================================================
+// DOMAIN TYPES
+// =====================================================
+
+export type Location = typeof locations.$inferSelect;
+export type NewLocation = typeof locations.$inferInsert;
+export type Product = typeof products.$inferSelect;
+export type NewProduct = typeof products.$inferInsert;
+export type Employee = typeof employees.$inferSelect;
+export type NewEmployee = typeof employees.$inferInsert;
+export type EmployeeLocation = typeof employeeLocations.$inferSelect;
+export type NewEmployeeLocation = typeof employeeLocations.$inferInsert;
+export type DeliveryRun = typeof deliveryRuns.$inferSelect;
+export type NewDeliveryRun = typeof deliveryRuns.$inferInsert;
+export type DeliveryItem = typeof deliveryItems.$inferSelect;
+export type NewDeliveryItem = typeof deliveryItems.$inferInsert;
+export type CashCollection = typeof cashCollections.$inferSelect;
+export type NewCashCollection = typeof cashCollections.$inferInsert;
