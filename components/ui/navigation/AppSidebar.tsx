@@ -180,14 +180,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar {...props}>
       <SidebarHeader className="px-4 py-5">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 p-2 shadow-lg shadow-amber-500/20">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 p-2 shadow-lg shadow-[var(--primary)]/20">
             <Logo className="size-6 text-white" />
           </div>
           <div>
-            <span className="block text-base font-bold tracking-tight text-stone-900">
+            <span className="block text-base font-bold tracking-tight text-[var(--foreground)]">
               Gerpain
             </span>
-            <span className="block text-xs font-medium text-amber-700">
+            <span className="block text-xs font-medium text-[var(--primary)]">
               Gestion boulangerie
             </span>
           </div>
@@ -199,7 +199,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Input
               type="search"
               placeholder="Rechercher..."
-              className="shadow-sm ring-1 ring-amber-200/60 [&>input]:bg-amber-50 [&>input]:border-amber-200 [&>input]:placeholder-stone-500 [&>input]:sm:py-1.5"
+              className="shadow-sm ring-1 ring-[var(--ring)]/40 [&>input]:bg-[var(--accent)]/50 [&>input]:border-[var(--border)] [&>input]:placeholder-[var(--muted-foreground)] [&>input]:sm:py-1.5"
             />
           </SidebarGroupContent>
         </SidebarGroup>
@@ -222,7 +222,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
         <div className="px-3">
-          <Divider className="my-0 py-0 border-amber-200/60" />
+          <Divider className="my-0 py-0 border-[var(--border)]" />
         </div>
         <SidebarGroup>
           <SidebarGroupContent>
@@ -232,7 +232,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <button
                     onClick={() => toggleMenu(item.name)}
                     className={cx(
-                      "flex w-full items-center justify-between gap-x-2.5 rounded-md p-2 text-sm text-stone-700 transition hover:bg-amber-100/70 hover:text-stone-900",
+                      "flex w-full items-center justify-between gap-x-2.5 rounded-md p-2 text-sm text-[var(--foreground)] transition hover:bg-[var(--accent)]/70 hover:text-[var(--foreground)]",
                       focusRing,
                     )}
                   >
@@ -245,7 +245,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </div>
                     <RiArrowDownSFill
                       className={cx(
-                        "size-5 shrink-0 transform text-stone-400 transition-transform duration-150 ease-in-out",
+                        "size-5 shrink-0 transform text-[var(--muted-foreground)] transition-transform duration-150 ease-in-out",
                         openMenus.includes(item.name)
                           ? "rotate-0"
                           : "-rotate-90",
@@ -255,7 +255,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </button>
                   {item.children && openMenus.includes(item.name) && (
                     <SidebarMenuSub>
-                      <div className="absolute inset-y-0 left-4 w-px bg-amber-300" />
+                      <div className="absolute inset-y-0 left-4 w-px bg-[var(--primary)]/60" />
                       {item.children.map((child) => (
                         <SidebarMenuItem key={child.name}>
                           <SidebarSubLink
@@ -275,7 +275,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="border-t border-amber-200/60" />
+        <div className="border-t border-[var(--border)]" />
         <UserProfile />
       </SidebarFooter>
     </Sidebar>

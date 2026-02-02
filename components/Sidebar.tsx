@@ -136,7 +136,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
     if (isMobile) {
       return (
         <Drawer open={openMobile} onOpenChange={setOpenMobile} {...props}>
-          <DrawerContent className="bg-stone-50 p-0 text-stone-900">
+          <DrawerContent className="bg-[var(--background)] p-0 text-[var(--foreground)]">
             <VisuallyHidden.Root>
               <DrawerTitle>Menu</DrawerTitle>
             </VisuallyHidden.Root>
@@ -144,7 +144,7 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
               <DrawerClose className="absolute right-4 top-4" asChild>
                 <Button
                   variant="ghost"
-                  className="!p-2 text-stone-600 hover:text-stone-900"
+                  className="!p-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
                 >
                   <RiCloseLine className="size-5 shrink-0" aria-hidden="true" />
                 </Button>
@@ -167,14 +167,14 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
           className={cx(
             "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-150 ease-in-out will-change-transform md:flex",
             "left-0 group-data-[collapsible=true]:left-[calc(var(--sidebar-width)*-1)]",
-            "border-r border-amber-200/60",
+            "border-r border-[var(--border)]",
             className,
           )}
           {...props}
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-gradient-to-b from-amber-50/95 via-stone-50/95 to-orange-50/80 backdrop-blur-md text-stone-900"
+            className="flex h-full w-full flex-col bg-gradient-to-b from-[var(--accent)] via-[var(--background)] to-[var(--secondary)] text-[var(--foreground)]"
           >
             {children}
           </div>
@@ -196,7 +196,7 @@ const SidebarTrigger = React.forwardRef<
       ref={ref}
       data-sidebar="trigger"
       className={cx(
-        "group inline-flex rounded-md p-1.5 text-stone-600 hover:bg-amber-100 hover:text-amber-900",
+        "group inline-flex rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]",
         focusRing,
       )}
       onClick={(event) => {
@@ -278,8 +278,8 @@ const SidebarLink = React.forwardRef<HTMLAnchorElement, SidebarLinkProps>(
         data-active={isActive}
         className={cx(
           "flex items-center justify-between rounded-md p-2 text-sm transition",
-          "text-stone-700 hover:bg-amber-100/70 hover:text-stone-900",
-          "data-[active=true]:bg-amber-100 data-[active=true]:text-amber-900 data-[active=true]:font-medium",
+          "text-[var(--foreground)] hover:bg-[var(--accent)]/70 hover:text-[var(--foreground)]",
+          "data-[active=true]:bg-[var(--accent)] data-[active=true]:text-[var(--foreground)] data-[active=true]:font-medium",
           focusRing,
           className,
         )}
@@ -292,7 +292,7 @@ const SidebarLink = React.forwardRef<HTMLAnchorElement, SidebarLinkProps>(
           {children}
         </span>
         {notifications && (
-          <span className="inline-flex size-5 items-center justify-center rounded bg-amber-600 text-xs font-medium text-white">
+          <span className="inline-flex size-5 items-center justify-center rounded bg-[var(--primary)] text-xs font-medium text-[var(--primary-foreground)]">
             {notifications}
           </span>
         )}
@@ -365,8 +365,8 @@ const SidebarSubLink = React.forwardRef<HTMLAnchorElement, SidebarSubLinkProps>(
         data-active={isActive}
         className={cx(
           "relative flex gap-2 rounded-md py-1.5 pl-9 pr-3 text-sm transition",
-          "text-stone-600 hover:text-stone-900 hover:bg-amber-50",
-          "data-[active=true]:bg-white data-[active=true]:text-amber-800 data-[active=true]:font-medium data-[active=true]:shadow-sm",
+          "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--secondary)]",
+          "data-[active=true]:bg-[var(--card)] data-[active=true]:text-[var(--primary)] data-[active=true]:font-medium data-[active=true]:shadow-sm",
           focusRing,
           className,
         )}
@@ -374,7 +374,7 @@ const SidebarSubLink = React.forwardRef<HTMLAnchorElement, SidebarSubLinkProps>(
       >
         {isActive && (
           <div
-            className="absolute left-4 top-1/2 h-5 w-px -translate-y-1/2 bg-amber-600"
+            className="absolute left-4 top-1/2 h-5 w-px -translate-y-1/2 bg-[var(--primary)]"
             aria-hidden="true"
           />
         )}
@@ -406,7 +406,7 @@ const SidebarInset = React.forwardRef<
     <main
       ref={ref}
       className={cx(
-        "relative flex min-h-svh flex-1 flex-col bg-stone-50 transition-[margin] duration-150 ease-in-out peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
+        "relative flex min-h-svh flex-1 flex-col bg-[var(--background)] transition-[margin] duration-150 ease-in-out peer-data-[variant=inset]:min-h-[calc(100svh-theme(spacing.4))] md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow",
         className,
       )}
       {...props}

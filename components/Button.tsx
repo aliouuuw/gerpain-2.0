@@ -22,25 +22,25 @@ const buttonVariants = tv({
         // border
         "border-transparent",
         // text color
-        "text-white",
+        "text-[var(--primary-foreground)]",
         // background color
-        "bg-amber-600",
+        "bg-[var(--primary)]",
         // hover color
-        "hover:bg-amber-700",
+        "hover:bg-[var(--primary)]/90",
         // disabled
-        "disabled:bg-amber-300 disabled:text-white",
+        "disabled:bg-[var(--primary)]/50 disabled:text-[var(--primary-foreground)]",
       ],
       secondary: [
         // border
-        "border-stone-300",
+        "border-[var(--border)]",
         // text color
-        "text-stone-900",
+        "text-[var(--foreground)]",
         // background color
-        "bg-white",
+        "bg-[var(--card)]",
         //hover color
-        "hover:bg-stone-50",
+        "hover:bg-[var(--secondary)]",
         // disabled
-        "disabled:text-stone-400",
+        "disabled:text-[var(--muted-foreground)]",
       ],
       light: [
         // base
@@ -48,13 +48,13 @@ const buttonVariants = tv({
         // border
         "border-transparent",
         // text color
-        "text-stone-900",
+        "text-[var(--foreground)]",
         // background color
-        "bg-stone-200",
+        "bg-[var(--secondary)]",
         // hover color
-        "hover:bg-stone-300/70",
+        "hover:bg-[var(--secondary)]/80",
         // disabled
-        "disabled:bg-stone-100 disabled:text-stone-400",
+        "disabled:bg-[var(--muted)] disabled:text-[var(--muted-foreground)]",
       ],
       ghost: [
         // base
@@ -62,11 +62,11 @@ const buttonVariants = tv({
         // border
         "border-transparent",
         // text color
-        "text-stone-900",
+        "text-[var(--foreground)]",
         // hover color
-        "bg-transparent hover:bg-stone-100",
+        "bg-transparent hover:bg-[var(--accent)]",
         // disabled
-        "disabled:text-stone-400",
+        "disabled:text-[var(--muted-foreground)]",
       ],
       destructive: [
         // text color

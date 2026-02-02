@@ -53,16 +53,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-8 shadow-xl">
+    <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-xl">
       {/* Logo and Header */}
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="mb-4 flex size-16 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 p-3 shadow-sm">
-          <Logo className="size-10 text-amber-600" />
+        <div className="mb-4 flex size-16 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--primary)]/20 p-3 shadow-sm">
+          <Logo className="size-10 text-[var(--primary)]" />
         </div>
-        <h1 className="text-2xl font-bold text-stone-900">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">
           Gerpain ERP
         </h1>
-        <p className="mt-2 text-sm text-stone-600">
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
           Connectez-vous à votre espace de gestion
         </p>
       </div>
@@ -71,7 +71,7 @@ export default function LoginPage() {
         <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-stone-700"
+            className="block text-sm font-medium text-[var(--foreground)]"
           >
             Adresse e-mail
           </label>
@@ -91,7 +91,7 @@ export default function LoginPage() {
         <div className="space-y-2">
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-stone-700"
+            className="block text-sm font-medium text-[var(--foreground)]"
           >
             Mot de passe
           </label>
@@ -111,7 +111,7 @@ export default function LoginPage() {
         <div className="flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-xs font-medium text-amber-700 hover:text-amber-800"
+            className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]/80"
           >
             Mot de passe oublié ?
           </Link>
@@ -134,8 +134,8 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      <div className="mt-6 border-t border-stone-200 pt-6">
-        <p className="text-center text-xs text-stone-500">
+      <div className="mt-6 border-t border-[var(--border)] pt-6">
+        <p className="text-center text-xs text-[var(--muted-foreground)]">
           Système de gestion pour chaînes de boulangeries
         </p>
       </div>

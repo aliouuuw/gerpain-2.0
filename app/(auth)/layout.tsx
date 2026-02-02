@@ -21,10 +21,10 @@ export default function AuthLayout({
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[var(--accent)] via-[var(--primary)]/10 to-[var(--accent)]">
         <div className="text-center">
-          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600"></div>
-          <p className="text-sm font-medium text-stone-600">
+          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-[var(--primary)]/20 border-t-[var(--primary)]"></div>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">
             Vérification de votre session…
           </p>
         </div>
@@ -37,11 +37,11 @@ export default function AuthLayout({
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--accent)] via-[var(--primary)]/10 to-[var(--accent)] p-4">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 -top-20 size-64 rounded-full bg-amber-200/30 blur-3xl"></div>
-        <div className="absolute -bottom-20 -right-20 size-96 rounded-full bg-orange-200/30 blur-3xl"></div>
+        <div className="absolute -left-20 -top-20 size-64 rounded-full bg-[var(--primary)]/10 blur-3xl"></div>
+        <div className="absolute -bottom-20 -right-20 size-96 rounded-full bg-[var(--primary)]/10 blur-3xl"></div>
       </div>
       
       {/* Content */}

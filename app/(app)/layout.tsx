@@ -24,10 +24,10 @@ export default function AppLayout({
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[var(--accent)] to-[var(--primary)]/20">
         <div className="text-center">
-          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600"></div>
-          <p className="text-sm font-medium text-stone-600">Chargement de votre espace…</p>
+          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-[var(--primary)]/20 border-t-[var(--primary)]"></div>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">Chargement de votre espace…</p>
         </div>
       </div>
     );
@@ -59,12 +59,12 @@ function AppShell({ children }: { children: ReactNode }) {
         className="flex min-h-svh flex-col transition-[margin-left] duration-150 ease-in-out"
         style={insetStyle}
       >
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-stone-200 bg-white/80 px-4 backdrop-blur-sm">
+        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--card)]/80 px-4 backdrop-blur-sm">
           <SidebarTrigger className="-ml-1" />
-          <div className="mr-2 h-4 w-px bg-stone-200" />
+          <div className="mr-2 h-4 w-px bg-[var(--border)]" />
           <Breadcrumbs />
         </header>
-        <main className="page-enter min-h-[calc(100vh-4rem)] bg-gradient-to-br from-stone-50 via-amber-50/30 to-orange-50/20 p-6">
+        <main className="page-enter min-h-[calc(100vh-4rem)] bg-[var(--background)] p-6">
           {children}
         </main>
       </div>

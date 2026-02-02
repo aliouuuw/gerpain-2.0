@@ -80,19 +80,19 @@ export function Breadcrumbs() {
             <li key={crumb.key} className="flex items-center space-x-3">
               {index > 0 && (
                 <ChevronRight
-                  className="size-4 shrink-0 text-stone-400"
+                  className="size-4 shrink-0 text-[var(--muted-foreground)]"
                   aria-hidden="true"
                 />
               )}
 
               {isLast ? (
-                <span className="text-stone-900 font-medium">
+                <span className="text-[var(--foreground)] font-medium">
                   {crumb.label}
                 </span>
               ) : (
                 <Link
                   href={crumb.href}
-                  className="text-stone-700 transition hover:text-stone-950"
+                  className="text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
                 >
                   {crumb.label}
                 </Link>

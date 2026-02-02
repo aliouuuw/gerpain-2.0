@@ -11,7 +11,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
       <div
         ref={ref}
         className={cx(
-          "rounded-lg border border-stone-200 bg-white shadow-sm transition-shadow hover:shadow-md",
+          "rounded-lg border border-[var(--border)] bg-[var(--card)] shadow-sm transition-shadow hover:shadow-md",
           className
         )}
         {...props}
@@ -42,7 +42,7 @@ export const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cx(
-      "text-lg font-semibold leading-none tracking-tight text-stone-900",
+      "text-lg font-semibold leading-none tracking-tight text-[var(--foreground)]",
       className
     )}
     {...props}
@@ -56,7 +56,7 @@ export const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cx("text-sm text-stone-500", className)}
+    className={cx("text-sm text-[var(--muted-foreground)]", className)}
     {...props}
   />
 ))
