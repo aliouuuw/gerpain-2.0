@@ -14,7 +14,7 @@ export default function Home() {
                 <Logo className="size-6 text-white" />
               </div>
               <div>
-                <span className="block text-lg font-bold tracking-tight text-stone-900">
+                <span className="block text-lg font-bold tracking-tight text-[var(--foreground)]">
                   Gerpain
                 </span>
                 <span className="block text-xs font-medium text-amber-700">
@@ -40,11 +40,11 @@ export default function Home() {
       <main className="relative isolate">
         <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-stone-900 sm:text-6xl">
+            <h1 className="text-4xl font-bold tracking-tight text-[var(--foreground)] sm:text-6xl">
               Solution ERP pour
               <span className="text-amber-600"> Chaînes de Boulangeries</span>
             </h1>
-            <p className="mt-6 text-lg leading-8 text-stone-600">
+            <p className="mt-6 text-lg leading-8 text-[var(--muted-foreground)]">
               Gérez votre production, vos ventes, votre inventaire et votre équipe
               dans une plateforme unifiée. Conçu spécifiquement pour les besoins
               des boulangeries artisanales et industrielles.
@@ -67,10 +67,10 @@ export default function Home() {
       <section className="py-24 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight text-stone-900">
+            <h2 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
               Tout ce dont votre boulangerie a besoin
             </h2>
-            <p className="mt-4 text-lg text-stone-600">
+            <p className="mt-4 text-lg text-[var(--muted-foreground)]">
               Une solution complète pour gérer tous les aspects de votre entreprise
             </p>
           </div>
@@ -80,42 +80,42 @@ export default function Home() {
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 📊
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-stone-900">Tableau de bord</h3>
-              <p className="mt-2 text-sm text-stone-600">Vue d'ensemble de vos performances en temps réel</p>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Tableau de bord</h3>
+              <p className="mt-2 text-sm text-[var(--muted-foreground)]">Vue d'ensemble de vos performances en temps réel</p>
             </div>
 
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 🛒
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-stone-900">Gestion des ventes</h3>
-              <p className="mt-2 text-sm text-stone-600">Suivi des livraisons et ventes en boutique</p>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Gestion des ventes</h3>
+              <p className="mt-2 text-sm text-[var(--muted-foreground)]">Suivi des livraisons et ventes en boutique</p>
             </div>
 
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 📦
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-stone-900">Inventaire</h3>
-              <p className="mt-2 text-sm text-stone-600">Gestion des stocks et transferts entre points de vente</p>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Inventaire</h3>
+              <p className="mt-2 text-sm text-[var(--muted-foreground)]">Gestion des stocks et transferts entre points de vente</p>
             </div>
 
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 👥
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-stone-900">Gestion d'équipe</h3>
-              <p className="mt-2 text-sm text-stone-600">Pointage, planning et paie simplifiés</p>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Gestion d'équipe</h3>
+              <p className="mt-2 text-sm text-[var(--muted-foreground)]">Pointage, planning et paie simplifiés</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-amber-200/60 bg-stone-50">
+      <footer className="border-t border-amber-200/60 bg-[var(--surface)]">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="text-center">
-            <p className="text-sm text-stone-600">
+            <p className="text-sm text-[var(--muted-foreground)]">
               © 2024 Gerpain ERP. Solution de gestion pour chaînes de boulangeries.
             </p>
           </div>

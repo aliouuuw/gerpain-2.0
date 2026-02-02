@@ -25,15 +25,15 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-8 shadow-xl">
+    <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-white p-8 shadow-xl">
       <div className="mb-8 flex flex-col items-center text-center">
         <div className="mb-4 flex size-16 items-center justify-center rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 p-3 shadow-sm">
           <Logo className="size-10 text-amber-600" />
         </div>
-        <h1 className="text-2xl font-bold text-stone-900">
+        <h1 className="text-2xl font-bold text-[var(--foreground)]">
           Réinitialiser votre mot de passe
         </h1>
-        <p className="mt-2 text-sm text-stone-600">
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
           Entrez l’adresse e-mail associée à votre compte. Pour l’instant, cette
           fonctionnalité est en cours de déploiement pour les chaînes pilotes.
         </p>
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
           <div className="space-y-2">
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-stone-700"
+              className="block text-sm font-medium text-[var(--foreground)]"
             >
               Adresse e-mail
             </label>
@@ -85,15 +85,15 @@ export default function ForgotPasswordPage() {
             Envoyer la demande
           </Button>
 
-          <p className="text-center text-xs text-stone-500">
+          <p className="text-center text-xs text-[var(--muted-foreground)]">
             Vous pouvez également contacter directement votre responsable pour
             débloquer ou réinitialiser votre accès.
           </p>
         </form>
       )}
 
-      <div className="mt-6 border-t border-stone-200 pt-6">
-        <p className="text-center text-xs text-stone-500">
+      <div className="mt-6 border-t border-[var(--border)] pt-6">
+        <p className="text-center text-xs text-[var(--muted-foreground)]">
           Système de gestion pour chaînes de boulangeries
         </p>
       </div>

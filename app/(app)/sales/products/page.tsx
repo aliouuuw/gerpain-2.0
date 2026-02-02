@@ -4,10 +4,10 @@ export default function ProductsPage() {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900">
+        <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
           Produits
         </h1>
-        <p className="text-stone-600">
+        <p className="text-[var(--muted-foreground)]">
           Gérez votre catalogue de produits : prix, unités, et disponibilité.
         </p>
       </div>
@@ -18,10 +18,10 @@ export default function ProductsPage() {
         </CardHeader>
         <CardContent>
           <div className="text-center py-12">
-            <p className="text-stone-500 mb-4">
+            <p className="text-[var(--muted-foreground)] mb-4">
               La gestion des produits sera bientôt disponible.
             </p>
-            <p className="text-sm text-stone-400">
+            <p className="text-sm text-[var(--muted-foreground)]">
               Cette section permettra de gérer les prix, les unités de mesure, 
               et la disponibilité des produits par point de vente.
             </p>

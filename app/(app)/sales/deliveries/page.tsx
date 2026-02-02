@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 
 import { Button } from "@/components/Button";
 import {
@@ -10,6 +10,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/Card";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
 
@@ -457,22 +466,21 @@ export default function DeliveriesBoardPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="w-full overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Livreur</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Confié</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Produits</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Retour</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">% Ret.</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Vendu</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Montant dû</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Statut</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow variant="header">
+                <TableHead>Livreur</TableHead>
+                <TableHead numeric>Confié</TableHead>
+                <TableHead numeric>Produits</TableHead>
+                <TableHead numeric>Retour</TableHead>
+                <TableHead numeric>% Ret.</TableHead>
+                <TableHead numeric>Vendu</TableHead>
+                <TableHead numeric>Montant dû</TableHead>
+                <TableHead>Statut</TableHead>
+                <TableHead numeric>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
                 {runs.map((run) => {
                   const employee = mockEmployees.find(
                     (candidate) => candidate.id === run.employeeId,
@@ -485,47 +493,44 @@ export default function DeliveriesBoardPage() {
                   );
 
                   return (
-                    <tr
-                      key={run.id}
-                      className="border-b border-[var(--border)]/50 transition-colors hover:bg-[var(--secondary)]/50"
-                    >
-                      <td className="px-4 py-3 align-top">
+                    <TableRow key={run.id}>
+                      <TableCell>
                         <div className="space-y-0.5">
-                          <p className="font-medium text-[var(--foreground)]">
+                          <p className="font-medium">
                             {employee?.name ?? "Livreur"}
                           </p>
                           <p className="text-xs text-[var(--muted-foreground)]">
                             {employee?.routeLabel ?? "Tournée"}
                           </p>
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right align-top font-medium text-[var(--foreground)] tabular-nums">
+                      </TableCell>
+                      <TableCell numeric className="font-medium">
                         {aggregates.quantityEntrusted}
-                      </td>
-                      <td className="px-4 py-3 text-right align-top text-[var(--muted-foreground)] tabular-nums">
+                      </TableCell>
+                      <TableCell numeric className="text-[var(--muted-foreground)]">
                         {distinctProducts.size}
-                      </td>
-                      <td className="px-4 py-3 text-right align-top font-medium text-[var(--foreground)] tabular-nums">
+                      </TableCell>
+                      <TableCell numeric className="font-medium">
                         {aggregates.quantityReturned}
-                      </td>
-                      <td className="px-4 py-3 text-right align-top tabular-nums">
+                      </TableCell>
+                      <TableCell numeric>
                         <span className={aggregates.returnRate > 0.1 ? "font-medium text-[var(--error)]" : "text-[var(--muted-foreground)]"}>
                           {formatReturnRate(aggregates.returnRate)}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-right align-top font-medium text-[var(--foreground)] tabular-nums">
+                      </TableCell>
+                      <TableCell numeric className="font-medium">
                         {aggregates.quantitySold}
-                      </td>
-                      <td className="px-4 py-3 text-right align-top font-semibold text-[var(--foreground)] tabular-nums">
+                      </TableCell>
+                      <TableCell numeric className="font-semibold">
                         {formatCurrency(aggregates.revenue)}
-                      </td>
-                      <td className="px-4 py-3 align-top">
+                      </TableCell>
+                      <TableCell>
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(run.status)}`}>
                           <span className="size-1.5 rounded-full bg-current" />
                           {getStatusLabel(run.status)}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-right align-top">
+                      </TableCell>
+                      <TableCell numeric>
                         <Button
                           type="button"
                           variant="secondary"
@@ -534,41 +539,42 @@ export default function DeliveriesBoardPage() {
                         >
                           Détails
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-                <tr className="border-t border-[var(--border)] bg-[var(--secondary)]/50">
-                  <td className="px-4 py-3 text-left text-sm font-semibold text-[var(--foreground)]">
-                    Total journée
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--foreground)] tabular-nums">
-                    {overallTotals.quantityEntrusted}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-[var(--muted-foreground)] tabular-nums">
-                    {overallDistinctProductsCount}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--foreground)] tabular-nums">
-                    {overallTotals.quantityReturned}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm text-[var(--muted-foreground)] tabular-nums">
-                    {formatReturnRate(overallReturnRate)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--foreground)] tabular-nums">
-                    {overallTotals.quantitySold}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-bold text-[var(--foreground)] tabular-nums">
-                    {formatCurrency(overallTotals.revenue)}
-                  </td>
-                  <td className="px-4 py-3" colSpan={2}>
-                    <p className="text-xs text-[var(--muted-foreground)]">
-                      Toutes tournées confondues
-                    </p>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            </TableBody>
+            <TableFooter>
+              <TableRow variant="muted">
+                <TableCell className="font-semibold">
+                  Total journée
+                </TableCell>
+                <TableCell numeric className="font-semibold">
+                  {overallTotals.quantityEntrusted}
+                </TableCell>
+                <TableCell numeric className="text-[var(--muted-foreground)]">
+                  {overallDistinctProductsCount}
+                </TableCell>
+                <TableCell numeric className="font-semibold">
+                  {overallTotals.quantityReturned}
+                </TableCell>
+                <TableCell numeric className="text-[var(--muted-foreground)]">
+                  {formatReturnRate(overallReturnRate)}
+                </TableCell>
+                <TableCell numeric className="font-semibold">
+                  {overallTotals.quantitySold}
+                </TableCell>
+                <TableCell numeric className="font-bold">
+                  {formatCurrency(overallTotals.revenue)}
+                </TableCell>
+                <TableCell colSpan={2}>
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Toutes tournées confondues
+                  </p>
+                </TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
         </CardContent>
       </Card>
 
@@ -604,21 +610,20 @@ export default function DeliveriesBoardPage() {
                 </div>
               </div>
 
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Produit</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Prix</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Confié</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Retour</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">% Ret.</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Vendu</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Total</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow variant="header">
+                    <TableHead>Produit</TableHead>
+                    <TableHead numeric>Prix</TableHead>
+                    <TableHead numeric>Confié</TableHead>
+                    <TableHead numeric>Retour</TableHead>
+                    <TableHead numeric>% Ret.</TableHead>
+                    <TableHead numeric>Vendu</TableHead>
+                    <TableHead numeric>Total</TableHead>
+                    <TableHead numeric>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                     {mockProducts.map((product) => {
                       const productItems = selectedRun.items.filter(
                         (item) => item.productId === product.id,
@@ -650,49 +655,37 @@ export default function DeliveriesBoardPage() {
                           : 0;
 
                       return (
-                        <>
-                          <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface)]">
-                            <td className="px-4 py-3 align-top">
+                        <React.Fragment key={product.id}>
+                          <TableRow className="bg-[var(--surface)]">
+                            <TableCell>
                               <div className="space-y-0.5">
-                                <p className="font-semibold text-[var(--foreground)]">
+                                <p className="font-semibold">
                                   {product.name}
                                 </p>
                                 <p className="text-xs text-[var(--muted-foreground)]">
                                   {product.unit}
                                 </p>
                               </div>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {formatCurrency(product.unitPrice)}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {productEntrusted}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {productReturned}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {formatReturnRate(productReturnRate)}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {productSold}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-[var(--foreground)]">
-                                {formatCurrency(productTotal)}
-                              </p>
-                            </td>
-                            <td className="px-4 py-3 text-right align-top">
+                            </TableCell>
+                            <TableCell numeric className="font-semibold">
+                              {formatCurrency(product.unitPrice)}
+                            </TableCell>
+                            <TableCell numeric className="font-semibold">
+                              {productEntrusted}
+                            </TableCell>
+                            <TableCell numeric className="font-semibold">
+                              {productReturned}
+                            </TableCell>
+                            <TableCell numeric className="font-semibold">
+                              {formatReturnRate(productReturnRate)}
+                            </TableCell>
+                            <TableCell numeric className="font-semibold">
+                              {productSold}
+                            </TableCell>
+                            <TableCell numeric className="font-semibold">
+                              {formatCurrency(productTotal)}
+                            </TableCell>
+                            <TableCell numeric>
                               <div className="flex justify-end">
                                 <Button
                                   type="button"
@@ -705,8 +698,8 @@ export default function DeliveriesBoardPage() {
                                   + Période
                                 </Button>
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
 
                           {productItems.map((item) => {
                             const soldQuantity =
@@ -718,11 +711,8 @@ export default function DeliveriesBoardPage() {
                                 : 0;
 
                             return (
-                              <tr
-                                key={item.id}
-                                className="border-b border-[var(--border-subtle)] bg-[var(--card)] hover:bg-[var(--surface)]"
-                              >
-                                <td className="px-4 py-3 align-top">
+                              <TableRow key={item.id}>
+                                <TableCell>
                                   <select
                                     value={item.sellingPeriod ?? ""}
                                     onChange={(event) =>
@@ -741,11 +731,9 @@ export default function DeliveriesBoardPage() {
                                       </option>
                                     ))}
                                   </select>
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm text-[var(--muted-foreground)]">⇓</p>
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
+                                </TableCell>
+                                <TableCell numeric className="text-[var(--muted-foreground)]">⇓</TableCell>
+                                <TableCell numeric>
                                   <input
                                     type="number"
                                     min={0}
@@ -759,8 +747,8 @@ export default function DeliveriesBoardPage() {
                                     }
                                     className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                   />
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
+                                </TableCell>
+                                <TableCell numeric>
                                   <input
                                     type="number"
                                     min={0}
@@ -774,23 +762,17 @@ export default function DeliveriesBoardPage() {
                                     }
                                     className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                   />
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm text-[var(--foreground)]">
-                                    {formatReturnRate(lineReturnRate)}
-                                  </p>
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm font-medium text-[var(--foreground)]">
-                                    {soldQuantity}
-                                  </p>
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm font-medium text-[var(--foreground)]">
-                                    {formatCurrency(soldQuantity * item.unitPrice)}
-                                  </p>
-                                </td>
-                                <td className="px-4 py-3 text-right align-top">
+                                </TableCell>
+                                <TableCell numeric>
+                                  {formatReturnRate(lineReturnRate)}
+                                </TableCell>
+                                <TableCell numeric className="font-medium">
+                                  {soldQuantity}
+                                </TableCell>
+                                <TableCell numeric className="font-medium">
+                                  {formatCurrency(soldQuantity * item.unitPrice)}
+                                </TableCell>
+                                <TableCell numeric>
                                   <div className="flex justify-end gap-2">
                                     <Button
                                       type="button"
@@ -814,16 +796,15 @@ export default function DeliveriesBoardPage() {
                                       Supprimer
                                     </Button>
                                   </div>
-                                </td>
-                              </tr>
+                                </TableCell>
+                              </TableRow>
                             );
                           })}
-                        </>
+                        </React.Fragment>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                </TableBody>
+              </Table>
 
               {(() => {
                 const aggregates = computeRunAggregates(selectedRun);
