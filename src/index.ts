@@ -13,6 +13,8 @@ import { errorHandler } from "./middleware/error-handler.js";
 import { auth } from "./domains/auth/routes.js";
 import { health } from "./domains/health/routes.js";
 import { admin } from "./domains/admin/routes.js";
+import { core } from "./domains/core/routes.js";
+import { inventory } from "./domains/inventory/routes.js";
 
 // Logger
 import { Logger } from "./shared/utils/logger.js";
@@ -65,6 +67,8 @@ app.use("/api/v1/docs", apiReference({
 }));
 api.route("/auth", auth);
 api.route("/admin", admin);
+api.route("/core", core);
+api.route("/inventory", inventory);
 
 app.route("/api/v1", api);
 
@@ -81,6 +85,8 @@ app.get("/", (c) => {
         api: "/api/v1",
         auth: "/api/v1/auth",
         admin: "/api/v1/admin",
+        core: "/api/v1/core",
+        inventory: "/api/v1/inventory",
         docs: "/api/v1/docs",
       }
     }
