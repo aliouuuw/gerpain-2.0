@@ -59,51 +59,50 @@ export function UserProfile() {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button 
-          className="flex items-center gap-3 rounded-lg bg-[var(--card)]/60 px-3 py-2.5 shadow-sm ring-1 ring-[var(--ring)]/50 hover:bg-[var(--card)]/80 transition-colors"
+          className="flex w-full items-center gap-2.5 rounded-lg bg-[var(--secondary)]/50 px-2.5 py-2 hover:bg-[var(--secondary)] transition-colors"
           aria-label="Menu utilisateur"
         >
-          <div className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80 shadow-sm">
-            <RiUser3Line className="size-5 text-white" aria-hidden="true" />
+          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary)]/80">
+            <RiUser3Line className="size-4 text-white" aria-hidden="true" />
           </div>
           <div className="flex-1 overflow-hidden text-left">
-            <p className="truncate text-sm font-semibold text-[var(--foreground)]">
-              {data?.user?.name ?? "Utilisateur"}
+            <p className="truncate text-sm font-medium text-[var(--foreground)]">
+              {data?.user?.name ?? "Admin User"}
             </p>
             <p className="truncate text-xs text-[var(--muted-foreground)]">
-              {data?.user?.email}
+              {data?.user?.email ?? "admin@example.com"}
             </p>
           </div>
-          <RiArrowRightSLine className="size-5 text-[var(--muted-foreground)]" aria-hidden="true" />
+          <RiArrowRightSLine className="size-4 text-[var(--muted-foreground)]" aria-hidden="true" />
         </button>
       </DropdownMenu.Trigger>
 
       <DropdownMenu.Portal>
         <DropdownMenu.Content 
-          className="z-50 min-w-[220px] rounded-lg bg-[var(--card)]/95 backdrop-blur-sm shadow-lg ring-1 ring-[var(--ring)]/50 p-1"
-          sideOffset={5}
-          align="end"
+          className="z-50 min-w-[200px] rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-lg p-1"
+          sideOffset={6}
+          align="start"
         >
-          <DropdownMenu.Item className="px-3 py-2 text-sm text-[var(--muted-foreground)] font-medium">
-            {data?.user?.name ?? "Utilisateur"}
-          </DropdownMenu.Item>
-          
-          <DropdownMenu.Separator className="h-px bg-[var(--border)] my-1" />
+          <div className="px-3 py-2 border-b border-[var(--border)]">
+            <p className="text-sm font-medium text-[var(--foreground)]">{data?.user?.name ?? "Admin User"}</p>
+            <p className="text-xs text-[var(--muted-foreground)]">{data?.user?.email ?? "admin@example.com"}</p>
+          </div>
 
           {/* Theme Switcher */}
           <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer">
+            <DropdownMenu.SubTrigger className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors cursor-pointer mt-1">
               {getThemeIcon()}
-              <span>Thème</span>
-              <span className="ml-auto text-xs text-[var(--muted-foreground)]">{getThemeLabel()}</span>
+              <span className="flex-1">Thème</span>
+              <span className="text-xs text-[var(--muted-foreground)]">{getThemeLabel()}</span>
             </DropdownMenu.SubTrigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.SubContent className="z-50 min-w-[140px] rounded-lg bg-[var(--card)]/95 backdrop-blur-sm shadow-lg ring-1 ring-[var(--ring)]/50 p-1">
+              <DropdownMenu.SubContent className="z-50 min-w-[130px] rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-lg p-1">
                 <DropdownMenu.Item 
                   className={cx(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-colors",
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
                     theme === "light" 
-                      ? "bg-[var(--accent)] text-[var(--accent-foreground)]" 
-                      : "text-[var(--foreground)] hover:bg-[var(--accent)]"
+                      ? "bg-[var(--primary)]/10 text-[var(--primary)]" 
+                      : "text-[var(--foreground)] hover:bg-[var(--secondary)]"
                   )}
                   onClick={() => handleThemeChange("light")}
                 >
@@ -112,10 +111,10 @@ export function UserProfile() {
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 
                   className={cx(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-colors",
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
                     theme === "dark" 
-                      ? "bg-[var(--accent)] text-[var(--accent-foreground)]" 
-                      : "text-[var(--foreground)] hover:bg-[var(--accent)]"
+                      ? "bg-[var(--primary)]/10 text-[var(--primary)]" 
+                      : "text-[var(--foreground)] hover:bg-[var(--secondary)]"
                   )}
                   onClick={() => handleThemeChange("dark")}
                 >
@@ -124,10 +123,10 @@ export function UserProfile() {
                 </DropdownMenu.Item>
                 <DropdownMenu.Item 
                   className={cx(
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-colors",
+                    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
                     theme === "system" 
-                      ? "bg-[var(--accent)] text-[var(--accent-foreground)]" 
-                      : "text-[var(--foreground)] hover:bg-[var(--accent)]"
+                      ? "bg-[var(--primary)]/10 text-[var(--primary)]" 
+                      : "text-[var(--foreground)] hover:bg-[var(--secondary)]"
                   )}
                   onClick={() => handleThemeChange("system")}
                 >
@@ -140,18 +139,18 @@ export function UserProfile() {
 
           {/* Profile Settings */}
           <DropdownMenu.Item 
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--accent)] transition-colors cursor-pointer"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--secondary)] transition-colors cursor-pointer"
             onClick={handleProfileSettings}
           >
             <RiSettings3Line className="size-4" />
-            <span>Paramètres du profil</span>
+            <span>Paramètres</span>
           </DropdownMenu.Item>
 
           <DropdownMenu.Separator className="h-px bg-[var(--border)] my-1" />
 
           {/* Logout */}
           <DropdownMenu.Item 
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-[var(--error)] hover:bg-[var(--error-subtle)] transition-colors cursor-pointer"
             onClick={handleLogout}
           >
             <RiLogoutBoxRLine className="size-4" />

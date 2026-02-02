@@ -56,15 +56,15 @@ function AppShell({ children }: { children: ReactNode }) {
     <>
       <AppSidebar />
       <div
-        className="flex min-h-svh flex-col transition-[margin-left] duration-150 ease-in-out"
+        className="flex min-h-svh flex-col transition-[margin-left] duration-200 ease-out"
         style={insetStyle}
       >
-        <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--card)]/80 px-4 backdrop-blur-sm">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-[var(--border)]/60 bg-[var(--card)]/80 px-4 backdrop-blur-xl">
           <SidebarTrigger className="-ml-1" />
-          <div className="mr-2 h-4 w-px bg-[var(--border)]" />
+          <div className="h-4 w-px bg-[var(--border)]/60" />
           <Breadcrumbs />
         </header>
-        <main className="page-enter min-h-[calc(100vh-4rem)] bg-[var(--background)] p-6">
+        <main className="min-h-[calc(100vh-3.5rem)] bg-[var(--background)] p-4 sm:p-6">
           {children}
         </main>
       </div>

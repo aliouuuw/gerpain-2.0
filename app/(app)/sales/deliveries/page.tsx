@@ -194,13 +194,13 @@ function getStatusLabel(status: DeliveryStatus) {
 function getStatusClasses(status: DeliveryStatus) {
   switch (status) {
     case "draft":
-      return "bg-stone-100 text-stone-700";
+      return "bg-[var(--secondary)] text-[var(--muted-foreground)]";
     case "in_progress":
-      return "bg-amber-100 text-amber-800";
+      return "bg-[var(--warning-subtle)] text-[var(--warning)]";
     case "validated":
-      return "bg-emerald-100 text-emerald-800";
+      return "bg-[var(--success-subtle)] text-[var(--success)]";
     default:
-      return "bg-stone-100 text-stone-700";
+      return "bg-[var(--secondary)] text-[var(--muted-foreground)]";
   }
 }
 
@@ -420,82 +420,56 @@ export default function DeliveriesBoardPage() {
   }, 0);
 
   return (
-    <div className="space-y-8">
-      <div className="stagger-item space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900">
-          Tableau des livraisons du jour
-        </h1>
-        <p className="text-stone-600">
-          Suivez, pour chaque livreur, les quantités confiées, les retours et le
-          montant à encaisser. Détaillez ensuite par produit si nécessaire.
-        </p>
-      </div>
-
-      <div className="stagger-item flex flex-wrap items-center gap-4">
-        <div className="space-y-1">
-          <label
-            htmlFor="delivery-date"
-            className="text-sm font-medium text-stone-700"
-          >
-            Date des livraisons
-          </label>
-          <input
-            id="delivery-date"
-            type="date"
-            value={date}
-            onChange={(event) => handleDateChange(event.target.value)}
-            className="h-9 rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
-          />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">
+            Tableau des livraisons
+          </h1>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+            Gérez les livraisons par livreur · Confiés, retours et encaissements
+          </p>
         </div>
-
-        <p className="text-sm text-stone-500">
-          Le point de vente actif est sélectionné globalement dans l&apos;interface
-          (en-tête). Ce tableau affiche les livraisons pour ce point de vente et
-          la date choisie.
-        </p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="delivery-date" className="text-sm font-medium text-[var(--muted-foreground)]">
+              Date
+            </label>
+            <input
+              id="delivery-date"
+              type="date"
+              value={date}
+              onChange={(event) => handleDateChange(event.target.value)}
+              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] transition-colors focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            />
+          </div>
+        </div>
       </div>
 
-      <Card className="stagger-item overflow-hidden">
-        <CardHeader className="space-y-1">
-          <CardTitle>Vue d&apos;ensemble par livreur</CardTitle>
-          <CardDescription>
-            Une ligne par livreur avec les principaux indicateurs : confié,
-            retours, vendu et montant dû. Cliquez sur « Détails » pour saisir ou
-            ajuster les quantités par produit.
-          </CardDescription>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle>Vue d&apos;ensemble par livreur</CardTitle>
+            <CardDescription>
+              Cliquez sur « Détails » pour gérer les quantités par produit
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <div className="w-full overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm">
+            <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-stone-200 bg-stone-50">
-                  <th className="px-4 py-2 text-left font-medium text-stone-700">
-                    Livreur
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    Confié
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    Produits
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    Retour
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    % retour
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    Vendu
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    Montant dû
-                  </th>
-                  <th className="px-4 py-2 text-left font-medium text-stone-700">
-                    Statut
-                  </th>
-                  <th className="px-4 py-2 text-right font-medium text-stone-700">
-                    Actions
-                  </th>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Livreur</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Confié</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Produits</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Retour</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">% Ret.</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Vendu</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Montant dû</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Statut</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -513,55 +487,41 @@ export default function DeliveriesBoardPage() {
                   return (
                     <tr
                       key={run.id}
-                      className="border-b border-stone-100 bg-white hover:bg-stone-50/70"
+                      className="border-b border-[var(--border)]/50 transition-colors hover:bg-[var(--secondary)]/50"
                     >
                       <td className="px-4 py-3 align-top">
                         <div className="space-y-0.5">
-                          <p className="font-medium text-stone-900">
+                          <p className="font-medium text-[var(--foreground)]">
                             {employee?.name ?? "Livreur"}
                           </p>
-                          <p className="text-xs text-stone-500">
+                          <p className="text-xs text-[var(--muted-foreground)]">
                             {employee?.routeLabel ?? "Tournée"}
                           </p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right align-top">
-                        <p className="font-medium text-stone-900">
-                          {aggregates.quantityEntrusted}
-                        </p>
+                      <td className="px-4 py-3 text-right align-top font-medium text-[var(--foreground)] tabular-nums">
+                        {aggregates.quantityEntrusted}
                       </td>
-                      <td className="px-4 py-3 text-right align-top">
-                        <p className="font-medium text-stone-900">
-                          {distinctProducts.size}
-                        </p>
+                      <td className="px-4 py-3 text-right align-top text-[var(--muted-foreground)] tabular-nums">
+                        {distinctProducts.size}
                       </td>
-                      <td className="px-4 py-3 text-right align-top">
-                        <p className="font-medium text-stone-900">
-                          {aggregates.quantityReturned}
-                        </p>
+                      <td className="px-4 py-3 text-right align-top font-medium text-[var(--foreground)] tabular-nums">
+                        {aggregates.quantityReturned}
                       </td>
-                      <td className="px-4 py-3 text-right align-top">
-                        <p className="font-medium text-stone-900">
+                      <td className="px-4 py-3 text-right align-top tabular-nums">
+                        <span className={aggregates.returnRate > 0.1 ? "font-medium text-[var(--error)]" : "text-[var(--muted-foreground)]"}>
                           {formatReturnRate(aggregates.returnRate)}
-                        </p>
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-right align-top">
-                        <p className="font-medium text-stone-900">
-                          {aggregates.quantitySold}
-                        </p>
+                      <td className="px-4 py-3 text-right align-top font-medium text-[var(--foreground)] tabular-nums">
+                        {aggregates.quantitySold}
                       </td>
-                      <td className="px-4 py-3 text-right align-top">
-                        <p className="font-medium text-stone-900">
-                          {formatCurrency(aggregates.revenue)}
-                        </p>
+                      <td className="px-4 py-3 text-right align-top font-semibold text-[var(--foreground)] tabular-nums">
+                        {formatCurrency(aggregates.revenue)}
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusClasses(
-                            run.status,
-                          )}`}
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(run.status)}`}>
+                          <span className="size-1.5 rounded-full bg-current" />
                           {getStatusLabel(run.status)}
                         </span>
                       </td>
@@ -569,6 +529,7 @@ export default function DeliveriesBoardPage() {
                         <Button
                           type="button"
                           variant="secondary"
+                          size="sm"
                           onClick={() => setSelectedRunId(run.id)}
                         >
                           Détails
@@ -577,32 +538,31 @@ export default function DeliveriesBoardPage() {
                     </tr>
                   );
                 })}
-                <tr className="border-t border-stone-200 bg-stone-50">
-                  <td className="px-4 py-3 text-left text-sm font-semibold text-stone-900">
+                <tr className="border-t border-[var(--border)] bg-[var(--secondary)]/50">
+                  <td className="px-4 py-3 text-left text-sm font-semibold text-[var(--foreground)]">
                     Total journée
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--foreground)] tabular-nums">
                     {overallTotals.quantityEntrusted}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right text-sm text-[var(--muted-foreground)] tabular-nums">
                     {overallDistinctProductsCount}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--foreground)] tabular-nums">
                     {overallTotals.quantityReturned}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right text-sm text-[var(--muted-foreground)] tabular-nums">
                     {formatReturnRate(overallReturnRate)}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right text-sm font-semibold text-[var(--foreground)] tabular-nums">
                     {overallTotals.quantitySold}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                  <td className="px-4 py-3 text-right text-sm font-bold text-[var(--foreground)] tabular-nums">
                     {formatCurrency(overallTotals.revenue)}
                   </td>
                   <td className="px-4 py-3" colSpan={2}>
-                    <p className="text-xs text-stone-500">
-                      Vue d&apos;ensemble de la journée, toutes tournées
-                      confondues.
+                    <p className="text-xs text-[var(--muted-foreground)]">
+                      Toutes tournées confondues
                     </p>
                   </td>
                 </tr>
@@ -612,86 +572,50 @@ export default function DeliveriesBoardPage() {
         </CardContent>
       </Card>
 
-      <Card className="stagger-item overflow-hidden">
-        <CardHeader className="space-y-1">
-          <CardTitle>Détail par livreur et par produit</CardTitle>
-          <CardDescription>
-            Sélectionnez un livreur dans le tableau ci-dessus pour saisir ou
-            ajuster les quantités par produit.
-          </CardDescription>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <div>
+            <CardTitle>Détail par produit</CardTitle>
+            <CardDescription>
+              {selectedRun ? "Saisissez les quantités confiées et retournées" : "Sélectionnez un livreur ci-dessus"}
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {selectedRun ? (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="space-y-0.5">
-                  <p className="text-sm font-medium text-stone-900">
-                    {
-                      mockEmployees.find(
-                        (employee) => employee.id === selectedRun.employeeId,
-                      )?.name
-                    }
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-[var(--secondary)]/50 p-4">
+                <div className="space-y-1">
+                  <p className="font-medium text-[var(--foreground)]">
+                    {mockEmployees.find((e) => e.id === selectedRun.employeeId)?.name}
                   </p>
-                  <p className="text-xs text-stone-500">
-                    {
-                      mockEmployees.find(
-                        (employee) => employee.id === selectedRun.employeeId,
-                      )?.routeLabel
-                    }
-                  </p>
-                  <p className="text-xs text-stone-500">
-                    Date : {selectedRun.date} · Point de vente :
-                    {" "}
-                    {selectedRun.locationName}
+                  <p className="text-sm text-[var(--muted-foreground)]">
+                    {mockEmployees.find((e) => e.id === selectedRun.employeeId)?.routeLabel} · {selectedRun.date}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${getStatusClasses(
-                      selectedRun.status,
-                    )}`}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                <div className="flex items-center gap-3">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(selectedRun.status)}`}>
+                    <span className="size-1.5 rounded-full bg-current" />
                     {getStatusLabel(selectedRun.status)}
                   </span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setSelectedRunId(null)}
-                  >
-                    Fermer le détail
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedRunId(null)}>
+                    Fermer
                   </Button>
                 </div>
               </div>
 
               <div className="w-full overflow-x-auto">
-                <table className="min-w-full border-collapse text-sm">
+                <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-stone-200 bg-stone-50">
-                      <th className="px-4 py-2 text-left font-medium text-stone-700">
-                        Produit
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        Prix unit.
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        Confié
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        Retour
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        % retour
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        Vendu
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        Total
-                      </th>
-                      <th className="px-4 py-2 text-right font-medium text-stone-700">
-                        Actions
-                      </th>
+                    <tr className="border-b border-[var(--border)]">
+                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Produit</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Prix</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Confié</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Retour</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">% Ret.</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Vendu</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Total</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -972,12 +896,10 @@ export default function DeliveriesBoardPage() {
                   Valider la tournée
                 </Button>
               </div>
-            </>
+            </div>
           ) : (
-            <p className="text-sm text-stone-500">
-              Sélectionnez un livreur dans le tableau récapitulatif pour voir le
-              détail par produit et saisir les quantités confiées et les
-              retours.
+            <p className="py-8 text-center text-sm text-[var(--muted-foreground)]">
+              Sélectionnez un livreur ci-dessus pour gérer les quantités par produit.
             </p>
           )}
         </CardContent>

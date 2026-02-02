@@ -136,12 +136,12 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
     if (isMobile) {
       return (
         <Drawer open={openMobile} onOpenChange={setOpenMobile} {...props}>
-          <DrawerContent className="bg-[var(--background)] p-0 text-[var(--foreground)]">
+          <DrawerContent className="bg-[var(--card)] p-0 text-[var(--foreground)]">
             <VisuallyHidden.Root>
               <DrawerTitle>Menu</DrawerTitle>
             </VisuallyHidden.Root>
             <div className="relative flex h-full w-full flex-col">
-              <DrawerClose className="absolute right-4 top-4" asChild>
+              <DrawerClose className="absolute right-4 top-4 z-10" asChild>
                 <Button
                   variant="ghost"
                   className="!p-2 text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
@@ -165,16 +165,16 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
       >
         <div
           className={cx(
-            "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-150 ease-in-out will-change-transform md:flex",
+            "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-out will-change-transform md:flex",
             "left-0 group-data-[collapsible=true]:left-[calc(var(--sidebar-width)*-1)]",
-            "border-r border-[var(--border)]",
+            "border-r border-[var(--border-subtle)]",
             className,
           )}
           {...props}
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-gradient-to-b from-[var(--accent)] via-[var(--background)] to-[var(--secondary)] text-[var(--foreground)]"
+            className="flex h-full w-full flex-col bg-[var(--card)] text-[var(--foreground)]"
           >
             {children}
           </div>
@@ -277,22 +277,24 @@ const SidebarLink = React.forwardRef<HTMLAnchorElement, SidebarLinkProps>(
         aria-current={isActive ? "page" : undefined}
         data-active={isActive}
         className={cx(
-          "flex items-center justify-between rounded-md p-2 text-sm transition",
-          "text-[var(--foreground)] hover:bg-[var(--accent)]/70 hover:text-[var(--foreground)]",
-          "data-[active=true]:bg-[var(--accent)] data-[active=true]:text-[var(--foreground)] data-[active=true]:font-medium",
+          "flex items-center justify-between rounded-[var(--radius-control)] px-2.5 py-1.5 text-sm",
+          "text-[var(--foreground)]",
+          "transition-[background-color,color,transform] duration-200",
+          "hover:-translate-y-0.5 hover:bg-[var(--surface-2)]",
+          "data-[active=true]:bg-[var(--primary-subtle)] data-[active=true]:text-[var(--foreground)] data-[active=true]:font-semibold",
           focusRing,
           className,
         )}
         {...props}
       >
-        <span className="flex items-center gap-x-2.5">
+        <span className="flex items-center gap-x-2">
           {Icon && (
-            <Icon className="size-[18px] shrink-0" aria-hidden="true" />
+            <Icon className="size-4 shrink-0 text-[var(--muted-foreground)] data-[active=true]:text-[var(--primary)]" aria-hidden="true" />
           )}
-          {children}
+          <span className="font-medium">{children}</span>
         </span>
         {notifications && (
-          <span className="inline-flex size-5 items-center justify-center rounded bg-[var(--primary)] text-xs font-medium text-[var(--primary-foreground)]">
+          <span className="inline-flex size-4 items-center justify-center rounded-full bg-[var(--primary)] text-[9px] font-semibold text-[var(--primary-foreground)]">
             {notifications}
           </span>
         )}
@@ -364,20 +366,16 @@ const SidebarSubLink = React.forwardRef<HTMLAnchorElement, SidebarSubLinkProps>(
         aria-current={isActive ? "page" : undefined}
         data-active={isActive}
         className={cx(
-          "relative flex gap-2 rounded-md py-1.5 pl-9 pr-3 text-sm transition",
-          "text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--secondary)]",
-          "data-[active=true]:bg-[var(--card)] data-[active=true]:text-[var(--primary)] data-[active=true]:font-medium data-[active=true]:shadow-sm",
+          "relative flex gap-2 rounded-[calc(var(--radius-control)-0.25rem)] py-1 px-2 text-[13px]",
+          "text-[var(--muted-foreground)]",
+          "transition-[background-color,color,transform] duration-200",
+          "hover:-translate-y-0.5 hover:text-[var(--foreground)] hover:bg-[var(--surface-2)]",
+          "data-[active=true]:bg-[var(--primary-subtle)] data-[active=true]:text-[var(--foreground)] data-[active=true]:font-semibold",
           focusRing,
           className,
         )}
         {...props}
       >
-        {isActive && (
-          <div
-            className="absolute left-4 top-1/2 h-5 w-px -translate-y-1/2 bg-[var(--primary)]"
-            aria-hidden="true"
-          />
-        )}
         {children}
       </Link>
     )

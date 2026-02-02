@@ -1,89 +1,78 @@
-// Tremor Button [v0.2.0]
-
 import React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { RiLoader2Fill } from "@remixicon/react"
+import { Loader2 } from "lucide-react"
 import { tv, type VariantProps } from "tailwind-variants"
 
 import { cx, focusRing } from "@/lib/utils"
 
 const buttonVariants = tv({
   base: [
-    // base
-    "relative inline-flex items-center justify-center whitespace-nowrap rounded-md border px-3 py-2 text-center text-sm font-medium shadow-sm transition-all duration-100 ease-in-out",
-    // disabled
-    "disabled:pointer-events-none disabled:shadow-none",
-    // focus
+    "relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-control)] border text-center text-sm font-semibold tracking-[-0.01em]",
+    "transition-[transform,background-color,border-color,color,box-shadow] duration-200",
+    "disabled:pointer-events-none disabled:opacity-50",
     focusRing,
   ],
   variants: {
     variant: {
       primary: [
-        // border
-        "border-transparent",
-        // text color
+        "border-[var(--border)]",
         "text-[var(--primary-foreground)]",
-        // background color
-        "bg-[var(--primary)]",
-        // hover color
-        "hover:bg-[var(--primary)]/90",
-        // disabled
-        "disabled:bg-[var(--primary)]/50 disabled:text-[var(--primary-foreground)]",
+        "bg-[linear-gradient(135deg,var(--primary),var(--primary-2))]",
+        "shadow-[var(--shadow-hero)]",
+        "hover:-translate-y-0.5 hover:shadow-[var(--shadow-xl)]",
+        "active:translate-y-0 active:scale-[0.99]",
       ],
       secondary: [
-        // border
         "border-[var(--border)]",
-        // text color
         "text-[var(--foreground)]",
-        // background color
-        "bg-[var(--card)]",
-        //hover color
-        "hover:bg-[var(--secondary)]",
-        // disabled
-        "disabled:text-[var(--muted-foreground)]",
+        "bg-[var(--surface)]",
+        "shadow-[var(--shadow-sm)]",
+        "hover:-translate-y-0.5 hover:bg-[var(--card)] hover:shadow-[var(--shadow-md)]",
+        "active:translate-y-0 active:scale-[0.99]",
       ],
-      light: [
-        // base
-        "shadow-none",
-        // border
-        "border-transparent",
-        // text color
-        "text-[var(--foreground)]",
-        // background color
-        "bg-[var(--secondary)]",
-        // hover color
-        "hover:bg-[var(--secondary)]/80",
-        // disabled
-        "disabled:bg-[var(--muted)] disabled:text-[var(--muted-foreground)]",
+      soft: [
+        "border-[var(--border)]",
+        "text-[var(--primary)]",
+        "bg-[var(--primary-subtle)]",
+        "shadow-[var(--shadow-sm)]",
+        "hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]",
+        "active:translate-y-0 active:scale-[0.99]",
       ],
       ghost: [
-        // base
-        "shadow-none",
-        // border
         "border-transparent",
-        // text color
         "text-[var(--foreground)]",
-        // hover color
-        "bg-transparent hover:bg-[var(--accent)]",
-        // disabled
-        "disabled:text-[var(--muted-foreground)]",
+        "bg-transparent",
+        "hover:bg-[var(--surface-2)] hover:-translate-y-0.5",
+        "active:translate-y-0 active:scale-[0.99]",
       ],
       destructive: [
-        // text color
-        "text-white",
-        // border
-        "border-transparent",
-        // background color
-        "bg-red-600",
-        // hover color
-        "hover:bg-red-700",
-        // disabled
-        "disabled:bg-red-300 disabled:text-white",
+        "border-[var(--border)]",
+        "text-[var(--primary-foreground)]",
+        "bg-[var(--error)]",
+        "shadow-[var(--shadow-md)]",
+        "hover:-translate-y-0.5 hover:bg-[#ff4a4a]",
+        "active:translate-y-0 active:scale-[0.99]",
       ],
+      outline: [
+        "border-[var(--border)]",
+        "text-[var(--foreground)]",
+        "bg-transparent",
+        "shadow-[var(--shadow-sm)]",
+        "hover:-translate-y-0.5 hover:bg-[var(--surface-2)] hover:shadow-[var(--shadow-md)]",
+        "active:translate-y-0 active:scale-[0.99]",
+      ],
+    },
+    size: {
+      sm: "h-8 px-3 text-xs",
+      md: "h-9 px-4 text-sm",
+      lg: "h-10 px-5 text-sm",
+      xl: "h-11 px-6 text-base",
+      icon: "h-9 w-9 p-0",
     },
   },
   defaultVariants: {
     variant: "primary",
+    size: "md",
   },
 })
 
@@ -104,6 +93,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       className,
       disabled,
       variant,
+      size,
       children,
       ...props
     }: ButtonProps,
@@ -113,21 +103,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Component
         ref={forwardedRef}
-        className={cx(buttonVariants({ variant }), className)}
+        className={cx(buttonVariants({ variant, size }), className)}
         disabled={disabled || isLoading}
-        tremor-id="tremor-raw"
         {...props}
       >
         {isLoading ? (
-          <span className="pointer-events-none flex shrink-0 items-center justify-center gap-1.5">
-            <RiLoader2Fill
-              className="size-4 shrink-0 animate-spin"
-              aria-hidden="true"
-            />
-            <span className="sr-only">
-              {loadingText ? loadingText : "Chargement"}
-            </span>
-            {loadingText ? loadingText : children}
+          <span className="pointer-events-none flex shrink-0 items-center justify-center gap-2">
+            <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" />
+            <span className="sr-only">{loadingText ?? "Chargement"}</span>
+            {loadingText ?? children}
           </span>
         ) : (
           children

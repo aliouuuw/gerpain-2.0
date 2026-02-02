@@ -24,7 +24,7 @@ export default function MarketingPage() {
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login">
-                <Button variant="light">
+                <Button variant="ghost">
                   Connexion
                 </Button>
               </Link>
