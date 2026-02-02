@@ -19,6 +19,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { ConfirmDialog } from "@/components/ui/dialog";
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
 
@@ -221,6 +222,11 @@ export default function DeliveriesBoardPage() {
     createInitialRuns(new Date().toISOString().slice(0, 10)),
   );
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    runId: string;
+    itemId: string;
+    productName: string;
+  } | null>(null);
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
@@ -323,6 +329,13 @@ export default function DeliveriesBoardPage() {
           : run,
       ),
     );
+    setPendingDelete(null);
+  }
+
+  function confirmDeleteItem() {
+    if (pendingDelete) {
+      handleDeleteItem(pendingDelete.runId, pendingDelete.itemId);
+    }
   }
 
   function handleClearItem(runId: string, itemId: string) {
@@ -790,7 +803,11 @@ export default function DeliveriesBoardPage() {
                                       className="h-8 px-2 text-xs text-[var(--error)] hover:text-[var(--error)]/90 disabled:text-[var(--muted-foreground)]"
                                       disabled={!canDelete}
                                       onClick={() =>
-                                        handleDeleteItem(selectedRun.id, item.id)
+                                        setPendingDelete({
+                                          runId: selectedRun.id,
+                                          itemId: item.id,
+                                          productName: product.name,
+                                        })
                                       }
                                     >
                                       Supprimer
@@ -885,6 +902,20 @@ export default function DeliveriesBoardPage() {
           )}
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => !open && setPendingDelete(null)}
+        title="Supprimer cette ligne ?"
+        description={
+          pendingDelete
+            ? `Voulez-vous vraiment supprimer cette ligne de ${pendingDelete.productName} ? Cette action est irréversible.`
+            : undefined
+        }
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        destructive
+        onConfirm={confirmDeleteItem}
+      />
     </div>
   );
 }
