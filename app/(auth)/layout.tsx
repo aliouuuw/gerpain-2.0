@@ -21,10 +21,10 @@ export default function AuthLayout({
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[var(--accent)] via-[var(--primary)]/10 to-[var(--accent)]">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)]">
         <div className="text-center">
-          <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-[var(--primary)]/20 border-t-[var(--primary)]"></div>
-          <p className="text-sm font-medium text-[var(--muted-foreground)]">
+          <div className="mb-4 inline-block size-10 animate-spin rounded-full border-[3px] border-[var(--border)] border-t-[var(--primary)]"></div>
+          <p className="text-sm text-[var(--muted-foreground)]">
             Vérification de votre session…
           </p>
         </div>
@@ -37,15 +37,18 @@ export default function AuthLayout({
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[var(--accent)] via-[var(--primary)]/10 to-[var(--accent)] p-4">
-      {/* Decorative background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 -top-20 size-64 rounded-full bg-[var(--primary)]/10 blur-3xl"></div>
-        <div className="absolute -bottom-20 -right-20 size-96 rounded-full bg-[var(--primary)]/10 blur-3xl"></div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--surface)] p-4">
+      {/* Warm artisan background pattern */}
+      <div className="absolute inset-0">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/[0.04] via-transparent to-[var(--primary)]/[0.01]" />
+        {/* Decorative circles */}
+        <div className="absolute -left-32 -top-32 size-96 rounded-full bg-[var(--primary)]/[0.04] blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 size-[500px] rounded-full bg-[var(--primary)]/[0.03] blur-3xl" />
       </div>
       
       {/* Content */}
-      <div className="relative z-10">
+      <div className="relative z-10 w-full max-w-md">
         {children}
       </div>
     </div>

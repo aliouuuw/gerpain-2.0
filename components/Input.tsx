@@ -9,9 +9,9 @@ import { cx, focusInput, focusRing, hasErrorInput } from "@/lib/utils"
 const inputStyles = tv({
   base: [
     // base
-    "relative block w-full appearance-none rounded-md border px-2.5 py-2 shadow-sm outline-none transition sm:text-sm",
+    "relative block w-full appearance-none rounded-[var(--radius-control)] border px-3 py-2.5 outline-none transition-all duration-200 sm:text-sm",
     // border color
-    "border-[var(--border)]",
+    "border-[var(--border-subtle)]",
     // text color
     "text-[var(--foreground)]",
     // placeholder color
@@ -19,11 +19,11 @@ const inputStyles = tv({
     // background color
     "bg-[var(--card)]",
     // disabled
-    "disabled:border-[var(--border)] disabled:bg-[var(--muted)] disabled:text-[var(--muted-foreground)]",
+    "disabled:border-[var(--border-subtle)] disabled:bg-[var(--muted)] disabled:text-[var(--muted-foreground)] disabled:cursor-not-allowed",
     // file
     [
-      "file:-my-2 file:-ml-2.5 file:cursor-pointer file:rounded-l-[5px] file:rounded-r-none file:border-0 file:px-3 file:py-2 file:outline-none focus:outline-none disabled:pointer-events-none file:disabled:pointer-events-none",
-      "file:border-solid file:border-[var(--border)] file:bg-[var(--secondary)] file:text-[var(--muted-foreground)] file:hover:bg-[var(--accent)]",
+      "file:-my-2.5 file:-ml-3 file:cursor-pointer file:rounded-l-[var(--radius-control)] file:rounded-r-none file:border-0 file:px-3 file:py-2.5 file:outline-none focus:outline-none disabled:pointer-events-none file:disabled:pointer-events-none",
+      "file:border-solid file:border-[var(--border)] file:bg-[var(--surface)] file:text-[var(--muted-foreground)] file:hover:bg-[var(--surface-2)]",
       "file:[border-inline-end-width:1px] file:[margin-inline-end:0.75rem]",
       "file:disabled:bg-[var(--muted)] file:disabled:text-[var(--muted-foreground)]",
     ],

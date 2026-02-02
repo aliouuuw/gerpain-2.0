@@ -1,27 +1,27 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/Card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/Card";
 
 export default function ReportsPage() {
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900">
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl text-[var(--foreground)]">
           Rapports
         </h1>
-        <p className="text-stone-600">
+        <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
           Consultez les rapports de ventes, de stock et de performance.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Ventes</CardTitle>
+            <CardTitle>Ventes</CardTitle>
+            <CardDescription>
+              Par période et par point de vente.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-stone-600 mb-4">
-              Rapports de ventes par période et par point de vente.
-            </p>
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-[var(--muted-foreground)]">
               Bientôt disponible
             </p>
           </CardContent>
@@ -29,13 +29,13 @@ export default function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Stock</CardTitle>
+            <CardTitle>Stock</CardTitle>
+            <CardDescription>
+              État des stocks et mouvements.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-stone-600 mb-4">
-              État des stocks et mouvements de produits.
-            </p>
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-[var(--muted-foreground)]">
               Bientôt disponible
             </p>
           </CardContent>
@@ -43,13 +43,13 @@ export default function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Performance</CardTitle>
+            <CardTitle>Performance</CardTitle>
+            <CardDescription>
+              Indicateurs par employé et point de vente.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-stone-600 mb-4">
-              Indicateurs de performance par employé et par point de vente.
-            </p>
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-[var(--muted-foreground)]">
               Bientôt disponible
             </p>
           </CardContent>

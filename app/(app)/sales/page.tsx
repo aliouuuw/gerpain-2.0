@@ -4,58 +4,52 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function SalesPage() {
   return (
-    <div className="space-y-8">
-      <div className="stagger-item">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900">Ventes</h1>
-        <p className="mt-2 text-stone-600">
-          Suivez et enregistrez les ventes quotidiennes de vos points de vente. Cette
-          page regroupera les principaux écrans de saisie pour la caisse et les
-          livraisons.
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl text-[var(--foreground)]">Ventes</h1>
+        <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
+          Suivez et enregistrez les ventes quotidiennes de vos points de vente.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="stagger-item" style={{ animationDelay: "0.05s" }}>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Saisie des ventes en caisse</CardTitle>
             <CardDescription>
-              Écran principal pour enregistrer rapidement les ventes directes en
-              magasin.
+              Enregistrer rapidement les ventes directes en magasin.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
-              <li>Produits fréquents en accès rapide (Pain kilo, viennoiseries…)</li>
-              <li>Saisie par quantités avec calcul automatique du total</li>
-              <li>Choix du mode de paiement et récapitulatif de la vente</li>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--muted-foreground)]">
+              <li>Produits fréquents en accès rapide</li>
+              <li>Saisie par quantités avec calcul automatique</li>
+              <li>Choix du mode de paiement</li>
             </ul>
           </CardContent>
         </Card>
 
-        <Card className="stagger-item" style={{ animationDelay: "0.1s" }}>
+        <Card>
           <CardHeader>
             <CardTitle>Livraisons et commandes</CardTitle>
             <CardDescription>
-              Suivi des commandes livrées aux clients professionnels et aux autres
-              points de vente.
+              Suivi des commandes livrées aux clients et points de vente.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
-              <li>Vue des livraisons du jour et de la tournée</li>
-              <li>Détail par client, produits livrés et montants</li>
-              <li>Préparation des données pour la facturation et le reporting</li>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--muted-foreground)]">
+              <li>Vue des livraisons du jour</li>
+              <li>Détail par client et produits livrés</li>
+              <li>Préparation des données pour la facturation</li>
             </ul>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="stagger-item border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50" style={{ animationDelay: "0.15s" }}>
-        <CardContent className="pt-6">
-          <p className="text-sm text-stone-700">
-            Les fonctionnalités détaillées de saisie des ventes seront ajoutées au
-            fur et à mesure de l&apos;implémentation du MVP. Cette page sert de
-            point d&apos;entrée pour les flux quotidiens de vente.
+      <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--surface)]">
+        <CardContent className="p-4">
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Les fonctionnalités détaillées seront ajoutées progressivement.
           </p>
         </CardContent>
       </Card>

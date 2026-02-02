@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
-import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/Sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/Sidebar";
 import { AppSidebar } from "@/components/ui/navigation/AppSidebar";
 import { Breadcrumbs } from "@/components/ui/navigation/Breadcrumbs";
 
@@ -24,7 +24,7 @@ export default function AppLayout({
 
   if (isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[var(--accent)] to-[var(--primary)]/20">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)]">
         <div className="text-center">
           <div className="mb-4 inline-block size-12 animate-spin rounded-full border-4 border-[var(--primary)]/20 border-t-[var(--primary)]"></div>
           <p className="text-sm font-medium text-[var(--muted-foreground)]">Chargement de votre espace…</p>
@@ -45,26 +45,22 @@ export default function AppLayout({
 }
 
 function AppShell({ children }: { children: ReactNode }) {
-  const { state, isMobile } = useSidebar();
-  const isExpanded = state === "expanded" && !isMobile;
-
-  const insetStyle = isExpanded
-    ? { marginLeft: "var(--sidebar-width)", width: "calc(100% - var(--sidebar-width))" }
-    : { marginLeft: 0, width: "100%" };
-
   return (
     <>
+      {/* Sidebar with spacer div that pushes content */}
       <AppSidebar />
-      <div
-        className="flex min-h-svh flex-col transition-[margin-left] duration-200 ease-out"
-        style={insetStyle}
-      >
-        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-[var(--border)]/60 bg-[var(--card)]/80 px-4 backdrop-blur-xl">
-          <SidebarTrigger className="-ml-1" />
-          <div className="h-4 w-px bg-[var(--border)]/60" />
+      
+      {/* Main content area - flexes to fill remaining space */}
+      <div className="flex min-h-svh flex-1 flex-col overflow-hidden">
+        {/* Header - sticky within main content, connects flush with sidebar */}
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--card)] px-4">
+          <SidebarTrigger />
+          <div className="h-4 w-px bg-[var(--border)]" />
           <Breadcrumbs />
         </header>
-        <main className="min-h-[calc(100vh-3.5rem)] bg-[var(--background)] p-4 sm:p-6">
+        
+        {/* Page content */}
+        <main className="flex-1 overflow-auto bg-[var(--background)] sm:p-6">
           {children}
         </main>
       </div>

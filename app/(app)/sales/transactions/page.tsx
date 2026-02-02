@@ -117,10 +117,10 @@ export default function SalesTransactionsPage() {
   return (
     <div className="space-y-8">
       <div className="stagger-item">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900">
+        <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">
           Saisie des ventes en caisse
         </h1>
-        <p className="mt-2 text-stone-600">
+        <p className="mt-2 text-[var(--muted-foreground)]">
           Enregistrez rapidement les ventes directes en magasin avec une vue
           optimisée pour la caisse.
         </p>
@@ -136,7 +136,7 @@ export default function SalesTransactionsPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-[var(--muted-foreground)]">
                 Chargement des produits…
               </p>
             ) : isError ? (
@@ -145,7 +145,7 @@ export default function SalesTransactionsPage() {
                 tard.
               </p>
             ) : products.length === 0 ? (
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-[var(--muted-foreground)]">
                 Aucun produit configuré pour le moment.
               </p>
             ) : (
@@ -155,13 +155,13 @@ export default function SalesTransactionsPage() {
                   return (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between rounded-md border border-stone-200 bg-stone-50 px-4 py-3"
+                      className="flex items-center justify-between rounded-md border border-[var(--border-subtle)] bg-[var(--surface)] px-4 py-3"
                     >
                       <div>
-                        <p className="font-medium text-stone-900">
+                        <p className="font-medium text-[var(--foreground)]">
                           {product.name}
                         </p>
-                        <p className="text-xs text-stone-500">
+                        <p className="text-xs text-[var(--muted-foreground)]">
                           {product.unit} · {formatCurrency(product.price)}
                         </p>
                       </div>
@@ -203,11 +203,11 @@ export default function SalesTransactionsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-stone-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
                 Lignes de vente
               </p>
               {lineItems.length === 0 ? (
-                <p className="text-sm text-stone-500">
+                <p className="text-sm text-[var(--muted-foreground)]">
                   Ajoutez des produits à gauche pour commencer la saisie.
                 </p>
               ) : (
@@ -219,7 +219,7 @@ export default function SalesTransactionsPage() {
                     >
                       <span>
                         {product.name}{" "}
-                        <span className="text-xs text-stone-500">
+                        <span className="text-xs text-[var(--muted-foreground)]">
                           × {quantity}
                         </span>
                       </span>
@@ -233,7 +233,7 @@ export default function SalesTransactionsPage() {
             </div>
 
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-stone-500">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
                 Mode de paiement
               </p>
               <div className="flex flex-wrap gap-2">
@@ -246,8 +246,8 @@ export default function SalesTransactionsPage() {
                       onClick={() => setPaymentMode(mode)}
                       className={`inline-flex items-center rounded-full border px-3 py-1 text-xs ${
                         isActive
-                          ? "border-amber-600 bg-amber-50 text-amber-800"
-                          : "border-stone-300 bg-white text-stone-700 hover:bg-stone-50"
+                          ? "border-[var(--primary)] bg-[var(--primary-subtle)] text-[var(--primary)]"
+                          : "border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--surface)]"
                       }`}
                     >
                       {mode}
@@ -257,9 +257,9 @@ export default function SalesTransactionsPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-stone-200 pt-4">
-              <span className="text-sm font-medium text-stone-700">Total</span>
-              <span className="text-lg font-semibold text-stone-900">
+            <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-4">
+              <span className="text-sm font-medium text-[var(--foreground)]">Total</span>
+              <span className="text-lg font-semibold text-[var(--foreground)]">
                 {formatCurrency(total)}
               </span>
             </div>
@@ -268,7 +268,7 @@ export default function SalesTransactionsPage() {
               Enregistrer la vente (brouillon)
             </Button>
 
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-[var(--muted-foreground)]">
               Pour l'instant, cette page enregistre la vente uniquement côté
               interface. Le lien avec l'API "/sales/transactions" sera ajouté
               plus tard.

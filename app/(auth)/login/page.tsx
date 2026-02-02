@@ -31,7 +31,7 @@ export default function LoginPage() {
           );
         } else if (err.code === "ACCOUNT_DISABLED") {
           setError(
-            "Ce compte a été désactivé. Contactez votre responsable ou l’équipe Gerpain.",
+            "Ce compte a été désactivé. Contactez votre responsable ou l'équipe Gerpain.",
           );
         } else if (err.code === "NETWORK_ERROR") {
           setError(
@@ -53,22 +53,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--card)] p-8 shadow-xl">
+    <div className="w-full rounded-[var(--radius-xl)] border border-[var(--border-subtle)] bg-[var(--card)] p-8 shadow-[var(--shadow-lg)]">
       {/* Logo and Header */}
       <div className="mb-8 flex flex-col items-center text-center">
-        <div className="mb-4 flex size-16 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--primary)]/20 p-3 shadow-sm">
-          <Logo className="size-10 text-[var(--primary)]" />
+        <div className="mb-5 flex size-14 items-center justify-center rounded-xl bg-[var(--primary)] shadow-[var(--shadow-md)]">
+          <Logo className="size-7 text-[var(--primary-foreground)]" />
         </div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          Gerpain ERP
+        <h1 className="font-display text-2xl font-normal text-[var(--foreground)]">
+          Gerpain
         </h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+        <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
           Connectez-vous à votre espace de gestion
         </p>
       </div>
 
-      <form className="space-y-5" onSubmit={handleSubmit}>
-        <div className="space-y-2">
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="space-y-1.5">
           <label
             htmlFor="email"
             className="block text-sm font-medium text-[var(--foreground)]"
@@ -88,7 +88,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <label
             htmlFor="password"
             className="block text-sm font-medium text-[var(--foreground)]"
@@ -111,14 +111,14 @@ export default function LoginPage() {
         <div className="flex justify-end">
           <Link
             href="/forgot-password"
-            className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]/80"
+            className="text-xs font-medium text-[var(--primary)] transition-colors hover:text-[var(--primary-hover)]"
           >
             Mot de passe oublié ?
           </Link>
         </div>
 
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-[var(--radius-md)] bg-[var(--error-subtle)] p-3 text-sm text-[var(--error)]">
             {error}
           </div>
         )}
@@ -127,14 +127,14 @@ export default function LoginPage() {
           type="submit"
           disabled={pending}
           isLoading={pending}
-          loadingText="Connexion en cours"
-          className="mt-4 w-full"
+          loadingText="Connexion…"
+          className="mt-2 w-full"
         >
           Se connecter
         </Button>
       </form>
 
-      <div className="mt-6 border-t border-[var(--border)] pt-6">
+      <div className="mt-8 border-t border-[var(--border-subtle)] pt-6">
         <p className="text-center text-xs text-[var(--muted-foreground)]">
           Système de gestion pour chaînes de boulangeries
         </p>

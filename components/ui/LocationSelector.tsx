@@ -85,7 +85,7 @@ export function LocationSelector({ value, onValueChange, className }: LocationSe
           <Select.Viewport className="p-1">
             <div className="px-2 py-1.5 mb-0.5">
               <p className="text-[11px] font-medium text-[var(--muted-foreground)] uppercase tracking-wider">
-                Point de vente
+                Local
               </p>
             </div>
             {mockLocations.map((location) => {

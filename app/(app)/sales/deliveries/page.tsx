@@ -198,7 +198,7 @@ function getStatusClasses(status: DeliveryStatus) {
     case "in_progress":
       return "bg-[var(--warning-subtle)] text-[var(--warning)]";
     case "validated":
-      return "bg-[var(--success-subtle)] text-[var(--success)]";
+      return "bg-[var(--info-subtle)] text-[var(--info)]";
     default:
       return "bg-[var(--secondary)] text-[var(--muted-foreground)]";
   }
@@ -607,7 +607,7 @@ export default function DeliveriesBoardPage() {
               <div className="w-full overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[var(--border)]">
+                    <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Produit</th>
                       <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Prix</th>
                       <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-[var(--muted-foreground)]">Confié</th>
@@ -651,44 +651,44 @@ export default function DeliveriesBoardPage() {
 
                       return (
                         <>
-                          <tr className="border-b border-stone-100 bg-stone-50/80">
+                          <tr className="border-b border-[var(--border-subtle)] bg-[var(--surface)]">
                             <td className="px-4 py-3 align-top">
                               <div className="space-y-0.5">
-                                <p className="font-semibold text-stone-900">
+                                <p className="font-semibold text-[var(--foreground)]">
                                   {product.name}
                                 </p>
-                                <p className="text-xs text-stone-500">
+                                <p className="text-xs text-[var(--muted-foreground)]">
                                   {product.unit}
                                 </p>
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-stone-900">
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
                                 {formatCurrency(product.unitPrice)}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-stone-900">
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
                                 {productEntrusted}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-stone-900">
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
                                 {productReturned}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-stone-900">
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
                                 {formatReturnRate(productReturnRate)}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-stone-900">
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
                                 {productSold}
                               </p>
                             </td>
                             <td className="px-4 py-3 text-right align-top">
-                              <p className="text-sm font-semibold text-stone-900">
+                              <p className="text-sm font-semibold text-[var(--foreground)]">
                                 {formatCurrency(productTotal)}
                               </p>
                             </td>
@@ -720,7 +720,7 @@ export default function DeliveriesBoardPage() {
                             return (
                               <tr
                                 key={item.id}
-                                className="border-b border-stone-100 bg-white hover:bg-stone-50/70"
+                                className="border-b border-[var(--border-subtle)] bg-[var(--card)] hover:bg-[var(--surface)]"
                               >
                                 <td className="px-4 py-3 align-top">
                                   <select
@@ -732,7 +732,7 @@ export default function DeliveriesBoardPage() {
                                         event.target.value as SellingPeriod | "",
                                       )
                                     }
-                                    className="h-8 w-full rounded-md border border-stone-300 bg-white px-2 text-xs text-stone-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                                    className="h-8 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                   >
                                     <option value="">Non précisé</option>
                                     {SELLING_PERIODS.map((period) => (
@@ -743,7 +743,7 @@ export default function DeliveriesBoardPage() {
                                   </select>
                                 </td>
                                 <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm text-stone-900">⇓</p>
+                                  <p className="text-sm text-[var(--muted-foreground)]">⇓</p>
                                 </td>
                                 <td className="px-4 py-3 text-right align-top">
                                   <input
@@ -757,7 +757,7 @@ export default function DeliveriesBoardPage() {
                                         Number(event.target.value || 0),
                                       )
                                     }
-                                    className="h-8 w-20 rounded-md border border-stone-300 bg-white px-2 text-right text-xs text-stone-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                                    className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                   />
                                 </td>
                                 <td className="px-4 py-3 text-right align-top">
@@ -772,21 +772,21 @@ export default function DeliveriesBoardPage() {
                                         Number(event.target.value || 0),
                                       )
                                     }
-                                    className="h-8 w-20 rounded-md border border-stone-300 bg-white px-2 text-right text-xs text-stone-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                                    className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                   />
                                 </td>
                                 <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm text-stone-900">
+                                  <p className="text-sm text-[var(--foreground)]">
                                     {formatReturnRate(lineReturnRate)}
                                   </p>
                                 </td>
                                 <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm font-medium text-stone-900">
+                                  <p className="text-sm font-medium text-[var(--foreground)]">
                                     {soldQuantity}
                                   </p>
                                 </td>
                                 <td className="px-4 py-3 text-right align-top">
-                                  <p className="text-sm font-medium text-stone-900">
+                                  <p className="text-sm font-medium text-[var(--foreground)]">
                                     {formatCurrency(soldQuantity * item.unitPrice)}
                                   </p>
                                 </td>
@@ -805,7 +805,7 @@ export default function DeliveriesBoardPage() {
                                     <Button
                                       type="button"
                                       variant="ghost"
-                                      className="h-8 px-2 text-xs text-red-700 hover:text-red-800 disabled:text-stone-300"
+                                      className="h-8 px-2 text-xs text-[var(--error)] hover:text-[var(--error)]/90 disabled:text-[var(--muted-foreground)]"
                                       disabled={!canDelete}
                                       onClick={() =>
                                         handleDeleteItem(selectedRun.id, item.id)
@@ -828,7 +828,7 @@ export default function DeliveriesBoardPage() {
               {(() => {
                 const aggregates = computeRunAggregates(selectedRun);
                 return (
-                  <div className="space-y-1 text-sm text-stone-700">
+                  <div className="space-y-1 text-sm text-[var(--muted-foreground)]">
                     <p>
                       Confié :
                       <span className="font-semibold">
@@ -870,18 +870,18 @@ export default function DeliveriesBoardPage() {
               })()}
 
               <div className="space-y-1">
-                <p className="text-sm font-medium text-stone-700">Remarques</p>
+                <p className="text-sm font-medium text-[var(--foreground)]">Remarques</p>
                 <textarea
                   value={selectedRun.notes}
                   onChange={(event) =>
                     handleNotesChange(selectedRun.id, event.target.value)
                   }
-                  className="min-h-[80px] w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-1"
+                  className="min-h-[80px] w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                   placeholder="Ajouter des remarques sur la tournée (retards, incidents, demandes clients, etc.)."
                 />
               </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-stone-200 pt-4">
+              <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--border-subtle)] pt-4">
                 <Button
                   type="button"
                   variant="secondary"

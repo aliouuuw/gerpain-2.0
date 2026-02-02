@@ -132,6 +132,7 @@ SidebarProvider.displayName = "SidebarProvider"
 const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
   ({ className, children, ...props }, ref) => {
     const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const isExpanded = state === "expanded"
 
     if (isMobile) {
       return (
@@ -156,25 +157,31 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
       )
     }
 
+    // Desktop: sidebar wrapper takes up space in flex layout, pushing main content
     return (
       <div
         ref={ref}
-        className="group peer hidden md:block"
+        className="hidden shrink-0 md:block"
+        style={{
+          width: isExpanded ? SIDEBAR_WIDTH : 0,
+          transition: "width 200ms ease-out",
+        }}
         data-state={state}
-        data-collapsible={state === "collapsed" ? true : false}
       >
+        {/* Fixed sidebar that stays in place */}
         <div
           className={cx(
-            "fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-200 ease-out will-change-transform md:flex",
-            "left-0 group-data-[collapsible=true]:left-[calc(var(--sidebar-width)*-1)]",
-            "border-r border-[var(--border-subtle)]",
+            "fixed inset-y-0 left-0 z-20 h-svh border-r border-[var(--border-subtle)] bg-[var(--card)] text-[var(--foreground)]",
+            "transition-transform duration-200 ease-out",
+            !isExpanded && "-translate-x-full",
             className,
           )}
+          style={{ width: SIDEBAR_WIDTH }}
           {...props}
         >
           <div
             data-sidebar="sidebar"
-            className="flex h-full w-full flex-col bg-[var(--card)] text-[var(--foreground)]"
+            className="flex h-full w-full flex-col"
           >
             {children}
           </div>
@@ -196,7 +203,7 @@ const SidebarTrigger = React.forwardRef<
       ref={ref}
       data-sidebar="trigger"
       className={cx(
-        "group inline-flex rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--accent)] hover:text-[var(--foreground)]",
+        "group inline-flex rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]",
         focusRing,
       )}
       onClick={(event) => {
@@ -220,7 +227,7 @@ const SidebarFooter = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="footer"
-      className={cx("flex flex-col gap-2 p-3", className)}
+      className={cx("flex flex-col", className)}
       {...props}
     />
   )
@@ -236,7 +243,7 @@ const SidebarContent = React.forwardRef<
       ref={ref}
       data-sidebar="content"
       className={cx(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-auto",
+        "flex min-h-0 flex-1 flex-col overflow-auto",
         className,
       )}
       {...props}
@@ -253,7 +260,7 @@ const SidebarHeader = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="header"
-      className={cx("flex flex-col gap-2 p-2", className)}
+      className={cx("flex flex-col", className)}
       {...props}
     />
   )
@@ -312,7 +319,7 @@ const SidebarGroup = React.forwardRef<
     <div
       ref={ref}
       data-sidebar="group"
-      className={cx("relative flex w-full min-w-0 flex-col p-3", className)}
+      className={cx("relative flex w-full min-w-0 flex-col", className)}
       {...props}
     />
   )

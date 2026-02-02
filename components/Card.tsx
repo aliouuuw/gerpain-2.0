@@ -13,12 +13,18 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
         ref={ref}
         className={cx(
           "relative rounded-[var(--radius-card)] bg-[var(--card)]",
-          "border border-[var(--border-subtle)]",
-          "shadow-[var(--shadow-md)]",
-          "transition-[transform,background-color,border-color,box-shadow] duration-200",
-          variant === "default" && "hover:-translate-y-0.5 hover:shadow-[var(--shadow-lg)]",
+          "transition-all duration-200 ease-out",
+          variant === "default" && [
+            "border border-[var(--border-subtle)]",
+            "shadow-[var(--shadow-card)]",
+            "hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--border)]",
+          ],
           variant === "ghost" && "border border-transparent bg-transparent shadow-none",
-          variant === "elevated" && "hover:-translate-y-1 hover:shadow-[var(--shadow-xl)]",
+          variant === "elevated" && [
+            "border border-[var(--border-subtle)]",
+            "shadow-[var(--shadow-md)]",
+            "hover:shadow-[var(--shadow-lg)]",
+          ],
           className
         )}
         {...props}

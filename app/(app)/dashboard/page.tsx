@@ -81,10 +81,10 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">
+          <h1 className="font-display text-2xl text-[var(--foreground)]">
             Tableau de bord
           </h1>
-          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+          <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
             Vue d'ensemble de vos opérations · {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
@@ -126,9 +126,9 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-1 text-xs">
                       {stat.trend !== "neutral" && (
                         <>
-                          {isPositive && <TrendingUp className="size-3 text-[var(--success)]" />}
+                          {isPositive && <TrendingUp className="size-3 text-[var(--primary)]" />}
                           {isNegative && <TrendingDown className="size-3 text-[var(--error)]" />}
-                          <span className={isPositive ? "font-medium text-[var(--success)]" : isNegative ? "font-medium text-[var(--error)]" : ""}>
+                          <span className={isPositive ? "font-medium text-[var(--primary)]" : isNegative ? "font-medium text-[var(--error)]" : ""}>
                             {stat.change}
                           </span>
                         </>
@@ -136,8 +136,8 @@ export default function DashboardPage() {
                       <span className="text-[var(--muted-foreground)]">{stat.description}</span>
                     </div>
                   </div>
-                  <div className="flex size-9 items-center justify-center rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] transition-colors group-hover:bg-[var(--primary)]/15">
-                    <Icon className="size-4" />
+                  <div className="flex size-10 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)] transition-colors">
+                    <Icon className="size-5" />
                   </div>
                 </div>
               </CardContent>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={`flex size-7 items-center justify-center rounded-full ${
-                      activity.status === "success" ? "bg-[var(--success-subtle)] text-[var(--success)]" :
+                      activity.status === "success" ? "bg-[var(--primary-subtle)] text-[var(--primary)]" :
                       activity.status === "pending" ? "bg-[var(--warning-subtle)] text-[var(--warning)]" :
                       "bg-[var(--secondary)] text-[var(--muted-foreground)]"
                     }`}>
@@ -224,20 +224,20 @@ export default function DashboardPage() {
       </div>
 
       {/* Development Notice */}
-      <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--secondary)]/30">
-        <CardContent className="flex items-center gap-3 p-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
-            <Package className="size-4" />
+      <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--surface)]">
+        <CardContent className="flex items-center gap-4 p-4">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]">
+            <Package className="size-5" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--foreground)]">
               Système en développement
             </p>
-            <p className="text-xs text-[var(--muted-foreground)]">
+            <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
               Ce tableau de bord sera enrichi avec des graphiques et analyses avancées.
             </p>
           </div>
-          <Button variant="soft" size="sm" className="shrink-0">
+          <Button variant="outline" size="sm" className="shrink-0">
             En savoir plus
           </Button>
         </CardContent>

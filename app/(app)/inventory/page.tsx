@@ -4,61 +4,54 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 export default function InventoryPage() {
   return (
-    <div className="space-y-8">
-      <div className="stagger-item">
-        <h1 className="text-3xl font-bold tracking-tight text-stone-900">
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl text-[var(--foreground)]">
           Stock / Inventaire
         </h1>
-        <p className="mt-2 text-stone-600">
-          Surveillez les niveaux de stock de vos produits et préparez les
-          ajustements nécessaires. Cette page centralisera les actions
-          d&apos;inventaire pour vos points de vente.
+        <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
+          Surveillez les niveaux de stock et préparez les ajustements nécessaires.
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="stagger-item" style={{ animationDelay: "0.05s" }}>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Ajustements de stock</CardTitle>
             <CardDescription>
-              Enregistrer les entrées et sorties de stock directement depuis le
-              point de vente.
+              Enregistrer les entrées et sorties de stock.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--muted-foreground)]">
               <li>Corrections après inventaire physique</li>
               <li>Pertes, casses et dons</li>
-              <li>Historique des mouvements pour chaque article</li>
+              <li>Historique des mouvements</li>
             </ul>
           </CardContent>
         </Card>
 
-        <Card className="stagger-item" style={{ animationDelay: "0.1s" }}>
+        <Card>
           <CardHeader>
             <CardTitle>Transferts entre points de vente</CardTitle>
             <CardDescription>
-              Suivre les mouvements de stock entre vos magasins et le
-              laboratoire.
+              Suivre les mouvements de stock entre magasins.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="list-disc space-y-1 pl-5 text-sm text-stone-600">
-              <li>Création de transferts sortants et entrants</li>
-              <li>Suivi des quantités et de la destination</li>
-              <li>Préparation des rapports de mouvement de stock</li>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--muted-foreground)]">
+              <li>Transferts sortants et entrants</li>
+              <li>Suivi des quantités</li>
+              <li>Rapports de mouvement</li>
             </ul>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="stagger-item border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50" style={{ animationDelay: "0.15s" }}>
-        <CardContent className="pt-6">
-          <p className="text-sm text-stone-700">
-            Les vues détaillées du stock critique et des seuils de
-            réapprovisionnement seront ajoutées progressivement. Cette page
-            servira de point d&apos;accès principal pour vos décisions
-            d&apos;approvisionnement.
+      <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--surface)]">
+        <CardContent className="p-4">
+          <p className="text-sm text-[var(--muted-foreground)]">
+            Vues du stock critique et seuils de réapprovisionnement à venir.
           </p>
         </CardContent>
       </Card>

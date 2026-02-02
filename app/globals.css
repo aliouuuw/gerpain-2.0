@@ -1,65 +1,67 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Spline+Sans:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
-  /* Modern neutral palette - inspired by Vercel/Linear */
-  --background: #fbf4ea;
-  --foreground: #14121a;
-  --card: #fffaf2;
-  --card-foreground: #14121a;
-  --surface: #fff2db;
-  --surface-2: #f6e8d2;
+  /* Vintage Ledger / Artisan Receipt palette - perfect for bakery */
+  --background: #faf6f1;
+  --foreground: #1a1625;
+  --card: #fffcf8;
+  --card-foreground: #1a1625;
+  --surface: #f5efe8;
+  --surface-2: #ebe4db;
   
-  /* Warm amber primary - refined for professional look */
-  --primary: #ff2d7a;
-  --primary-2: #ff6a3d;
-  --primary-foreground: #140a12;
-  --primary-hover: #ff4e95;
-  --primary-subtle: #ffe1ee;
+  /* Warm terracotta primary - artisan bakery feel */
+  --primary: #c2410c;
+  --primary-2: #ea580c;
+  --primary-foreground: #fffcf8;
+  --primary-hover: #9a3412;
+  --primary-subtle: #fff7ed;
   
-  /* Neutral grays */
-  --secondary: #f4e5cd;
-  --secondary-foreground: #14121a;
-  --accent: #1b49ff;
-  --accent-foreground: #fbf4ea;
-  --muted: #f1e1c8;
-  --muted-foreground: #5b5467;
+  /* Warm neutrals */
+  --secondary: #f5f0e8;
+  --secondary-foreground: #1a1625;
+  --accent: #0d9488;
+  --accent-foreground: #fffcf8;
+  --muted: #ebe4db;
+  --muted-foreground: #78716c;
   
   /* Borders and inputs */
-  --border: #2a2435;
-  --border-subtle: #ead7bd;
-  --input: #ead7bd;
-  --ring: #1b49ff;
+  --border: #d6cfc4;
+  --border-subtle: #e8e2d9;
+  --input: #f5f0e8;
+  --ring: #c2410c;
   
-  /* Semantic colors */
-  --success: #13c27d;
-  --success-subtle: #d8ffee;
-  --warning: #ffb020;
-  --warning-subtle: #fff0c9;
-  --error: #ff2e2e;
-  --error-subtle: #ffe0e0;
-  --info: #1b49ff;
-  --info-subtle: #dbe5ff;
+  /* Semantic colors - warmer tones */
+  --success: #059669;
+  --success-subtle: #ecfdf5;
+  --warning: #d97706;
+  --warning-subtle: #fffbeb;
+  --error: #dc2626;
+  --error-subtle: #fef2f2;
+  --info: #0d9488;
+  --info-subtle: #f0fdfa;
   
-  /* Shadows */
-  --shadow-sm: 0 1px 0 0 rgb(20 18 26 / 0.08);
-  --shadow-md: 0 10px 30px -24px rgb(20 18 26 / 0.40);
-  --shadow-lg: 0 18px 60px -40px rgb(20 18 26 / 0.55);
-  --shadow-xl: 0 26px 90px -60px rgb(20 18 26 / 0.65);
-  --shadow-hero: 0 18px 55px -32px rgb(255 45 122 / 0.60);
+  /* Refined shadows - softer, more natural */
+  --shadow-sm: 0 1px 2px 0 rgb(26 22 37 / 0.04);
+  --shadow-md: 0 4px 16px -4px rgb(26 22 37 / 0.08), 0 2px 4px -2px rgb(26 22 37 / 0.04);
+  --shadow-lg: 0 12px 32px -8px rgb(26 22 37 / 0.12), 0 4px 8px -4px rgb(26 22 37 / 0.04);
+  --shadow-xl: 0 24px 48px -12px rgb(26 22 37 / 0.16);
+  --shadow-card: 0 1px 3px 0 rgb(26 22 37 / 0.06), 0 1px 2px -1px rgb(26 22 37 / 0.06);
+  --shadow-card-hover: 0 8px 24px -8px rgb(26 22 37 / 0.12), 0 4px 8px -4px rgb(26 22 37 / 0.04);
   
-  /* Radius */
+  /* Radius - slightly softer for artisan feel */
   --radius-sm: 0.375rem;
-  --radius-md: 0.625rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-2xl: 1.75rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
 
-  --radius-card: 1.5rem;
-  --radius-control: 0.95rem;
+  --radius-card: 1rem;
+  --radius-control: 0.5rem;
 
-  --font-body: "Spline Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-heading: "Fraunces", ui-serif, Georgia, serif;
+  /* Typography - DM Serif for elegance, DM Sans for readability */
+  --font-body: "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: "DM Serif Display", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
@@ -83,57 +85,60 @@
 }
 
 .dark {
-  --background: #0c0a12;
-  --foreground: #fff2db;
-  --card: #14101f;
-  --card-foreground: #fff2db;
-  --surface: #0f0c18;
-  --surface-2: #151027;
+  /* Dark mode - warm dark paper aesthetic */
+  --background: #1c1917;
+  --foreground: #faf6f1;
+  --card: #292524;
+  --card-foreground: #faf6f1;
+  --surface: #1c1917;
+  --surface-2: #292524;
 
-  --primary: #ff2d7a;
-  --primary-2: #ff7a45;
-  --primary-foreground: #140a12;
-  --primary-hover: #ff4e95;
-  --primary-subtle: #2a0f1c;
+  /* Terracotta adjusts for dark mode */
+  --primary: #ea580c;
+  --primary-2: #f97316;
+  --primary-foreground: #1c1917;
+  --primary-hover: #fb923c;
+  --primary-subtle: #431407;
 
-  --secondary: #1a1426;
-  --secondary-foreground: #fff2db;
-  --accent: #1b49ff;
-  --accent-foreground: #fff2db;
-  --muted: #191328;
-  --muted-foreground: #b6a7cf;
+  --secondary: #292524;
+  --secondary-foreground: #faf6f1;
+  --accent: #14b8a6;
+  --accent-foreground: #1c1917;
+  --muted: #44403c;
+  --muted-foreground: #a8a29e;
 
-  --border: #2b2340;
-  --border-subtle: #1f1733;
-  --input: #2b2340;
-  --ring: #1b49ff;
+  --border: #44403c;
+  --border-subtle: #292524;
+  --input: #292524;
+  --ring: #ea580c;
   
-  --success: #13c27d;
-  --success-subtle: #072a1b;
-  --warning: #ffb020;
-  --warning-subtle: #2e1e06;
-  --error: #ff2e2e;
-  --error-subtle: #2b0b0b;
-  --info: #1b49ff;
-  --info-subtle: #0a1330;
+  --success: #10b981;
+  --success-subtle: #064e3b;
+  --warning: #f59e0b;
+  --warning-subtle: #451a03;
+  --error: #ef4444;
+  --error-subtle: #450a0a;
+  --info: #14b8a6;
+  --info-subtle: #042f2e;
   
-  --shadow-sm: 0 1px 0 0 rgb(0 0 0 / 0.45);
-  --shadow-md: 0 14px 45px -34px rgb(0 0 0 / 0.75);
-  --shadow-lg: 0 24px 80px -60px rgb(0 0 0 / 0.85);
-  --shadow-xl: 0 38px 120px -90px rgb(0 0 0 / 0.90);
-  --shadow-hero: 0 20px 70px -44px rgb(255 45 122 / 0.65);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 16px -4px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 12px 32px -8px rgb(0 0 0 / 0.5);
+  --shadow-xl: 0 24px 48px -12px rgb(0 0 0 / 0.6);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.2);
+  --shadow-card-hover: 0 8px 24px -8px rgb(0 0 0 / 0.4);
 }
 
 body {
   background-color: var(--background);
-  background-image: radial-gradient(900px 500px at 12% -12%, rgb(255 45 122 / 0.20), transparent 60%), radial-gradient(900px 500px at 88% -18%, rgb(27 73 255 / 0.18), transparent 62%);
   color: var(--foreground);
   font-family: var(--font-body);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-optical-sizing: auto;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  letter-spacing: -0.011em;
+  letter-spacing: -0.01em;
+  line-height: 1.6;
 }
 
  html {
@@ -258,13 +263,25 @@ body {
   animation-delay: 0.25s;
 }
 
-/* Gradient background for a warm bakery aesthetic */
+/* Subtle paper texture background for artisan feel */
+.bg-paper {
+  background-color: var(--background);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-blend-mode: soft-light;
+}
+
+/* Warm gradient for auth pages and hero sections */
 .bg-bakery-gradient {
-  background: linear-gradient(135deg, var(--accent) 0%, var(--primary)/20 50%, var(--primary)/10 100%);
+  background: linear-gradient(145deg, var(--background) 0%, var(--surface) 50%, var(--muted) 100%);
 }
 
 .dark .bg-bakery-gradient {
-  background: linear-gradient(135deg, var(--muted) 0%, var(--card) 50%, var(--muted) 100%);
+  background: linear-gradient(145deg, var(--background) 0%, var(--surface) 50%, var(--card) 100%);
+}
+
+/* Accent gradient for highlights */
+.bg-accent-gradient {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
 }
 
 /* Custom scrollbar */
