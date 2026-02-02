@@ -106,7 +106,7 @@ export default function SalesTransactionsPage() {
       const next = Math.max(0, current + delta);
 
       if (next === 0) {
-        const { [productId]: _removed, ...rest } = prev;
+        const { [productId]: _, ...rest } = prev;
         return rest;
       }
 
@@ -269,8 +269,8 @@ export default function SalesTransactionsPage() {
             </Button>
 
             <p className="text-xs text-[var(--muted-foreground)]">
-              Pour l'instant, cette page enregistre la vente uniquement côté
-              interface. Le lien avec l'API "/sales/transactions" sera ajouté
+              Pour l&apos;instant, cette page enregistre la vente uniquement côté
+              interface. Le lien avec l&apos;API &quot;/sales/transactions&quot; sera ajouté
               plus tard.
             </p>
           </CardContent>

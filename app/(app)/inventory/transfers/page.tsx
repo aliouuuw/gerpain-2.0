@@ -22,7 +22,7 @@ export default function InventoryTransfersPage() {
               Les transferts de stock seront bientôt disponibles.
             </p>
             <p className="text-sm text-[var(--muted-foreground)]">
-              Cette section permettra d'initier des transferts entre points de vente,
+              Cette section permettra d&apos;initier des transferts entre points de vente,
               de suivre les mouvements en transit, et de valider les réceptions.
             </p>
           </div>

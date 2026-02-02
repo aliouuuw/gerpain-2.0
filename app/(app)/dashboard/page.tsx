@@ -85,7 +85,7 @@ export default function DashboardPage() {
             Tableau de bord
           </h1>
           <p className="mt-1.5 text-sm text-[var(--muted-foreground)]">
-            Vue d'ensemble de vos opérations · {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+            Vue d&apos;ensemble de vos opérations · {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
         </div>
         <div className="flex gap-2">
@@ -197,7 +197,7 @@ export default function DashboardPage() {
               <AlertTriangle className="size-4 text-[var(--warning)]" />
               Alertes
             </CardTitle>
-            <CardDescription>Points d'attention</CardDescription>
+            <CardDescription>Points d&apos;attention</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-1.5">

@@ -19,7 +19,10 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
+import { useToast } from "@/components/ui/toast";
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
 
@@ -201,20 +204,21 @@ function getStatusLabel(status: DeliveryStatus) {
   }
 }
 
-function getStatusClasses(status: DeliveryStatus) {
+function getStatusVariant(status: DeliveryStatus) {
   switch (status) {
     case "draft":
-      return "bg-[var(--secondary)] text-[var(--muted-foreground)]";
+      return "default" as const;
     case "in_progress":
-      return "bg-[var(--warning-subtle)] text-[var(--warning)]";
+      return "warning" as const;
     case "validated":
-      return "bg-[var(--info-subtle)] text-[var(--info)]";
+      return "info" as const;
     default:
-      return "bg-[var(--secondary)] text-[var(--muted-foreground)]";
+      return "default" as const;
   }
 }
 
 export default function DeliveriesBoardPage() {
+  const { notify } = useToast()
   const [date, setDate] = useState<string>(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -375,23 +379,26 @@ export default function DeliveriesBoardPage() {
 
   function handleSaveDraft(runId: string) {
     const run = runs.find((current) => current.id === runId);
-    // eslint-disable-next-line no-console
     console.log("Save draft delivery run:", run);
     setRuns((previous) =>
       previous.map((current) =>
         current.id === runId
           ? {
               ...current,
-              status: "in_progress",
+              status: "draft",
             }
           : current,
       ),
     );
+    notify({
+      variant: "success",
+      title: "Brouillon enregistré",
+      description: "La tournée a été enregistrée en brouillon.",
+    });
   }
 
   function handleValidateRun(runId: string) {
     const run = runs.find((current) => current.id === runId);
-    // eslint-disable-next-line no-console
     console.log("Validate delivery run:", run);
     setRuns((previous) =>
       previous.map((current) =>
@@ -403,6 +410,11 @@ export default function DeliveriesBoardPage() {
           : current,
       ),
     );
+    notify({
+      variant: "success",
+      title: "Tournée validée",
+      description: "La tournée a été validée avec succès.",
+    });
   }
 
   const overallTotals = runs.reduce(
@@ -458,12 +470,10 @@ export default function DeliveriesBoardPage() {
             <label htmlFor="delivery-date" className="text-sm font-medium text-[var(--muted-foreground)]">
               Date
             </label>
-            <input
-              id="delivery-date"
-              type="date"
-              value={date}
-              onChange={(event) => handleDateChange(event.target.value)}
-              className="h-9 rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 text-sm text-[var(--foreground)] transition-colors focus:border-[var(--primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/20"
+            <DatePicker
+              value={date ? new Date(date) : undefined}
+              onValueChange={(d) => handleDateChange(d instanceof Date ? d.toISOString().slice(0, 10) : "")}
+              placeholder="Choisir une date"
             />
           </div>
         </div>
@@ -538,10 +548,9 @@ export default function DeliveriesBoardPage() {
                         {formatCurrency(aggregates.revenue)}
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(run.status)}`}>
-                          <span className="size-1.5 rounded-full bg-current" />
+                        <Badge variant={getStatusVariant(run.status)}>
                           {getStatusLabel(run.status)}
-                        </span>
+                        </Badge>
                       </TableCell>
                       <TableCell numeric>
                         <Button
@@ -613,10 +622,9 @@ export default function DeliveriesBoardPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusClasses(selectedRun.status)}`}>
-                    <span className="size-1.5 rounded-full bg-current" />
+                  <Badge variant={getStatusVariant(selectedRun.status)}>
                     {getStatusLabel(selectedRun.status)}
-                  </span>
+                  </Badge>
                   <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedRunId(null)}>
                     Fermer
                   </Button>

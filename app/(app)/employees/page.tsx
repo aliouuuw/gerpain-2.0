@@ -1,8 +1,26 @@
 "use client";
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/Card"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
+import { Users, Clock } from "lucide-react"
 
 export default function EmployeesPage() {
+  const [activeTab, setActiveTab] = useState("list")
+
+  const tabs = [
+    {
+      value: "list",
+      label: "Liste",
+      icon: <Users className="size-4" />,
+    },
+    {
+      value: "attendance",
+      label: "Pointage",
+      icon: <Clock className="size-4" />,
+    },
+  ]
+
   return (
     <div className="space-y-6">
       <div>
@@ -12,12 +30,13 @@ export default function EmployeesPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <Tabs value={activeTab} onValueChange={setActiveTab} tabs={tabs} />
+      <TabsContent value="list">
         <Card>
           <CardHeader>
             <CardTitle>Liste des employés</CardTitle>
             <CardDescription>
-              Vue d'ensemble des collaborateurs.
+              Vue d&apos;ensemble des collaborateurs.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -28,7 +47,9 @@ export default function EmployeesPage() {
             </ul>
           </CardContent>
         </Card>
+      </TabsContent>
 
+      <TabsContent value="attendance">
         <Card>
           <CardHeader>
             <CardTitle>Pointage et présence</CardTitle>
@@ -44,7 +65,7 @@ export default function EmployeesPage() {
             </ul>
           </CardContent>
         </Card>
-      </div>
+      </TabsContent>
 
       <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--surface)]">
         <CardContent className="p-4">

@@ -24,7 +24,7 @@ export default function CashPage() {
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-[var(--muted-foreground)]">
               <li>Montants attendus et réels par mode de paiement</li>
               <li>Association point de vente et période</li>
-              <li>Rapports d'écarts de caisse</li>
+              <li>Rapports d&apos;écarts de caisse</li>
             </ul>
           </CardContent>
         </Card>

@@ -112,7 +112,7 @@ export function useSession() {
         if (!cancelled) {
           setUser(u);
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) {
           setError("SESSION_FETCH_FAILED");
         }

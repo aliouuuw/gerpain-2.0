@@ -23,7 +23,7 @@ export default function AttendancePage() {
             </p>
             <p className="text-sm text-[var(--muted-foreground)]">
               Cette section permettra de pointer les entrées et sorties,
-              de consulter les historiques de présence, et de générer les rapports d'assiduité.
+              de consulter les historiques de présence, et de générer les rapports d&apos;assiduité.
             </p>
           </div>
         </CardContent>

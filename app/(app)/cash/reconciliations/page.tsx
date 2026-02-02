@@ -19,11 +19,11 @@ export default function ReconciliationsPage() {
         <CardContent>
           <div className="text-center py-12">
             <p className="text-[var(--muted-foreground)] mb-4">
-              L'historique des rapprochements sera bientôt disponible.
+              L&apos;historique des rapprochements sera bientôt disponible.
             </p>
             <p className="text-sm text-[var(--muted-foreground)]">
-              Cette section affichera l'historique des rapprochements de caisse,
-              les écarts identifiés, et permettra d'exporter les rapports de caisse.
+              Cette section affichera l&apos;historique des rapprochements de caisse,
+              les écarts identifiés, et permettra d&apos;exporter les rapports de caisse.
             </p>
           </div>
         </CardContent>

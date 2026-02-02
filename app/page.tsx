@@ -81,7 +81,7 @@ export default function Home() {
                 📊
               </div>
               <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Tableau de bord</h3>
-              <p className="mt-2 text-sm text-[var(--muted-foreground)]">Vue d'ensemble de vos performances en temps réel</p>
+              <p className="mt-2 text-sm text-[var(--muted-foreground)]">Vue d&apos;ensemble de vos performances en temps réel</p>
             </div>
 
             <div className="text-center p-6 rounded-lg border border-amber-200/60 bg-amber-50/30">
@@ -104,7 +104,7 @@ export default function Home() {
               <div className="mx-auto h-12 w-12 rounded-lg bg-amber-500 flex items-center justify-center text-white font-bold text-xl">
                 👥
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Gestion d'équipe</h3>
+              <h3 className="mt-4 text-lg font-semibold text-[var(--foreground)]">Gestion d&apos;équipe</h3>
               <p className="mt-2 text-sm text-[var(--muted-foreground)]">Pointage, planning et paie simplifiés</p>
             </div>
           </div>

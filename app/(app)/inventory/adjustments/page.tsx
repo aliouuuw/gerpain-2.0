@@ -23,7 +23,7 @@ export default function InventoryAdjustmentsPage() {
             </p>
             <p className="text-sm text-[var(--muted-foreground)]">
               Cette section permettra de saisir les ajustements manuels de stock,
-              de corriger les écarts d'inventaire, et de suivre les mouvements exceptionnels.
+              de corriger les écarts d&apos;inventaire, et de suivre les mouvements exceptionnels.
             </p>
           </div>
         </CardContent>

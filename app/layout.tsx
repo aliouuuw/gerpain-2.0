@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ReactQueryProvider } from "@/components/ReactQueryProvider";
 import { ThemeProvider } from "next-themes";
+import { ToastProvider } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://gerpain.com"),
@@ -40,7 +41,9 @@ export default function RootLayout({
     <html lang="fr" className="h-full" suppressHydrationWarning>
       <body className="h-full antialiased bg-[var(--background)]">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          <ReactQueryProvider>{children}</ReactQueryProvider>
+          <ToastProvider>
+            <ReactQueryProvider>{children}</ReactQueryProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
