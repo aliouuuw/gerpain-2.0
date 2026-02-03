@@ -13,7 +13,7 @@ import {
   SidebarMenuSub,
   SidebarSubLink,
 } from "@/components/Sidebar"
-import { LocationSelector } from "@/components/ui/LocationSelector"
+import { BakerySelector } from "@/components/ui/BakerySelector"
 import { cx, focusRing } from "@/lib/utils"
 import { ChevronRight } from "lucide-react"
 import { Home, ShoppingCart, Package, Users, Wallet, FileText, Search, Settings, Building2, MapPin, User } from "lucide-react"
@@ -127,10 +127,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent className="px-2">
-        {/* Location Selector */}
+        {/* Bakery Selector */}
         <SidebarGroup className="p-1">
           <SidebarGroupContent>
-            <LocationSelector />
+            <BakerySelector />
           </SidebarGroupContent>
         </SidebarGroup>
 
