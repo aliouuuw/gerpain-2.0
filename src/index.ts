@@ -20,6 +20,7 @@ import { productsRoutes } from "./domains/products/routes.js";
 import { employeesRoutes } from "./domains/employees/routes.js";
 import { deliveriesRoutes } from "./domains/deliveries/routes.js";
 import { collectionsRoutes } from "./domains/collections/routes.js";
+import { bakeriesRoutes } from "./domains/bakeries/routes.js";
 
 // Logger
 import { Logger } from "./shared/utils/logger.js";
@@ -79,6 +80,7 @@ api.route("/products", productsRoutes);
 api.route("/employees", employeesRoutes);
 api.route("/delivery-runs", deliveriesRoutes);
 api.route("/cash-collections", collectionsRoutes);
+api.route("/bakeries", bakeriesRoutes);
 
 app.route("/api/v1", api);
 
