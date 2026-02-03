@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Building2, Plus, Settings } from "lucide-react";
+import { Building2, Plus, ChevronDown, Check } from "lucide-react";
 import Link from "next/link";
-import { Select, type SelectOption } from "@/components/ui/select";
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/react";
+import { cx, focusRing } from "@/lib/utils";
 import { useBakeries, useBakeryTierStatus } from "@/lib/hooks/useBakeries";
 
 export type Bakery = {
@@ -49,7 +50,6 @@ export function BakerySelector({ value, onValueChange, className }: BakerySelect
   React.useEffect(() => {
     if (bakeries && bakeries.length > 0) {
       const currentStored = getStoredBakeryId();
-      // If no selection yet, use first bakery or stored value
       if (!selectedId || !bakeries.find(b => b.id === selectedId)) {
         const newId = currentStored && bakeries.find(b => b.id === currentStored) 
           ? currentStored 
@@ -61,22 +61,14 @@ export function BakerySelector({ value, onValueChange, className }: BakerySelect
     }
   }, [bakeries, selectedId, onValueChange]);
   
-  const handleChange = (newValue: string) => {
+  const handleChange = (newValue: string | null) => {
+    if (!newValue) return;
     setSelectedId(newValue);
     setStoredBakeryId(newValue);
     onValueChange?.(newValue);
   };
 
-  const options: SelectOption[] = bakeries?.map((bakery) => ({
-    value: bakery.id,
-    label: `${bakery.name} (${bakery.code})`,
-    icon: (
-      <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--secondary)] text-[var(--muted-foreground)]">
-        <Building2 className="size-3.5" />
-      </div>
-    ),
-  })) || [];
-
+  const selectedBakery = bakeries?.find(b => b.id === selectedId);
   const canCreate = tierStatus ? tierStatus.current < tierStatus.limit : false;
 
   if (isLoading) {
@@ -102,14 +94,11 @@ export function BakerySelector({ value, onValueChange, className }: BakerySelect
   if (!bakeries || bakeries.length === 0) {
     return (
       <div className={className}>
-        <div className="flex w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--secondary)]/50 px-3 py-2 text-sm text-[var(--muted-foreground)]">
-          Aucune boulangerie
-        </div>
         <Link
           href="/settings/bakeries"
-          className="mt-2 flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+          className="flex w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--primary)] px-3 py-2 text-sm text-white hover:bg-[var(--primary)]/90"
         >
-          <Plus className="size-3" />
+          <Plus className="size-4" />
           Créer une boulangerie
         </Link>
       </div>
@@ -118,31 +107,72 @@ export function BakerySelector({ value, onValueChange, className }: BakerySelect
 
   return (
     <div className={className}>
-      <Select
-        value={selectedId}
-        onValueChange={(val) => handleChange(Array.isArray(val) ? val[0] : val)}
-        placeholder="Sélectionner une boulangerie"
-        options={options}
-        className="w-full"
-      />
-      <div className="mt-2 flex items-center justify-between">
-        <Link
-          href="/settings/bakeries"
-          className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-        >
-          <Settings className="size-3" />
-          Gérer les boulangeries
-        </Link>
-        {canCreate && (
-          <Link
-            href="/settings/bakeries"
-            className="flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+      <Combobox value={selectedId || ""} onChange={handleChange}>
+        <div className="relative">
+          <ComboboxButton
+            className={cx(
+              "flex min-h-[2.5rem] w-full items-center gap-2 rounded-lg",
+              "border border-[var(--border)] bg-[var(--card)] px-3 py-2",
+              "text-sm text-[var(--foreground)]",
+              "transition-all",
+              focusRing
+            )}
           >
-            <Plus className="size-3" />
-            Nouvelle
-          </Link>
-        )}
-      </div>
+            <Building2 className="size-4 text-[var(--muted-foreground)]" />
+            <span className="flex-1 truncate text-left">
+              {selectedBakery ? `${selectedBakery.name} (${selectedBakery.code})` : "Sélectionner une boulangerie"}
+            </span>
+            <ChevronDown className="size-4 text-[var(--muted-foreground)]" />
+          </ComboboxButton>
+
+          <ComboboxOptions
+            className={cx(
+              "absolute z-50 mt-2 max-h-80 w-full overflow-auto rounded-lg",
+              "border border-[var(--border)] bg-[var(--card)] shadow-lg",
+              "focus:outline-none"
+            )}
+          >
+            <div className="py-1">
+              {bakeries.map((bakery) => (
+                <ComboboxOption
+                  key={bakery.id}
+                  value={bakery.id}
+                  className={({ active }) =>
+                    cx(
+                      "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm",
+                      active && "bg-[var(--secondary)]"
+                    )
+                  }
+                >
+                  {({ selected }) => (
+                    <>
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--secondary)] text-[var(--muted-foreground)]">
+                        <Building2 className="size-3.5" />
+                      </div>
+                      <span className="flex-1 truncate">{bakery.name} ({bakery.code})</span>
+                      {selected && <Check className="size-4 text-[var(--primary)]" />}
+                    </>
+                  )}
+                </ComboboxOption>
+              ))}
+            </div>
+            
+            {canCreate && (
+              <>
+                <div className="border-t border-[var(--border)]" />
+                <Link
+                  href="/settings/bakeries"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--primary)] hover:bg-[var(--secondary)]"
+                >
+                  <Plus className="size-4" />
+                  <span>Nouvelle boulangerie</span>
+                </Link>
+              </>
+            )}
+          </ComboboxOptions>
+        </div>
+      </Combobox>
     </div>
   );
 }
