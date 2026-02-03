@@ -309,6 +309,7 @@ export default function EmployeesListPage() {
                           variant="ghost"
                           onClick={() => emp.status === "active" ? handleDeactivate(emp.id) : handleReactivate(emp.id)}
                           aria-label={emp.status === "active" ? "Désactiver" : "Réactiver"}
+                          disabled={deactivateEmployee.isPending || reactivateEmployee.isPending}
                         >
                           {emp.status === "active" ? (
                             <UserX className="size-4 text-[var(--error)]" />
@@ -478,11 +479,15 @@ export default function EmployeesListPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setIsFormOpen(false)}>
+            <Button variant="secondary" onClick={() => setIsFormOpen(false)} disabled={createEmployee.isPending || updateEmployee.isPending}>
               Annuler
             </Button>
-            <Button onClick={handleSubmit}>
-              {editingEmployee ? "Enregistrer" : "Ajouter"}
+            <Button onClick={handleSubmit} disabled={createEmployee.isPending || updateEmployee.isPending}>
+              {createEmployee.isPending || updateEmployee.isPending
+                ? "Enregistrement..."
+                : editingEmployee
+                  ? "Enregistrer"
+                  : "Ajouter"}
             </Button>
           </DialogFooter>
         </DialogContent>
