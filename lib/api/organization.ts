@@ -27,14 +27,12 @@ export interface UpdateOrganizationRequest {
 }
 
 export async function getOrganizations(): Promise<Organization[]> {
-  const response = await apiClient<{ success: boolean; data: Organization[] }>("/api/v1/auth/organizations");
-  return response.data;
+  return apiClient<Organization[]>("/api/v1/auth/organizations");
 }
 
 export async function updateOrganization(id: string, data: UpdateOrganizationRequest): Promise<Organization> {
-  const response = await apiClient<{ success: boolean; data: Organization }>(`/api/v1/organizations/${id}`, {
+  return apiClient<Organization>(`/api/v1/organizations/${id}`, {
     method: "PUT",
     body: data,
   });
-  return response.data;
 }

@@ -94,7 +94,7 @@ export async function updateEmployee(
   data: UpdateEmployeeRequest
 ): Promise<Employee> {
   return apiClient<Employee>(`/api/v1/employees/${id}`, {
-    method: "PATCH",
+    method: "PUT",
     body: data,
   });
 }

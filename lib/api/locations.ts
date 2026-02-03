@@ -30,33 +30,29 @@ export interface UpdateLocationRequest {
 }
 
 export async function getLocations(): Promise<Location[]> {
-  const response = await apiClient<{ success: boolean; data: Location[] }>("/api/v1/locations");
-  return response.data;
+  return apiClient<Location[]>("/api/v1/locations");
 }
 
 export async function getLocation(id: string): Promise<Location> {
-  const response = await apiClient<{ success: boolean; data: Location }>(`/api/v1/locations/${id}`);
-  return response.data;
+  return apiClient<Location>(`/api/v1/locations/${id}`);
 }
 
 export async function createLocation(data: CreateLocationRequest): Promise<Location> {
-  const response = await apiClient<{ success: boolean; data: Location }>("/api/v1/locations", {
+  return apiClient<Location>("/api/v1/locations", {
     method: "POST",
     body: data,
   });
-  return response.data;
 }
 
 export async function updateLocation(id: string, data: UpdateLocationRequest): Promise<Location> {
-  const response = await apiClient<{ success: boolean; data: Location }>(`/api/v1/locations/${id}`, {
+  return apiClient<Location>(`/api/v1/locations/${id}`, {
     method: "PUT",
     body: data,
   });
-  return response.data;
 }
 
 export async function deleteLocation(id: string): Promise<void> {
-  await apiClient<{ success: boolean; data: { id: string } }>(`/api/v1/locations/${id}`, {
+  await apiClient<{ id: string }>(`/api/v1/locations/${id}`, {
     method: "DELETE",
   });
 }
