@@ -16,7 +16,7 @@ import {
 import { LocationSelector } from "@/components/ui/LocationSelector"
 import { cx, focusRing } from "@/lib/utils"
 import { ChevronRight } from "lucide-react"
-import { Home, ShoppingCart, Package, Users, Wallet, FileText, Search } from "lucide-react"
+import { Home, ShoppingCart, Package, Users, Wallet, FileText, Search, Settings, Building2, MapPin, User } from "lucide-react"
 import * as React from "react"
 import { Logo } from "@/components/Logo"
 import { UserProfile } from "./UserProfile"
@@ -83,6 +83,16 @@ const navigationGroups = [
       { name: "Avances & prêts", href: "/payroll/loans", active: false },
       { name: "Primes & bonus", href: "/payroll/bonuses", active: false },
       { name: "Bulletins de paie", href: "/payroll/payslips", active: false },
+    ],
+  },
+  {
+    name: "Paramètres",
+    href: "/settings",
+    icon: Settings,
+    children: [
+      { name: "Organisation", href: "/settings/organization", active: false },
+      { name: "Localisations", href: "/settings/locations", active: false },
+      { name: "Mon profil", href: "/profile", active: false },
     ],
   },
 ] as const
