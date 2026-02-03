@@ -1,16 +1,12 @@
 import { Hono } from "hono";
 import { db } from "../../config/database.js";
-import { bakeries, organizations } from "../../shared/database/schema.js";
+import { bakeries } from "../../shared/database/schema.js";
 import { eq, and, count } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { insertBakerySchema } from "../../shared/database/schema.js";
 
-const TIER_LIMITS = {
-  base: 1,
-  mid: 5,
-  high: 10,
-} as const;
+const BAKERY_LIMIT = 5;
 
 export async function getBakeriesForOrganization(organizationId: string) {
   return await db
@@ -28,19 +24,6 @@ export async function getBakeryById(id: string, organizationId: string) {
 }
 
 export async function canCreateBakery(organizationId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
-  // Get organization tier
-  const [org] = await db
-    .select({ tier: organizations.tier })
-    .from(organizations)
-    .where(eq(organizations.id, organizationId));
-
-  if (!org) {
-    return { allowed: false, current: 0, limit: 0 };
-  }
-
-  const tier = org.tier as keyof typeof TIER_LIMITS;
-  const limit = TIER_LIMITS[tier] ?? TIER_LIMITS.base;
-
   // Count current bakeries
   const [result] = await db
     .select({ count: count() })
@@ -50,9 +33,9 @@ export async function canCreateBakery(organizationId: string): Promise<{ allowed
   const current = result?.count ?? 0;
 
   return {
-    allowed: current < limit,
+    allowed: current < BAKERY_LIMIT,
     current,
-    limit,
+    limit: BAKERY_LIMIT,
   };
 }
 
@@ -68,7 +51,7 @@ export async function createBakery(data: {
   const { allowed, current, limit } = await canCreateBakery(data.organizationId);
 
   if (!allowed) {
-    throw new Error(`Bakery limit reached: ${current}/${limit}. Upgrade your plan to add more bakeries.`);
+    throw new Error(`Bakery limit reached: ${current}/${limit}. Maximum 5 bakeries allowed.`);
   }
 
   const [bakery] = await db.insert(bakeries).values(data).returning();
