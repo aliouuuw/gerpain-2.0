@@ -1,10 +1,11 @@
 import { apiClient } from "../api-client";
 
-export type LocationType = "bakery" | "shop" | "warehouse";
+export type LocationType = "shop" | "warehouse";
 
 export interface Location {
   id: string;
   organizationId: string;
+  bakeryId: string;
   name: string;
   type: LocationType;
   address: string | null;
@@ -19,6 +20,7 @@ export interface CreateLocationRequest {
   type: LocationType;
   address?: string;
   phone?: string;
+  bakeryId: string;
 }
 
 export interface UpdateLocationRequest {

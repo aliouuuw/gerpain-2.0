@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, MapPin, Building2, Store, Warehouse, Pencil, Trash2, Phone } from "lucide-react";
+import { Plus, Search, MapPin, Store, Warehouse, Pencil, Trash2, Phone } from "lucide-react";
 
 import { Button } from "@/components/Button";
 import { Card, CardContent, CardHeader } from "@/components/Card";
@@ -12,22 +12,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useToast } from "@/components/ui/toast";
 import { useLocations, useCreateLocation, useUpdateLocation, useDeleteLocation } from "@/lib/hooks/useLocations";
 import type { Location, LocationType } from "@/lib/api/locations";
+import { getStoredBakeryId } from "@/components/ui/BakerySelector";
 
 const typeLabels: Record<LocationType, string> = {
-  bakery: "Boulangerie",
   shop: "Point de vente",
   warehouse: "Dépôt",
 };
 
 const typeIcons: Record<LocationType, React.ReactNode> = {
-  bakery: <Building2 className="size-4" />,
   shop: <Store className="size-4" />,
   warehouse: <Warehouse className="size-4" />,
 };
 
 const typeOptions: SelectOption[] = [
   { value: "all", label: "Tous les types" },
-  { value: "bakery", label: "Boulangerie" },
   { value: "shop", label: "Point de vente" },
   { value: "warehouse", label: "Dépôt" },
 ];
@@ -101,11 +99,21 @@ export default function LocationsPage() {
           },
         });
       } else {
+        const bakeryId = getStoredBakeryId();
+        if (!bakeryId) {
+          notify({
+            variant: "error",
+            title: "Erreur",
+            description: "Veuillez sélectionner une boulangerie.",
+          });
+          return;
+        }
         await createLocation.mutateAsync({
           name: formData.name,
           type: formData.type,
           address: formData.address || undefined,
           phone: formData.phone || undefined,
+          bakeryId,
         });
       }
 
