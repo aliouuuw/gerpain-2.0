@@ -31,7 +31,7 @@ async function testAPI() {
   const prods = await db.select().from(products).where(eq(products.organizationId, orgId));
   console.log(`   Found ${prods.length} products`);
   if (prods.length > 0) {
-    console.log(`   ✅ Sample: ${prods[0].name} (${prods[0].category}, ${prods[0].unitPrice} XOF)`);
+    console.log(`   ✅ Sample: ${prods[0].name} (${prods[0].categoryId}, ${prods[0].unitPrice} XOF)`);
   } else {
     console.log("   ⚠️  No products found");
   }

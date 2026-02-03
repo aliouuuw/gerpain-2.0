@@ -21,6 +21,7 @@ import { employeesRoutes } from "./domains/employees/routes.js";
 import { deliveriesRoutes } from "./domains/deliveries/routes.js";
 import { collectionsRoutes } from "./domains/collections/routes.js";
 import { bakeriesRoutes } from "./domains/bakeries/routes.js";
+import categoriesRoutes from "./domains/categories/routes.js";
 
 // Logger
 import { Logger } from "./shared/utils/logger.js";
@@ -35,7 +36,7 @@ app.use("*", cors({
   origin: corsOrigins,
   credentials: true,
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'User-Agent', 'DNT', 'Cache-Control', 'X-Mx-ReqToken', 'Keep-Alive', 'X-Requested-With', 'If-Modified-Since', 'X-Organization-ID'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'User-Agent', 'DNT', 'Cache-Control', 'X-Mx-ReqToken', 'Keep-Alive', 'X-Requested-With', 'If-Modified-Since', 'X-Organization-ID', 'X-Bakery-ID'],
   exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
   maxAge: 86400, // 24 hours
 }));
@@ -81,6 +82,7 @@ api.route("/employees", employeesRoutes);
 api.route("/delivery-runs", deliveriesRoutes);
 api.route("/cash-collections", collectionsRoutes);
 api.route("/bakeries", bakeriesRoutes);
+api.route("/categories", categoriesRoutes);
 
 app.route("/api/v1", api);
 

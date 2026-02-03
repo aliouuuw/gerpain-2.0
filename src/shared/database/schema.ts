@@ -185,6 +185,21 @@ export const locations = pgTable("locations", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Categories table for product organization
+export const categories = pgTable("categories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: text("color"), // hex color code for UI
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Products table (bakery items) - can be org-wide or bakery-specific
 export const products = pgTable("products", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -192,8 +207,8 @@ export const products = pgTable("products", {
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
   bakeryId: uuid("bakery_id").references(() => bakeries.id, { onDelete: "cascade" }), // null = org-wide product
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "set null" }),
   name: text("name").notNull(),
-  category: text("category").notNull(), // "pain", "viennoiserie", "patisserie", "sandwich", "snack"
   unitPrice: integer("unit_price").notNull(), // price in XOF (no decimals)
   description: text("description"),
   isActive: boolean("is_active").default(true),
@@ -337,7 +352,19 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.bakeryId],
     references: [bakeries.id],
   }),
+  category: one(categories, {
+    fields: [products.categoryId],
+    references: [categories.id],
+  }),
   deliveryItems: many(deliveryItems),
+}));
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [categories.organizationId],
+    references: [organizations.id],
+  }),
+  products: many(products),
 }));
 
 export const employeesRelations = relations(employees, ({ one, many }) => ({
@@ -670,11 +697,20 @@ export const insertBakerySchema = z.object({
 
 export const insertProductSchema = z.object({
   organizationId: z.string().uuid(),
-  bakeryId: z.string().uuid().optional(), // null = org-wide product
+  bakeryId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
-  category: z.enum(["pain", "viennoiserie", "patisserie", "sandwich", "snack"]),
   unitPrice: z.number().int().positive(),
   description: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const insertCategorySchema = z.object({
+  organizationId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  description: z.string().optional(),
+  color: z.string().optional(),
+  sortOrder: z.number().int().default(0),
   isActive: z.boolean().optional(),
 });
 
@@ -733,6 +769,8 @@ export const insertCashCollectionSchema = z.object({
 
 export type Location = typeof locations.$inferSelect;
 export type NewLocation = typeof locations.$inferInsert;
+export type Category = typeof categories.$inferSelect;
+export type NewCategory = typeof categories.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type Employee = typeof employees.$inferSelect;
