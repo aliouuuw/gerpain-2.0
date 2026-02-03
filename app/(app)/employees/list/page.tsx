@@ -11,13 +11,8 @@ import { Select, type SelectOption } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee } from "@/lib/hooks/useEmployees";
+import { useLocations } from "@/lib/hooks/useLocations";
 import type { Employee, EmployeeRole, EmployeeStatus } from "@/lib/api/employees";
-
-const mockLocations = [
-  { id: "loc-1", name: "Boulangerie Centre" },
-  { id: "loc-2", name: "Point de vente Marché" },
-  { id: "loc-3", name: "Dépôt Zone Industrielle" },
-];
 
 const roleLabels: Record<EmployeeRole, string> = {
   delivery: "Livreur",
@@ -66,6 +61,7 @@ export default function EmployeesListPage() {
     role: roleFilter !== "all" ? (roleFilter as EmployeeRole) : undefined,
     status: statusFilter !== "all" ? (statusFilter as EmployeeStatus) : undefined,
   });
+  const { data: locations = [], isLoading: isLoadingLocations } = useLocations();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deactivateEmployee = useDeactivateEmployee();
@@ -149,7 +145,7 @@ export default function EmployeesListPage() {
     }
   };
 
-  const locationOptions: SelectOption[] = mockLocations.map((loc) => ({
+  const locationOptions = locations.map((loc) => ({
     value: loc.id,
     label: loc.name,
   }));
@@ -216,7 +212,7 @@ export default function EmployeesListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoading || isLoadingLocations ? (
                 <TableEmptyState
                   colSpan={7}
                   message="Chargement des employés..."
@@ -277,7 +273,7 @@ export default function EmployeesListPage() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {emp.locations.map((locId) => {
-                          const loc = mockLocations.find((l) => l.id === locId);
+                          const loc = locations.find((l) => l.id === locId);
                           return loc ? (
                             <span
                               key={locId}
