@@ -94,6 +94,23 @@ export const organizations = pgTable("organizations", {
   description: text("description"),
   ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
   settings: text("settings").default("{}"), // JSON string for org settings
+  tier: text("tier").default("base").notNull(), // "base", "mid", "high" - for bakery limits
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Bakeries table - primary operational units (production centers)
+export const bakeries = pgTable("bakeries", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  code: text("code").notNull(), // Short code for display
+  address: text("address"),
+  phone: text("phone"),
+  settings: text("settings").default("{}"), // JSON for bakery-specific settings
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -150,14 +167,17 @@ export const auditLogs = pgTable("audit_logs", {
 // DOMAIN ENTITIES (Gerpain-specific)
 // =====================================================
 
-// Locations table (bakery, shop, warehouse)
+// Locations table (shop, warehouse) - associated with a bakery
 export const locations = pgTable("locations", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
+  bakeryId: uuid("bakery_id")
+    .notNull()
+    .references(() => bakeries.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
-  type: text("type").notNull(), // "bakery", "shop", "warehouse"
+  type: text("type").notNull(), // "shop", "warehouse" (no longer "bakery")
   address: text("address"),
   phone: text("phone"),
   isActive: boolean("is_active").default(true),
@@ -165,12 +185,13 @@ export const locations = pgTable("locations", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Products table (bakery items)
+// Products table (bakery items) - can be org-wide or bakery-specific
 export const products = pgTable("products", {
   id: uuid("id").defaultRandom().primaryKey(),
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
+  bakeryId: uuid("bakery_id").references(() => bakeries.id, { onDelete: "cascade" }), // null = org-wide product
   name: text("name").notNull(),
   category: text("category").notNull(), // "pain", "viennoiserie", "patisserie", "sandwich", "snack"
   unitPrice: integer("unit_price").notNull(), // price in XOF (no decimals)
@@ -186,6 +207,9 @@ export const employees = pgTable("employees", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
+  bakeryId: uuid("bakery_id")
+    .notNull()
+    .references(() => bakeries.id, { onDelete: "cascade" }),
   userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }), // optional link to user account
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
@@ -219,6 +243,9 @@ export const deliveryRuns = pgTable("delivery_runs", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
+  bakeryId: uuid("bakery_id")
+    .notNull()
+    .references(() => bakeries.id, { onDelete: "cascade" }),
   employeeId: uuid("employee_id")
     .notNull()
     .references(() => employees.id, { onDelete: "cascade" }),
@@ -257,6 +284,9 @@ export const cashCollections = pgTable("cash_collections", {
   organizationId: uuid("organization_id")
     .notNull()
     .references(() => organizations.id, { onDelete: "cascade" }),
+  bakeryId: uuid("bakery_id")
+    .notNull()
+    .references(() => bakeries.id, { onDelete: "cascade" }),
   employeeId: uuid("employee_id")
     .notNull()
     .references(() => employees.id, { onDelete: "cascade" }),
@@ -289,6 +319,10 @@ export const locationsRelations = relations(locations, ({ one, many }) => ({
     fields: [locations.organizationId],
     references: [organizations.id],
   }),
+  bakery: one(bakeries, {
+    fields: [locations.bakeryId],
+    references: [bakeries.id],
+  }),
   employeeLocations: many(employeeLocations),
   deliveryRuns: many(deliveryRuns),
   cashCollections: many(cashCollections),
@@ -299,6 +333,10 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.organizationId],
     references: [organizations.id],
   }),
+  bakery: one(bakeries, {
+    fields: [products.bakeryId],
+    references: [bakeries.id],
+  }),
   deliveryItems: many(deliveryItems),
 }));
 
@@ -306,6 +344,10 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [employees.organizationId],
     references: [organizations.id],
+  }),
+  bakery: one(bakeries, {
+    fields: [employees.bakeryId],
+    references: [bakeries.id],
   }),
   user: one(users, {
     fields: [employees.userId],
@@ -331,6 +373,10 @@ export const deliveryRunsRelations = relations(deliveryRuns, ({ one, many }) => 
   organization: one(organizations, {
     fields: [deliveryRuns.organizationId],
     references: [organizations.id],
+  }),
+  bakery: one(bakeries, {
+    fields: [deliveryRuns.bakeryId],
+    references: [bakeries.id],
   }),
   employee: one(employees, {
     fields: [deliveryRuns.employeeId],
@@ -362,6 +408,10 @@ export const cashCollectionsRelations = relations(cashCollections, ({ one }) => 
   organization: one(organizations, {
     fields: [cashCollections.organizationId],
     references: [organizations.id],
+  }),
+  bakery: one(bakeries, {
+    fields: [cashCollections.bakeryId],
+    references: [bakeries.id],
   }),
   employee: one(employees, {
     fields: [cashCollections.employeeId],
@@ -405,6 +455,20 @@ export const organizationsRelations = relations(organizations, ({ one, many }) =
   }),
   members: many(organizationMembers),
   invitations: many(organizationInvitations),
+  bakeries: many(bakeries),
+}));
+
+// Add bakeries relations after organizationsRelations
+export const bakeriesRelations = relations(bakeries, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [bakeries.organizationId],
+    references: [organizations.id],
+  }),
+  locations: many(locations),
+  employees: many(employees),
+  products: many(products),
+  deliveryRuns: many(deliveryRuns),
+  cashCollections: many(cashCollections),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -586,15 +650,27 @@ export type NewOrganizationInvitation = typeof organizationInvitations.$inferIns
 
 export const insertLocationSchema = z.object({
   organizationId: z.string().uuid(),
+  bakeryId: z.string().uuid(),
   name: z.string().min(1).max(255),
-  type: z.enum(["bakery", "shop", "warehouse"]),
+  type: z.enum(["shop", "warehouse"]), // "bakery" removed
   address: z.string().optional(),
   phone: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
+export const insertBakerySchema = z.object({
+  organizationId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  code: z.string().min(1).max(50),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  settings: z.string().optional(), // JSON string
+  isActive: z.boolean().optional(),
+});
+
 export const insertProductSchema = z.object({
   organizationId: z.string().uuid(),
+  bakeryId: z.string().uuid().optional(), // null = org-wide product
   name: z.string().min(1).max(255),
   category: z.enum(["pain", "viennoiserie", "patisserie", "sandwich", "snack"]),
   unitPrice: z.number().int().positive(),
@@ -604,6 +680,7 @@ export const insertProductSchema = z.object({
 
 export const insertEmployeeSchema = z.object({
   organizationId: z.string().uuid(),
+  bakeryId: z.string().uuid(),
   userId: z.string().uuid().optional(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -618,6 +695,7 @@ export const insertEmployeeSchema = z.object({
 
 export const insertDeliveryRunSchema = z.object({
   organizationId: z.string().uuid(),
+  bakeryId: z.string().uuid(),
   employeeId: z.string().uuid(),
   locationId: z.string().uuid(),
   date: z.string(), // date string
@@ -636,6 +714,7 @@ export const insertDeliveryItemSchema = z.object({
 
 export const insertCashCollectionSchema = z.object({
   organizationId: z.string().uuid(),
+  bakeryId: z.string().uuid(),
   employeeId: z.string().uuid(),
   locationId: z.string().uuid(),
   date: z.string(), // date string
@@ -666,3 +745,7 @@ export type DeliveryItem = typeof deliveryItems.$inferSelect;
 export type NewDeliveryItem = typeof deliveryItems.$inferInsert;
 export type CashCollection = typeof cashCollections.$inferSelect;
 export type NewCashCollection = typeof cashCollections.$inferInsert;
+
+// Bakery types
+export type Bakery = typeof bakeries.$inferSelect;
+export type NewBakery = typeof bakeries.$inferInsert;

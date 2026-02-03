@@ -5,6 +5,7 @@ import {
   roles, 
   userRoles, 
   organizations,
+  bakeries,
   locations,
   products,
   employees,
@@ -178,6 +179,20 @@ async function seed() {
     if (orgId) {
       console.log("\n--- Seeding domain data ---");
 
+      // Seed Bakeries first
+      console.log("Creating bakeries...");
+      const [bakery1] = await db.insert(bakeries).values({
+        organizationId: orgId,
+        name: "Boulangerie Centre",
+        code: "BC",
+        address: "12 Rue Principale, Dakar",
+        phone: "+221 33 123 45 67",
+        settings: "{}",
+      }).returning();
+
+      console.log(`Created 1 bakery: ${bakery1.name}`);
+
+      // Check if domain data already exists
       const [existingLocation] = await db
         .select()
         .from(locations)
@@ -190,35 +205,29 @@ async function seed() {
         return;
       }
 
-      // Seed Locations
+      // Seed Locations (now only shops and warehouses, linked to bakery)
       console.log("Creating locations...");
       const [loc1] = await db.insert(locations).values({
         organizationId: orgId,
-        name: "Boulangerie Centre",
-        type: "bakery",
-        address: "12 Rue Principale, Dakar",
-        phone: "+221 33 123 45 67",
-      }).returning();
-
-      const [loc2] = await db.insert(locations).values({
-        organizationId: orgId,
+        bakeryId: bakery1.id,
         name: "Point de vente Marché",
         type: "shop",
         address: "Place du Marché, Dakar",
         phone: "+221 33 234 56 78",
       }).returning();
 
-      const [loc3] = await db.insert(locations).values({
+      const [loc2] = await db.insert(locations).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         name: "Dépôt Zone Industrielle",
         type: "warehouse",
         address: "Zone Industrielle, Dakar",
         phone: "+221 33 345 67 89",
       }).returning();
 
-      console.log(`Created ${3} locations`);
+      console.log(`Created ${2} locations`);
 
-      // Seed Products
+      // Seed Products (org-wide products, no bakeryId)
       console.log("Creating products...");
       const productData = [
         { name: "Baguette tradition", category: "pain", unitPrice: 300 },
@@ -239,10 +248,11 @@ async function seed() {
 
       console.log(`Created ${insertedProducts.length} products`);
 
-      // Seed Employees
+      // Seed Employees (linked to bakery)
       console.log("Creating employees...");
       const [emp1] = await db.insert(employees).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         firstName: "Moussa",
         lastName: "Diallo",
         email: "moussa.diallo@gerpain.com",
@@ -255,6 +265,7 @@ async function seed() {
 
       const [emp2] = await db.insert(employees).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         firstName: "Fatou",
         lastName: "Ndiaye",
         email: "fatou.ndiaye@gerpain.com",
@@ -267,6 +278,7 @@ async function seed() {
 
       const [emp3] = await db.insert(employees).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         firstName: "Ibrahima",
         lastName: "Sow",
         email: "ibrahima.sow@gerpain.com",
@@ -279,6 +291,7 @@ async function seed() {
 
       const [emp4] = await db.insert(employees).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         firstName: "Aminata",
         lastName: "Ba",
         email: "aminata.ba@gerpain.com",
@@ -291,6 +304,7 @@ async function seed() {
 
       const [emp5] = await db.insert(employees).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         firstName: "Ousmane",
         lastName: "Fall",
         email: "ousmane.fall@gerpain.com",
@@ -307,23 +321,22 @@ async function seed() {
       console.log("Assigning employees to locations...");
       await db.insert(employeeLocations).values([
         { employeeId: emp1.id, locationId: loc1.id, isPrimary: true },
-        { employeeId: emp1.id, locationId: loc2.id, isPrimary: false },
         { employeeId: emp2.id, locationId: loc1.id, isPrimary: true },
-        { employeeId: emp3.id, locationId: loc2.id, isPrimary: true },
+        { employeeId: emp3.id, locationId: loc1.id, isPrimary: true },
         { employeeId: emp4.id, locationId: loc1.id, isPrimary: true },
         { employeeId: emp4.id, locationId: loc2.id, isPrimary: false },
-        { employeeId: emp4.id, locationId: loc3.id, isPrimary: false },
-        { employeeId: emp5.id, locationId: loc3.id, isPrimary: true },
+        { employeeId: emp5.id, locationId: loc2.id, isPrimary: true },
       ]);
 
       console.log("Employee-location assignments created");
 
-      // Create sample delivery runs for today
+      // Create sample delivery runs for today (linked to bakery)
       const today = new Date().toISOString().slice(0, 10);
       console.log(`Creating sample delivery runs for ${today}...`);
 
       const [run1] = await db.insert(deliveryRuns).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         employeeId: emp1.id,
         locationId: loc1.id,
         date: today,
@@ -333,6 +346,7 @@ async function seed() {
 
       const [run2] = await db.insert(deliveryRuns).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         employeeId: emp3.id,
         locationId: loc2.id,
         date: today,
@@ -358,10 +372,11 @@ async function seed() {
 
       console.log(`Created 2 delivery runs with items`);
 
-      // Create sample cash collections
+      // Create sample cash collections (linked to bakery)
       console.log("Creating sample cash collections...");
       await db.insert(cashCollections).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         employeeId: emp1.id,
         locationId: loc1.id,
         date: today,
@@ -372,6 +387,7 @@ async function seed() {
 
       await db.insert(cashCollections).values({
         organizationId: orgId,
+        bakeryId: bakery1.id,
         employeeId: emp3.id,
         locationId: loc2.id,
         date: today,
