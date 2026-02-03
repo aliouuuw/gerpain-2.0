@@ -1,5 +1,7 @@
 "use client";
 
+import { getStoredBakeryId } from "@/components/ui/BakerySelector";
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
@@ -85,6 +87,7 @@ export async function apiClient<T>(
 ): Promise<T> {
   const { method, headers, body, signal } = options;
   const organizationId = await ensureOrganizationId();
+  const bakeryId = getStoredBakeryId();
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: method ?? "GET",
@@ -92,6 +95,7 @@ export async function apiClient<T>(
     headers: {
       "Content-Type": "application/json",
       ...(organizationId ? { "X-Organization-ID": organizationId } : {}),
+      ...(bakeryId ? { "X-Bakery-ID": bakeryId } : {}),
       ...(headers ?? {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
