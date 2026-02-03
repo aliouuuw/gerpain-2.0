@@ -7,9 +7,10 @@ import { z } from "zod";
 
 const locationsRoutes = new Hono();
 
-// List locations
+// List locations - filtered by bakery
 locationsRoutes.get("/", async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
   
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -18,7 +19,11 @@ locationsRoutes.get("/", async (c) => {
   const result = await db
     .select()
     .from(locations)
-    .where(eq(locations.organizationId, organizationId));
+    .where(
+      bakeryId 
+        ? and(eq(locations.organizationId, organizationId), eq(locations.bakeryId, bakeryId))!
+        : eq(locations.organizationId, organizationId)
+    );
 
   return c.json({ success: true, data: result });
 });
@@ -27,6 +32,7 @@ locationsRoutes.get("/", async (c) => {
 locationsRoutes.get("/:id", async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -35,7 +41,11 @@ locationsRoutes.get("/:id", async (c) => {
   const [location] = await db
     .select()
     .from(locations)
-    .where(and(eq(locations.id, id), eq(locations.organizationId, organizationId)));
+    .where(
+      bakeryId
+        ? and(eq(locations.id, id), eq(locations.organizationId, organizationId), eq(locations.bakeryId, bakeryId))!
+        : and(eq(locations.id, id), eq(locations.organizationId, organizationId))!
+    );
 
   if (!location) {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Location not found" } }, 404);
@@ -64,6 +74,7 @@ locationsRoutes.put(
   async (c) => {
     const id = c.req.param("id");
     const organizationId = c.req.header("X-Organization-ID");
+    const bakeryId = c.req.header("X-Bakery-ID");
     const body = c.req.valid("json");
 
     if (!organizationId) {
@@ -73,7 +84,11 @@ locationsRoutes.put(
     const [updated] = await db
       .update(locations)
       .set({ ...body, updatedAt: new Date() })
-      .where(and(eq(locations.id, id), eq(locations.organizationId, organizationId)))
+      .where(
+        bakeryId
+          ? and(eq(locations.id, id), eq(locations.organizationId, organizationId), eq(locations.bakeryId, bakeryId))!
+          : and(eq(locations.id, id), eq(locations.organizationId, organizationId))!
+      )
       .returning();
 
     if (!updated) {
@@ -88,6 +103,7 @@ locationsRoutes.put(
 locationsRoutes.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -95,7 +111,11 @@ locationsRoutes.delete("/:id", async (c) => {
 
   const [deleted] = await db
     .delete(locations)
-    .where(and(eq(locations.id, id), eq(locations.organizationId, organizationId)))
+    .where(
+      bakeryId
+        ? and(eq(locations.id, id), eq(locations.organizationId, organizationId), eq(locations.bakeryId, bakeryId))!
+        : and(eq(locations.id, id), eq(locations.organizationId, organizationId))!
+    )
     .returning();
 
   if (!deleted) {
