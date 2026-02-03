@@ -91,6 +91,7 @@ const navigationGroups = [
     icon: Settings,
     children: [
       { name: "Organisation", href: "/settings/organization", active: false },
+      { name: "Boulangeries", href: "/settings/bakeries", active: false },
       { name: "Localisations", href: "/settings/locations", active: false },
       { name: "Mon profil", href: "/profile", active: false },
     ],

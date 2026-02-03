@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Building2 } from "lucide-react";
+import { Building2, Plus, Settings } from "lucide-react";
+import Link from "next/link";
 import { Select, type SelectOption } from "@/components/ui/select";
-import { useBakeries } from "@/lib/hooks/useBakeries";
+import { useBakeries, useBakeryTierStatus } from "@/lib/hooks/useBakeries";
 
 export type Bakery = {
   id: string;
@@ -35,6 +36,7 @@ export function setStoredBakeryId(bakeryId: string) {
 
 export function BakerySelector({ value, onValueChange, className }: BakerySelectorProps) {
   const { data: bakeries, isLoading, error } = useBakeries();
+  const { data: tierStatus } = useBakeryTierStatus();
   
   // Initialize from localStorage or first bakery
   const [selectedId, setSelectedId] = React.useState<string>(() => {
@@ -75,6 +77,8 @@ export function BakerySelector({ value, onValueChange, className }: BakerySelect
     ),
   })) || [];
 
+  const canCreate = tierStatus ? tierStatus.current < tierStatus.limit : false;
+
   if (isLoading) {
     return (
       <div className={className}>
@@ -101,17 +105,44 @@ export function BakerySelector({ value, onValueChange, className }: BakerySelect
         <div className="flex w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--secondary)]/50 px-3 py-2 text-sm text-[var(--muted-foreground)]">
           Aucune boulangerie
         </div>
+        <Link
+          href="/settings/bakeries"
+          className="mt-2 flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+        >
+          <Plus className="size-3" />
+          Créer une boulangerie
+        </Link>
       </div>
     );
   }
 
   return (
-    <Select
-      value={selectedId}
-      onValueChange={(val) => handleChange(Array.isArray(val) ? val[0] : val)}
-      placeholder="Sélectionner une boulangerie"
-      options={options}
-      className={className}
-    />
+    <div className={className}>
+      <Select
+        value={selectedId}
+        onValueChange={(val) => handleChange(Array.isArray(val) ? val[0] : val)}
+        placeholder="Sélectionner une boulangerie"
+        options={options}
+        className="w-full"
+      />
+      <div className="mt-2 flex items-center justify-between">
+        <Link
+          href="/settings/bakeries"
+          className="flex items-center gap-1 text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+        >
+          <Settings className="size-3" />
+          Gérer les boulangeries
+        </Link>
+        {canCreate && (
+          <Link
+            href="/settings/bakeries"
+            className="flex items-center gap-1 text-xs text-[var(--primary)] hover:underline"
+          >
+            <Plus className="size-3" />
+            Nouvelle
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
