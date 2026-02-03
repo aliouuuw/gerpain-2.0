@@ -10,90 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-
-type EmployeeRole = "delivery" | "cashier" | "manager" | "baker";
-type EmployeeStatus = "active" | "inactive";
-
-type Employee = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  role: EmployeeRole;
-  status: EmployeeStatus;
-  locations: string[];
-  commissionRate: number;
-  hireDate: string;
-};
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee } from "@/lib/hooks/useEmployees";
+import type { Employee, EmployeeRole, EmployeeStatus } from "@/lib/api/employees";
 
 const mockLocations = [
   { id: "loc-1", name: "Boulangerie Centre" },
   { id: "loc-2", name: "Point de vente Marché" },
   { id: "loc-3", name: "Dépôt Zone Industrielle" },
-];
-
-const mockEmployees: Employee[] = [
-  {
-    id: "emp-1",
-    firstName: "Moussa",
-    lastName: "Diallo",
-    email: "moussa.diallo@gerpain.com",
-    phone: "+221 77 123 45 67",
-    role: "delivery",
-    status: "active",
-    locations: ["loc-1", "loc-2"],
-    commissionRate: 5,
-    hireDate: "2023-03-15",
-  },
-  {
-    id: "emp-2",
-    firstName: "Fatou",
-    lastName: "Ndiaye",
-    email: "fatou.ndiaye@gerpain.com",
-    phone: "+221 78 234 56 78",
-    role: "cashier",
-    status: "active",
-    locations: ["loc-1"],
-    commissionRate: 3,
-    hireDate: "2023-06-01",
-  },
-  {
-    id: "emp-3",
-    firstName: "Ibrahima",
-    lastName: "Sow",
-    email: "ibrahima.sow@gerpain.com",
-    phone: "+221 76 345 67 89",
-    role: "delivery",
-    status: "active",
-    locations: ["loc-2"],
-    commissionRate: 5,
-    hireDate: "2024-01-10",
-  },
-  {
-    id: "emp-4",
-    firstName: "Aminata",
-    lastName: "Ba",
-    email: "aminata.ba@gerpain.com",
-    phone: "+221 77 456 78 90",
-    role: "manager",
-    status: "active",
-    locations: ["loc-1", "loc-2", "loc-3"],
-    commissionRate: 0,
-    hireDate: "2022-08-20",
-  },
-  {
-    id: "emp-5",
-    firstName: "Ousmane",
-    lastName: "Fall",
-    email: "ousmane.fall@gerpain.com",
-    phone: "+221 78 567 89 01",
-    role: "baker",
-    status: "inactive",
-    locations: ["loc-3"],
-    commissionRate: 0,
-    hireDate: "2023-02-01",
-  },
 ];
 
 const roleLabels: Record<EmployeeRole, string> = {
@@ -131,13 +54,22 @@ const emptyFormData = {
 
 export default function EmployeesListPage() {
   const { notify } = useToast();
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
+
+  // API hooks
+  const { data: employees = [], isLoading, error } = useEmployees({
+    role: roleFilter !== "all" ? (roleFilter as EmployeeRole) : undefined,
+    status: statusFilter !== "all" ? (statusFilter as EmployeeStatus) : undefined,
+  });
+  const createEmployee = useCreateEmployee();
+  const updateEmployee = useUpdateEmployee();
+  const deactivateEmployee = useDeactivateEmployee();
+  const reactivateEmployee = useReactivateEmployee();
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -172,57 +104,49 @@ export default function EmployeesListPage() {
     setIsFormOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+  const handleSubmit = async () => {
+    if (!formData.firstName || !formData.lastName) {
       notify({
-        variant: "warning",
-        title: "Champs requis",
-        description: "Veuillez renseigner le prénom et le nom.",
+        variant: "error",
+        title: "Erreur",
+        description: "Le prénom et le nom sont requis.",
       });
       return;
     }
 
-    if (editingEmployee) {
-      setEmployees((prev) =>
-        prev.map((emp) =>
-          emp.id === editingEmployee.id
-            ? { ...emp, ...formData }
-            : emp
-        )
-      );
-      notify({
-        variant: "success",
-        title: "Employé modifié",
-        description: `${formData.firstName} ${formData.lastName} a été mis à jour.`,
-      });
-    } else {
-      const newEmployee: Employee = {
-        id: `emp-${Date.now()}`,
-        ...formData,
-      };
-      setEmployees((prev) => [...prev, newEmployee]);
-      notify({
-        variant: "success",
-        title: "Employé ajouté",
-        description: `${formData.firstName} ${formData.lastName} a été ajouté à l'équipe.`,
-      });
-    }
+    try {
+      if (editingEmployee) {
+        await updateEmployee.mutateAsync({
+          id: editingEmployee.id,
+          data: formData,
+        });
+      } else {
+        await createEmployee.mutateAsync(formData);
+      }
 
-    setIsFormOpen(false);
+      setIsFormOpen(false);
+      setEditingEmployee(null);
+      setFormData(emptyFormData);
+    } catch (error) {
+      // Error handling is done in the hooks
+      console.error("Failed to save employee:", error);
+    }
   };
 
-  const toggleStatus = (employee: Employee) => {
-    const newStatus = employee.status === "active" ? "inactive" : "active";
-    setEmployees((prev) =>
-      prev.map((emp) =>
-        emp.id === employee.id ? { ...emp, status: newStatus } : emp
-      )
-    );
-    notify({
-      variant: newStatus === "active" ? "success" : "warning",
-      title: newStatus === "active" ? "Employé réactivé" : "Employé désactivé",
-      description: `${employee.firstName} ${employee.lastName} est maintenant ${newStatus === "active" ? "actif" : "inactif"}.`,
-    });
+  const handleDeactivate = async (id: string) => {
+    try {
+      await deactivateEmployee.mutateAsync(id);
+    } catch (error) {
+      console.error("Failed to deactivate employee:", error);
+    }
+  };
+
+  const handleReactivate = async (id: string) => {
+    try {
+      await reactivateEmployee.mutateAsync(id);
+    } catch (error) {
+      console.error("Failed to reactivate employee:", error);
+    }
   };
 
   const locationOptions: SelectOption[] = mockLocations.map((loc) => ({
@@ -292,7 +216,22 @@ export default function EmployeesListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.length === 0 ? (
+              {isLoading ? (
+                <TableEmptyState
+                  colSpan={7}
+                  message="Chargement des employés..."
+                />
+              ) : error ? (
+                <TableEmptyState
+                  colSpan={7}
+                  message="Erreur lors du chargement des employés"
+                  action={
+                    <Button size="sm" variant="secondary" onClick={() => window.location.reload()}>
+                      Réessayer
+                    </Button>
+                  }
+                />
+              ) : filteredEmployees.length === 0 ? (
                 <TableEmptyState
                   colSpan={7}
                   message="Aucun employé trouvé"
@@ -372,7 +311,7 @@ export default function EmployeesListPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => toggleStatus(emp)}
+                          onClick={() => emp.status === "active" ? handleDeactivate(emp.id) : handleReactivate(emp.id)}
                           aria-label={emp.status === "active" ? "Désactiver" : "Réactiver"}
                         >
                           {emp.status === "active" ? (

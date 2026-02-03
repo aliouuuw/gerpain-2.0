@@ -16,6 +16,7 @@ interface TabsProps {
     disabled?: boolean
   }>
   className?: string
+  children?: React.ReactNode
 }
 
 interface TabsContentProps {
@@ -24,7 +25,7 @@ interface TabsContentProps {
   className?: string
 }
 
-const Tabs = ({ value, onValueChange, tabs, className }: TabsProps) => (
+const Tabs = ({ value, onValueChange, tabs, className, children }: TabsProps) => (
   <TabsPrimitive.Root
     value={value}
     onValueChange={onValueChange}
@@ -61,6 +62,7 @@ const Tabs = ({ value, onValueChange, tabs, className }: TabsProps) => (
         </TabsPrimitive.Trigger>
       ))}
     </TabsPrimitive.List>
+    {children}
   </TabsPrimitive.Root>
 )
 

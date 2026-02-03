@@ -37,6 +37,25 @@ async function apiFetch(input: string, init?: RequestInit) {
   }
 }
 
+async function fetchAndSetOrganization(): Promise<void> {
+  try {
+    const res = await apiFetch("/api/v1/auth/organizations");
+    if (res.ok) {
+      const data = await res.json();
+      const orgs = data?.data ?? [];
+      if (orgs.length > 0) {
+        // Use the first organization as the active one
+        const orgId = orgs[0].id;
+        if (typeof window !== "undefined") {
+          localStorage.setItem("organizationId", orgId);
+        }
+      }
+    }
+  } catch {
+    // Silently fail - org ID will be missing but auth still works
+  }
+}
+
 export async function signInWithEmail(email: string, password: string) {
   const res = await apiFetch("/api/v1/auth/signin", {
     method: "POST",
@@ -44,6 +63,8 @@ export async function signInWithEmail(email: string, password: string) {
   });
 
   if (res.ok) {
+    // Fetch and store the user's organization ID
+    await fetchAndSetOrganization();
     return;
   }
 
@@ -69,6 +90,10 @@ export async function signOut() {
   await apiFetch("/api/v1/auth/signout", {
     method: "POST",
   });
+  // Clear organization ID on logout
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("organizationId");
+  }
 }
 
 export interface SessionUser {
@@ -110,6 +135,10 @@ export function useSession() {
         setIsPending(true);
         const u = await fetchSession();
         if (!cancelled) {
+          // Fetch and set organization BEFORE setting user to avoid race condition
+          if (u) {
+            await fetchAndSetOrganization();
+          }
           setUser(u);
         }
       } catch {
