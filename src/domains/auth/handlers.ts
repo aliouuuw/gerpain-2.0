@@ -176,6 +176,13 @@ export class AuthHandlers {
     }, 200);
   }
 
+  static async getUserOrganizations(c: Context) {
+    const user = c.get("user");
+    const { OrganizationService } = await import("../../shared/organization/organization-service.js");
+    const orgs = await OrganizationService.getUserOrganizations(user.id);
+    return c.json({ success: true, data: orgs });
+  }
+
   static async createApiKey(c: Context) {
     try {
       const body = await c.req.json();

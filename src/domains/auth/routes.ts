@@ -156,6 +156,10 @@ auth.post("/request-password-reset", AuthHandlers.requestPasswordReset);
 auth.post("/reset-password", AuthHandlers.resetPassword);
 
 // Protected routes
+auth.use("/organizations", requireAuth);
+
+auth.get("/organizations", AuthHandlers.getUserOrganizations);
+
 auth.openapi(
   createRoute({
     method: "get",
