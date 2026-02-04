@@ -59,6 +59,7 @@ const navigationGroups = [
     icon: Package,
     children: [
       { name: "Vue d'ensemble", href: "/inventory", active: false },
+      { name: "Niveaux", href: "/inventory/stock", active: false },
       { name: "Catégories", href: "/inventory/categories", active: false },
       { name: "Tarifs", href: "/inventory/pricing", active: false },
       { name: "Ajustements", href: "/inventory/adjustments", active: false },
