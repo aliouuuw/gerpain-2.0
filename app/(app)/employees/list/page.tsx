@@ -106,7 +106,10 @@ export default function EmployeesListPage() {
 
   const openEditForm = (employee: Employee) => {
     setEditingEmployee(employee);
-    setFormData({
+    // Don't clear products here - let useEffect populate from API
+    // or preserve existing if already loaded
+    setFormData((prev) => ({
+      ...prev,
       firstName: employee.firstName,
       lastName: employee.lastName,
       email: employee.email ?? "",
@@ -117,8 +120,7 @@ export default function EmployeesListPage() {
       commissionRate: employee.commissionRate ?? 0,
       baseSalary: employee.baseSalary ?? 0,
       hireDate: employee.hireDate ?? new Date().toISOString().slice(0, 10),
-      products: [],
-    });
+    }));
     setIsFormOpen(true);
   };
 

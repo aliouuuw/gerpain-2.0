@@ -324,8 +324,11 @@ export default function DeliveriesBoardPage() {
                   </TableRow>
                 ) : runs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-8 text-center text-sm text-[var(--muted-foreground)]">
-                      Aucune tournée pour cette date. Vérifiez qu&apos;il existe des livreurs actifs et au moins une localisation.
+                    <TableCell colSpan={9} className="py-8 text-center">
+                      <p className="text-sm font-medium text-[var(--foreground)]">Aucune tournée pour cette date</p>
+                      <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                        Les livreurs actifs apparaîtront ici automatiquement. Vérifiez qu&apos;il existe des employés avec le rôle &quot;Livreur&quot; et au moins une localisation configurée.
+                      </p>
                     </TableCell>
                   </TableRow>
                 ) : (
