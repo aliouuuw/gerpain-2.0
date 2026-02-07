@@ -74,17 +74,17 @@ export async function getDeliveryRuns(
   if (params.locationId) searchParams.set("locationId", params.locationId);
   if (params.employeeId) searchParams.set("employeeId", params.employeeId);
 
-  return apiClient<DeliveryRun[]>(`/api/v1/delivery-runs?${searchParams.toString()}`);
+  return apiClient<DeliveryRun[]>(`/api/v1/delivery-runs/runs?${searchParams.toString()}`);
 }
 
 export async function getDeliveryRun(id: string): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/${id}`);
+  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/runs/${id}`);
 }
 
 export async function createDeliveryRun(
   data: CreateDeliveryRunRequest
 ): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>("/api/v1/delivery-runs", {
+  return apiClient<DeliveryRun>("/api/v1/delivery-runs/runs", {
     method: "POST",
     body: data,
   });
@@ -94,14 +94,14 @@ export async function updateDeliveryRun(
   id: string,
   data: UpdateDeliveryRunRequest
 ): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/${id}`, {
+  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/runs/${id}`, {
     method: "PATCH",
     body: data,
   });
 }
 
 export async function validateDeliveryRun(id: string): Promise<ValidateDeliveryRunResponse> {
-  return apiClient<ValidateDeliveryRunResponse>(`/api/v1/delivery-runs/${id}/validate`, {
+  return apiClient<ValidateDeliveryRunResponse>(`/api/v1/delivery-runs/runs/${id}/validate`, {
     method: "POST",
   });
 }
@@ -110,7 +110,7 @@ export async function createDeliveryItem(
   runId: string,
   data: CreateDeliveryItemRequest
 ): Promise<DeliveryItem> {
-  return apiClient<DeliveryItem>(`/api/v1/delivery-runs/${runId}/items`, {
+  return apiClient<DeliveryItem>(`/api/v1/delivery-runs/runs/${runId}/items`, {
     method: "POST",
     body: data,
   });

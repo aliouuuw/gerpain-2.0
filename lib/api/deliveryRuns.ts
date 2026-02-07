@@ -44,11 +44,11 @@ export async function getDeliveryRuns(params: DeliveryRunsParams = {}): Promise<
   if (params.locationId) searchParams.set("locationId", params.locationId);
 
   const query = searchParams.toString();
-  return apiClient<DeliveryRun[]>(`/api/v1/delivery-runs${query ? `?${query}` : ""}`);
+  return apiClient<DeliveryRun[]>(`/api/v1/delivery-runs/runs${query ? `?${query}` : ""}`);
 }
 
 export async function getDeliveryRun(id: string): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/${id}`);
+  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/runs/${id}`);
 }
 
 export async function createDeliveryRun(data: {
@@ -57,7 +57,7 @@ export async function createDeliveryRun(data: {
   date: string;
   notes?: string;
 }): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>("/api/v1/delivery-runs", {
+  return apiClient<DeliveryRun>("/api/v1/delivery-runs/runs", {
     method: "POST",
     body: data,
   });
@@ -70,14 +70,14 @@ export async function updateDeliveryRun(
     notes?: string;
   }
 ): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/${id}`, {
+  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/runs/${id}`, {
     method: "PATCH",
     body: data,
   });
 }
 
 export async function validateDeliveryRun(id: string): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/${id}/validate`, {
+  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/runs/${id}/validate`, {
     method: "POST",
   });
 }

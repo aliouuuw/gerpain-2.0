@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, User, Mail, Phone, MapPin, Pencil, UserX, UserCheck } from "lucide-react";
 
 import { Button } from "@/components/Button";
@@ -72,6 +72,20 @@ export default function EmployeesListPage() {
   const reactivateEmployee = useReactivateEmployee();
   const { data: employeeProducts = [], isLoading: isLoadingEmployeeProducts } = useEmployeeProducts(editingEmployee?.id || "");
   const updateEmployeeProducts = useUpdateEmployeeProducts();
+
+  // Load employee products into form when editing
+  useEffect(() => {
+    if (editingEmployee && employeeProducts.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        products: employeeProducts.map((ep) => ({
+          productId: ep.productId,
+          commissionPerUnit: ep.commissionPerUnit ?? 0,
+          isActive: ep.isActive ?? true,
+        })),
+      }));
+    }
+  }, [editingEmployee, employeeProducts]);
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
