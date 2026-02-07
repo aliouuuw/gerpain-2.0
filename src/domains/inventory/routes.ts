@@ -1,75 +1,227 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
-import { z } from "zod";
+import { Hono } from "hono";
+import { db } from "../../config/database.js";
+import { inventoryItems, insertInventoryItemSchema } from "../../shared/database/schema.js";
+import { eq, and } from "drizzle-orm";
+import { zValidator } from "@hono/zod-validator";
 
-const inventory = new OpenAPIHono();
+const inventoryRoutes = new Hono();
 
-// Get stock levels
-inventory.get("/stock", (c) => {
-  return c.json({
-    success: true,
-    data: {
-      items: [
-        {
-          id: "1",
-          name: "Farine T65",
-          currentStock: 150,
-          unit: "kg",
-          minThreshold: 50,
-          maxThreshold: 500,
-          status: "normal",
-          lastUpdated: new Date().toISOString()
-        },
-        {
-          id: "2", 
-          name: "Levure",
-          currentStock: 8,
-          unit: "kg",
-          minThreshold: 10,
-          maxThreshold: 50,
-          status: "low",
-          lastUpdated: new Date().toISOString()
-        },
-        {
-          id: "3",
-          name: "Sucre",
-          currentStock: 75,
-          unit: "kg", 
-          minThreshold: 20,
-          maxThreshold: 200,
-          status: "normal",
-          lastUpdated: new Date().toISOString()
-        }
-      ],
-      totalItems: 3,
-      criticalItems: 1
+// List stock levels (inventory items)
+inventoryRoutes.get("/stock", async (c) => {
+  const organizationId = c.req.header("X-Organization-ID");
+  const locationId = c.req.query("locationId");
+  const productId = c.req.query("productId");
+  const lowStock = c.req.query("lowStock");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  let query = db.select().from(inventoryItems).where(eq(inventoryItems.organizationId, organizationId));
+
+  const result = await query;
+
+  let filtered = locationId
+    ? result.filter(item => item.locationId === locationId)
+    : result;
+
+  if (productId) {
+    filtered = filtered.filter(item => item.productId === productId);
+  }
+
+  if (lowStock === "true") {
+    filtered = filtered.filter(item => 
+      item.reorderPoint > 0 && item.currentQuantity <= item.reorderPoint
+    );
+  }
+
+  const enriched = filtered.map(item => {
+    const availableQuantity = item.currentQuantity - item.reservedQuantity;
+    let status: "normal" | "low" | "critical" | "out" = "normal";
+    
+    if (item.currentQuantity === 0) {
+      status = "out";
+    } else if (item.reorderPoint > 0 && item.currentQuantity <= item.reorderPoint) {
+      status = "critical";
+    } else if (item.reorderPoint > 0 && item.currentQuantity <= item.reorderPoint * 1.5) {
+      status = "low";
+    }
+
+    return {
+      ...item,
+      availableQuantity,
+      status,
+    };
+  });
+
+  enriched.sort((a, b) => {
+    const statusPriority = { critical: 0, low: 1, out: 2, normal: 3 };
+    return statusPriority[a.status] - statusPriority[b.status];
+  });
+
+  return c.json({ 
+    success: true, 
+    data: enriched,
+    summary: {
+      totalItems: enriched.length,
+      criticalItems: enriched.filter(i => i.status === "critical").length,
+      lowItems: enriched.filter(i => i.status === "low").length,
+      outOfStock: enriched.filter(i => i.status === "out").length,
     }
   });
 });
 
-// Get inventory movements
-inventory.get("/movements", (c) => {
-  const limit = parseInt(c.req.query("limit") || "50");
-  const movements = Array.from({ length: Math.min(limit, 20) }, (_, i) => ({
-    id: `movement-${i + 1}`,
-    productId: `product-${(i % 3) + 1}`,
-    productName: ["Farine T65", "Levure", "Sucre"][i % 3],
-    type: i % 2 === 0 ? "in" : "out",
-    quantity: Math.floor(Math.random() * 50) + 5,
-    unit: "kg",
-    reason: i % 2 === 0 ? "Approvisionnement" : "Vente",
-    date: new Date(Date.now() - i * 3600000).toISOString(),
-    userId: "user-1",
-    userName: "Admin User"
-  }));
+// Get single inventory item
+inventoryRoutes.get("/stock/:id", async (c) => {
+  const id = c.req.param("id");
+  const organizationId = c.req.header("X-Organization-ID");
 
-  return c.json({
-    success: true,
-    data: {
-      movements,
-      total: movements.length,
-      limit
-    }
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  const [item] = await db
+    .select()
+    .from(inventoryItems)
+    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.organizationId, organizationId)));
+
+  if (!item) {
+    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Inventory item not found" } }, 404);
+  }
+
+  const availableQuantity = item.currentQuantity - item.reservedQuantity;
+
+  return c.json({ 
+    success: true, 
+    data: { ...item, availableQuantity }
   });
 });
 
-export { inventory };
+// Create or update inventory item
+inventoryRoutes.post(
+  "/stock",
+  zValidator("json", insertInventoryItemSchema),
+  async (c) => {
+    const body = c.req.valid("json");
+
+    const [existing] = await db
+      .select()
+      .from(inventoryItems)
+      .where(
+        and(
+          eq(inventoryItems.locationId, body.locationId),
+          eq(inventoryItems.productId, body.productId),
+          eq(inventoryItems.organizationId, body.organizationId)
+        )
+      );
+
+    if (existing) {
+      const [updated] = await db
+        .update(inventoryItems)
+        .set({ 
+          currentQuantity: body.currentQuantity,
+          reservedQuantity: body.reservedQuantity ?? 0,
+          reorderPoint: body.reorderPoint ?? 0,
+          maxStockLevel: body.maxStockLevel,
+          updatedAt: new Date()
+        })
+        .where(eq(inventoryItems.id, existing.id))
+        .returning();
+
+      return c.json({ success: true, data: updated });
+    }
+
+    const [item] = await db.insert(inventoryItems).values(body).returning();
+    return c.json({ success: true, data: item }, 201);
+  }
+);
+
+// Update inventory item
+inventoryRoutes.put(
+  "/stock/:id",
+  zValidator("json", insertInventoryItemSchema.partial()),
+  async (c) => {
+    const id = c.req.param("id");
+    const organizationId = c.req.header("X-Organization-ID");
+    const body = c.req.valid("json");
+
+    if (!organizationId) {
+      return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+    }
+
+    const [updated] = await db
+      .update(inventoryItems)
+      .set({ ...body, updatedAt: new Date() })
+      .where(and(eq(inventoryItems.id, id), eq(inventoryItems.organizationId, organizationId)))
+      .returning();
+
+    if (!updated) {
+      return c.json({ success: false, error: { code: "NOT_FOUND", message: "Inventory item not found" } }, 404);
+    }
+
+    return c.json({ success: true, data: updated });
+  }
+);
+
+// Adjust stock quantity
+inventoryRoutes.post("/stock/:id/adjust", async (c) => {
+  const id = c.req.param("id");
+  const organizationId = c.req.header("X-Organization-ID");
+  const { adjustment, reason } = await c.req.json();
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  if (typeof adjustment !== "number") {
+    return c.json({ success: false, error: { code: "INVALID_DATA", message: "Adjustment must be a number" } }, 400);
+  }
+
+  const [item] = await db
+    .select()
+    .from(inventoryItems)
+    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.organizationId, organizationId)));
+
+  if (!item) {
+    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Inventory item not found" } }, 404);
+  }
+
+  const newQuantity = Math.max(0, item.currentQuantity + adjustment);
+
+  const [updated] = await db
+    .update(inventoryItems)
+    .set({ 
+      currentQuantity: newQuantity,
+      updatedAt: new Date()
+    })
+    .where(eq(inventoryItems.id, id))
+    .returning();
+
+  return c.json({ 
+    success: true, 
+    data: { ...updated, adjustment, reason }
+  });
+});
+
+// Delete inventory item
+inventoryRoutes.delete("/stock/:id", async (c) => {
+  const id = c.req.param("id");
+  const organizationId = c.req.header("X-Organization-ID");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  const [deleted] = await db
+    .delete(inventoryItems)
+    .where(and(eq(inventoryItems.id, id), eq(inventoryItems.organizationId, organizationId)))
+    .returning();
+
+  if (!deleted) {
+    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Inventory item not found" } }, 404);
+  }
+
+  return c.json({ success: true, data: { id } });
+});
+
+export { inventoryRoutes };

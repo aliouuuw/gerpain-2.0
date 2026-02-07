@@ -14,7 +14,7 @@ import { auth } from "./domains/auth/routes.js";
 import { health } from "./domains/health/routes.js";
 import { admin } from "./domains/admin/routes.js";
 import { core } from "./domains/core/routes.js";
-import { inventory } from "./domains/inventory/routes.js";
+import { inventoryRoutes } from "./domains/inventory/routes.js";
 import { locationsRoutes } from "./domains/locations/routes.js";
 import { productsRoutes } from "./domains/products/routes.js";
 import { employeesRoutes } from "./domains/employees/routes.js";
@@ -22,6 +22,7 @@ import { deliveriesRoutes } from "./domains/deliveries/routes.js";
 import { collectionsRoutes } from "./domains/collections/routes.js";
 import { bakeriesRoutes } from "./domains/bakeries/routes.js";
 import categoriesRoutes from "./domains/categories/routes.js";
+import { pricingRoutes } from "./domains/pricing/routes.js";
 
 // Logger
 import { Logger } from "./shared/utils/logger.js";
@@ -75,7 +76,7 @@ app.use("/api/v1/docs", apiReference({
 api.route("/auth", auth);
 api.route("/admin", admin);
 api.route("/core", core);
-api.route("/inventory", inventory);
+api.route("/inventory", inventoryRoutes);
 api.route("/locations", locationsRoutes);
 api.route("/products", productsRoutes);
 api.route("/employees", employeesRoutes);
@@ -83,6 +84,7 @@ api.route("/delivery-runs", deliveriesRoutes);
 api.route("/cash-collections", collectionsRoutes);
 api.route("/bakeries", bakeriesRoutes);
 api.route("/categories", categoriesRoutes);
+api.route("/pricing", pricingRoutes);
 
 app.route("/api/v1", api);
 

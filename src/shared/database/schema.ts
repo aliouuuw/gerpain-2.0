@@ -325,6 +325,46 @@ export const cashCollections = pgTable("cash_collections", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Pricing Rules table (location-specific pricing overrides)
+export const pricingRules = pgTable("pricing_rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id, { onDelete: "cascade" }),
+  unitPrice: integer("unit_price").notNull(), // override price in XOF
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Inventory items table (stock levels per product per location)
+export const inventoryItems = pgTable("inventory_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  locationId: uuid("location_id")
+    .notNull()
+    .references(() => locations.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  currentQuantity: integer("current_quantity").notNull().default(0),
+  reservedQuantity: integer("reserved_quantity").notNull().default(0),
+  reorderPoint: integer("reorder_point").default(0), // minimum threshold for alerts
+  maxStockLevel: integer("max_stock_level"), // maximum desired stock
+  lastCountedAt: timestamp("last_counted_at"),
+  lastCountedQuantity: integer("last_counted_quantity"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // =====================================================
 // DOMAIN RELATIONS
 // =====================================================
@@ -451,6 +491,36 @@ export const cashCollectionsRelations = relations(cashCollections, ({ one }) => 
   validatedByUser: one(users, {
     fields: [cashCollections.validatedBy],
     references: [users.id],
+  }),
+}));
+
+export const pricingRulesRelations = relations(pricingRules, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [pricingRules.organizationId],
+    references: [organizations.id],
+  }),
+  product: one(products, {
+    fields: [pricingRules.productId],
+    references: [products.id],
+  }),
+  location: one(locations, {
+    fields: [pricingRules.locationId],
+    references: [locations.id],
+  }),
+}));
+
+export const inventoryItemsRelations = relations(inventoryItems, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [inventoryItems.organizationId],
+    references: [organizations.id],
+  }),
+  location: one(locations, {
+    fields: [inventoryItems.locationId],
+    references: [locations.id],
+  }),
+  product: one(products, {
+    fields: [inventoryItems.productId],
+    references: [products.id],
   }),
 }));
 
@@ -763,6 +833,24 @@ export const insertCashCollectionSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const insertPricingRuleSchema = z.object({
+  organizationId: z.string().uuid(),
+  productId: z.string().uuid(),
+  locationId: z.string().uuid(),
+  unitPrice: z.number().int().positive(),
+  isActive: z.boolean().optional(),
+});
+
+export const insertInventoryItemSchema = z.object({
+  organizationId: z.string().uuid(),
+  locationId: z.string().uuid(),
+  productId: z.string().uuid(),
+  currentQuantity: z.number().int().min(0).default(0),
+  reservedQuantity: z.number().int().min(0).default(0),
+  reorderPoint: z.number().int().min(0).optional(),
+  maxStockLevel: z.number().int().min(0).optional(),
+});
+
 // =====================================================
 // DOMAIN TYPES
 // =====================================================
@@ -783,6 +871,14 @@ export type DeliveryItem = typeof deliveryItems.$inferSelect;
 export type NewDeliveryItem = typeof deliveryItems.$inferInsert;
 export type CashCollection = typeof cashCollections.$inferSelect;
 export type NewCashCollection = typeof cashCollections.$inferInsert;
+
+// Pricing Rule types
+export type PricingRule = typeof pricingRules.$inferSelect;
+export type NewPricingRule = typeof pricingRules.$inferInsert;
+
+// Inventory Item types
+export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type NewInventoryItem = typeof inventoryItems.$inferInsert;
 
 // Bakery types
 export type Bakery = typeof bakeries.$inferSelect;

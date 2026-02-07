@@ -9,7 +9,8 @@ const productsRoutes = new Hono();
 // List products
 productsRoutes.get("/", async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
-  const category = c.req.query("category");
+  const bakeryId = c.req.header("X-Bakery-ID");
+  const categoryId = c.req.query("categoryId");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -19,10 +20,15 @@ productsRoutes.get("/", async (c) => {
 
   const result = await query;
 
-  // Filter by category if provided
-  const filtered = category 
-    ? result.filter(p => p.category === category)
+  // Filter by bakery if provided (null = org-wide products, or specific bakery)
+  let filtered = bakeryId
+    ? result.filter(p => !p.bakeryId || p.bakeryId === bakeryId)
     : result;
+
+  // Filter by category if provided
+  if (categoryId) {
+    filtered = filtered.filter(p => p.categoryId === categoryId);
+  }
 
   return c.json({ success: true, data: filtered });
 });
