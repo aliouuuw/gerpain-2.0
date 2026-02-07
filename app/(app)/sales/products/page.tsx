@@ -31,17 +31,17 @@ function ProductDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(product?.name ?? "");
-  const [unitPrice, setUnitPrice] = useState(product?.unitPrice ? (product.unitPrice / 100).toString() : "");
+  const [unitPrice, setUnitPrice] = useState(product?.unitPrice ? product.unitPrice.toString() : "");
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const { data: categories } = useCategories();
 
   const handleSave = () => {
     if (!name.trim() || !unitPrice) return;
-    const priceInCents = Math.round(parseFloat(unitPrice) * 100);
+    const priceValue = Math.round(parseFloat(unitPrice));
     onSave({
       name: name.trim(),
-      unitPrice: priceInCents,
+      unitPrice: priceValue,
       categoryId: categoryId || undefined,
       description: description.trim() || undefined,
     });

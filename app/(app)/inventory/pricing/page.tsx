@@ -33,17 +33,17 @@ function PricingRuleDialog({
   const [open, setOpen] = useState(false);
   const [productId, setProductId] = useState(rule?.productId ?? "");
   const [locationId, setLocationId] = useState(rule?.locationId ?? "");
-  const [unitPrice, setUnitPrice] = useState(rule?.unitPrice ? (rule.unitPrice / 100).toString() : "");
+  const [unitPrice, setUnitPrice] = useState(rule?.unitPrice ? rule.unitPrice.toString() : "");
   const { data: products } = useProducts();
   const { data: locations } = useLocations();
 
   const handleSave = () => {
     if (!productId || !locationId || !unitPrice) return;
-    const priceInCents = Math.round(parseFloat(unitPrice) * 100);
+    const priceValue = Math.round(parseFloat(unitPrice));
     onSave({
       productId,
       locationId,
-      unitPrice: priceInCents,
+      unitPrice: priceValue,
     });
     setOpen(false);
     if (!rule) {
