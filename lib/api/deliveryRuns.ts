@@ -90,14 +90,14 @@ export async function updateDeliveryItem(
     unitPrice?: number;
   }
 ): Promise<DeliveryItem> {
-  return apiClient<DeliveryItem>(`/api/v1/delivery-items/${id}`, {
+  return apiClient<DeliveryItem>(`/api/v1/delivery-runs/items/${id}`, {
     method: "PATCH",
     body: data,
   });
 }
 
 export async function deleteDeliveryItem(id: string): Promise<{ id: string }> {
-  return apiClient<{ id: string }>(`/api/v1/delivery-items/${id}`, {
+  return apiClient<{ id: string }>(`/api/v1/delivery-runs/items/${id}`, {
     method: "DELETE",
   });
 }

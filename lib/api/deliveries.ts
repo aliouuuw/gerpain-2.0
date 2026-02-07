@@ -120,14 +120,14 @@ export async function updateDeliveryItem(
   id: string,
   data: UpdateDeliveryItemRequest
 ): Promise<DeliveryItem> {
-  return apiClient<DeliveryItem>(`/api/v1/delivery-items/${id}`, {
+  return apiClient<DeliveryItem>(`/api/v1/delivery-runs/items/${id}`, {
     method: "PATCH",
     body: data,
   });
 }
 
 export async function deleteDeliveryItem(id: string): Promise<void> {
-  await apiClient<void>(`/api/v1/delivery-items/${id}`, {
+  await apiClient<void>(`/api/v1/delivery-runs/items/${id}`, {
     method: "DELETE",
   });
 }
