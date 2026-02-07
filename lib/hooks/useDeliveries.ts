@@ -95,12 +95,19 @@ export function useValidateDeliveryRun() {
 
   return useMutation({
     mutationFn: (id: string) => validateDeliveryRun(id),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: deliveryKeys.all });
+      const expectedAmount = data?.collection?.expectedAmount || 0;
       notify({
         variant: "success",
         title: "Tournée validée",
-        description: "La tournée a été validée avec succès.",
+        description: `Collecte de ${expectedAmount.toLocaleString()} FCFA créée automatiquement`,
+        action: {
+          label: "Voir les collectes",
+          onClick: () => {
+            window.location.href = "/cash/collections";
+          },
+        },
       });
     },
     onError: () => {

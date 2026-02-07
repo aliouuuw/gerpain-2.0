@@ -59,6 +59,13 @@ export interface UpdateDeliveryItemRequest {
   unitPrice?: number;
 }
 
+export interface ValidateDeliveryRunResponse extends DeliveryRun {
+  collection: {
+    id: string;
+    expectedAmount: number;
+  };
+}
+
 export async function getDeliveryRuns(
   params: DeliveryRunsParams
 ): Promise<DeliveryRun[]> {
@@ -93,8 +100,8 @@ export async function updateDeliveryRun(
   });
 }
 
-export async function validateDeliveryRun(id: string): Promise<DeliveryRun> {
-  return apiClient<DeliveryRun>(`/api/v1/delivery-runs/${id}/validate`, {
+export async function validateDeliveryRun(id: string): Promise<ValidateDeliveryRunResponse> {
+  return apiClient<ValidateDeliveryRunResponse>(`/api/v1/delivery-runs/${id}/validate`, {
     method: "POST",
   });
 }
