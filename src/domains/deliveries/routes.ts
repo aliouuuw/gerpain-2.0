@@ -10,7 +10,7 @@ import {
   insertDeliveryRunSchema, 
   insertDeliveryItemSchema 
 } from "../../shared/database/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { locations as locationsTable } from "../../shared/database/schema.js";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -161,63 +161,75 @@ deliveriesRoutes.get("/runs", async (c) => {
     filtered = filtered.filter(r => r.locationId === locationId);
   }
 
-  // Get items and employee/location info for each run
-  const runsWithDetails = await Promise.all(
-    filtered.map(async (run) => {
-      const items = await db
-        .select()
-        .from(deliveryItems)
-        .where(eq(deliveryItems.runId, run.id));
+  // Batch lookups to avoid N+1 queries
+  if (filtered.length === 0) {
+    return c.json({ success: true, data: [] });
+  }
 
-      const [employee] = await db
-        .select()
-        .from(employees)
-        .where(eq(employees.id, run.employeeId));
+  const runIds = filtered.map((r) => r.id);
+  const employeeIds = [...new Set(filtered.map((r) => r.employeeId))];
+  const locationIds = [...new Set(filtered.map((r) => r.locationId))];
 
-      const [location] = await db
-        .select()
-        .from(locationsTable)
-        .where(eq(locationsTable.id, run.locationId));
+  const [allItems, allEmployees, allLocations, allAssignments] = await Promise.all([
+    db.select().from(deliveryItems).where(inArray(deliveryItems.runId, runIds)),
+    db.select().from(employees).where(inArray(employees.id, employeeIds)),
+    db.select().from(locationsTable).where(inArray(locationsTable.id, locationIds)),
+    db.select({ employeeId: employeeProducts.employeeId, productId: employeeProducts.productId })
+      .from(employeeProducts)
+      .where(and(inArray(employeeProducts.employeeId, employeeIds), eq(employeeProducts.isActive, true))),
+  ]);
 
-      const assignedProducts = await db
-        .select({ productId: employeeProducts.productId })
-        .from(employeeProducts)
-        .where(
-          and(
-            eq(employeeProducts.employeeId, run.employeeId),
-            eq(employeeProducts.isActive, true)
-          )
-        );
+  // Collect all product IDs referenced by items and fetch product names in one query
+  const allProductIds = [...new Set(allItems.map((i) => i.productId))];
+  const allProducts = allProductIds.length > 0
+    ? await db.select().from(products).where(inArray(products.id, allProductIds))
+    : [];
 
-      const assignedProductIds = new Set(assignedProducts.map((p) => p.productId));
-      const filteredItems = assignedProductIds.size === 0
-        ? []
-        : items.filter((item) => assignedProductIds.has(item.productId));
+  // Build lookup maps
+  const employeeMap = new Map(allEmployees.map((e) => [e.id, e]));
+  const locationMap = new Map(allLocations.map((l) => [l.id, l]));
+  const productMap = new Map(allProducts.map((p) => [p.id, p]));
+  const itemsByRun = new Map<string, typeof allItems>();
+  for (const item of allItems) {
+    const list = itemsByRun.get(item.runId) ?? [];
+    list.push(item);
+    itemsByRun.set(item.runId, list);
+  }
+  const assignmentsByEmployee = new Map<string, Set<string>>();
+  for (const a of allAssignments) {
+    const set = assignmentsByEmployee.get(a.employeeId) ?? new Set();
+    set.add(a.productId);
+    assignmentsByEmployee.set(a.employeeId, set);
+  }
 
-      // Get product names for items and compute quantitySold
-      const itemsWithProducts = await Promise.all(
-        filteredItems.map(async (item) => {
-          const [product] = await db
-            .select()
-            .from(products)
-            .where(eq(products.id, item.productId));
-          return {
-            ...item,
-            productName: product?.name || "Unknown",
-            quantitySold: item.quantityEntrusted - item.quantityReturned,
-          };
-        })
-      );
+  // Assemble response in-memory
+  const runsWithDetails = filtered.map((run) => {
+    const employee = employeeMap.get(run.employeeId);
+    const location = locationMap.get(run.locationId);
+    const assignedProductIds = assignmentsByEmployee.get(run.employeeId);
+    const items = itemsByRun.get(run.id) ?? [];
 
+    const filteredItems = !assignedProductIds || assignedProductIds.size === 0
+      ? []
+      : items.filter((item) => assignedProductIds.has(item.productId));
+
+    const itemsWithProducts = filteredItems.map((item) => {
+      const product = productMap.get(item.productId);
       return {
-        ...run,
-        notes: run.notes ?? "",
-        employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
-        locationName: location?.name ?? "Unknown",
-        items: itemsWithProducts,
+        ...item,
+        productName: product?.name || "Unknown",
+        quantitySold: item.quantityEntrusted - item.quantityReturned,
       };
-    })
-  );
+    });
+
+    return {
+      ...run,
+      notes: run.notes ?? "",
+      employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
+      locationName: location?.name ?? "Unknown",
+      items: itemsWithProducts,
+    };
+  });
 
   return c.json({ success: true, data: runsWithDetails });
 });
