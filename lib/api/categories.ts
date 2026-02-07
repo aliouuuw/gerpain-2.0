@@ -28,33 +28,29 @@ export interface UpdateCategoryRequest {
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const response = await apiClient<{ data: Category[] }>("/categories");
-  return response.data;
+  return apiClient<Category[]>("/api/v1/categories");
 }
 
 export async function getCategory(id: string): Promise<Category> {
-  const response = await apiClient<{ data: Category }>(`/categories/${id}`);
-  return response.data;
+  return apiClient<Category>(`/api/v1/categories/${id}`);
 }
 
 export async function createCategory(data: CreateCategoryRequest): Promise<Category> {
-  const response = await apiClient<{ data: Category }>("/categories", {
+  return apiClient<Category>("/api/v1/categories", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function updateCategory(id: string, data: UpdateCategoryRequest): Promise<Category> {
-  const response = await apiClient<{ data: Category }>(`/categories/${id}`, {
+  return apiClient<Category>(`/api/v1/categories/${id}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  await apiClient(`/categories/${id}`, {
+  await apiClient(`/api/v1/categories/${id}`, {
     method: "DELETE",
   });
 }

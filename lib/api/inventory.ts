@@ -30,7 +30,6 @@ export interface InventoryResponse {
 }
 
 export interface CreateInventoryItemRequest {
-  organizationId: string;
   locationId: string;
   productId: string;
   currentQuantity: number;
@@ -56,42 +55,37 @@ export async function getStockLevels(locationId?: string, productId?: string, lo
   if (locationId) params.append("locationId", locationId);
   if (productId) params.append("productId", productId);
   if (lowStock) params.append("lowStock", "true");
-  const url = `/inventory/stock?${params.toString()}`;
-  const response = await apiClient<{ data: InventoryItem[]; summary: InventorySummary }>(url);
-  return { data: response.data, summary: response.summary };
+  const url = `/api/v1/inventory/stock?${params.toString()}`;
+  return apiClient<InventoryResponse>(url);
 }
 
 export async function getInventoryItem(id: string): Promise<InventoryItem> {
-  const response = await apiClient<{ data: InventoryItem }>(`/inventory/stock/${id}`);
-  return response.data;
+  return apiClient<InventoryItem>(`/api/v1/inventory/stock/${id}`);
 }
 
 export async function createInventoryItem(data: CreateInventoryItemRequest): Promise<InventoryItem> {
-  const response = await apiClient<{ data: InventoryItem }>("/inventory/stock", {
+  return apiClient<InventoryItem>("/api/v1/inventory/stock", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function updateInventoryItem(id: string, data: UpdateInventoryItemRequest): Promise<InventoryItem> {
-  const response = await apiClient<{ data: InventoryItem }>(`/inventory/stock/${id}`, {
+  return apiClient<InventoryItem>(`/api/v1/inventory/stock/${id}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function adjustStock(id: string, data: AdjustStockRequest): Promise<InventoryItem> {
-  const response = await apiClient<{ data: InventoryItem }>(`/inventory/stock/${id}/adjust`, {
+  return apiClient<InventoryItem>(`/api/v1/inventory/stock/${id}/adjust`, {
     method: "POST",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function deleteInventoryItem(id: string): Promise<void> {
-  await apiClient(`/inventory/stock/${id}`, {
+  await apiClient(`/api/v1/inventory/stock/${id}`, {
     method: "DELETE",
   });
 }

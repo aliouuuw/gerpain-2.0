@@ -31,34 +31,30 @@ export interface UpdateProductRequest {
 }
 
 export async function getProducts(categoryId?: string): Promise<Product[]> {
-  const url = categoryId ? `/products?categoryId=${categoryId}` : "/products";
-  const response = await apiClient<{ data: Product[] }>(url);
-  return response.data;
+  const url = categoryId ? `/api/v1/products?categoryId=${categoryId}` : "/api/v1/products";
+  return apiClient<Product[]>(url);
 }
 
 export async function getProduct(id: string): Promise<Product> {
-  const response = await apiClient<{ data: Product }>(`/products/${id}`);
-  return response.data;
+  return apiClient<Product>(`/api/v1/products/${id}`);
 }
 
 export async function createProduct(data: CreateProductRequest): Promise<Product> {
-  const response = await apiClient<{ data: Product }>("/products", {
+  return apiClient<Product>("/api/v1/products", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function updateProduct(id: string, data: UpdateProductRequest): Promise<Product> {
-  const response = await apiClient<{ data: Product }>(`/products/${id}`, {
+  return apiClient<Product>(`/api/v1/products/${id}`, {
     method: "PUT",
-    body: JSON.stringify(data),
+    body: data,
   });
-  return response.data;
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  await apiClient(`/products/${id}`, {
+  await apiClient(`/api/v1/products/${id}`, {
     method: "DELETE",
   });
 }
