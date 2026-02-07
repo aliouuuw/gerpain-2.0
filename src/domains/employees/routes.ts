@@ -10,6 +10,7 @@ const employeesRoutes = new Hono();
 // List employees
 employeesRoutes.get("/", async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
   const role = c.req.query("role");
   const status = c.req.query("status");
 
@@ -17,10 +18,15 @@ employeesRoutes.get("/", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
+  // Filter by org and optionally bakery
   const result = await db
     .select()
     .from(employees)
-    .where(eq(employees.organizationId, organizationId));
+    .where(
+      bakeryId
+        ? and(eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+        : eq(employees.organizationId, organizationId)
+    );
 
   // Filter by role and status if provided
   let filtered = result;
@@ -52,6 +58,7 @@ employeesRoutes.get("/", async (c) => {
 employeesRoutes.get("/:id", async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -60,7 +67,11 @@ employeesRoutes.get("/:id", async (c) => {
   const [employee] = await db
     .select()
     .from(employees)
-    .where(and(eq(employees.id, id), eq(employees.organizationId, organizationId)));
+    .where(
+      bakeryId
+        ? and(eq(employees.id, id), eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+        : and(eq(employees.id, id), eq(employees.organizationId, organizationId))!
+    );
 
   if (!employee) {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, 404);
@@ -124,6 +135,7 @@ employeesRoutes.put(
   async (c) => {
     const id = c.req.param("id");
     const organizationId = c.req.header("X-Organization-ID");
+    const bakeryId = c.req.header("X-Bakery-ID");
     const { locations: locationIds, ...employeeData } = c.req.valid("json");
 
     if (!organizationId) {
@@ -133,7 +145,11 @@ employeesRoutes.put(
     const [updated] = await db
       .update(employees)
       .set({ ...employeeData, updatedAt: new Date() })
-      .where(and(eq(employees.id, id), eq(employees.organizationId, organizationId)))
+      .where(
+        bakeryId
+          ? and(eq(employees.id, id), eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+          : and(eq(employees.id, id), eq(employees.organizationId, organizationId))!
+      )
       .returning();
 
     if (!updated) {
@@ -168,6 +184,7 @@ employeesRoutes.put(
 employeesRoutes.post("/:id/deactivate", async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -176,7 +193,11 @@ employeesRoutes.post("/:id/deactivate", async (c) => {
   const [updated] = await db
     .update(employees)
     .set({ status: "inactive", updatedAt: new Date() })
-    .where(and(eq(employees.id, id), eq(employees.organizationId, organizationId)))
+    .where(
+      bakeryId
+        ? and(eq(employees.id, id), eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+        : and(eq(employees.id, id), eq(employees.organizationId, organizationId))!
+    )
     .returning();
 
   if (!updated) {
@@ -190,6 +211,7 @@ employeesRoutes.post("/:id/deactivate", async (c) => {
 employeesRoutes.post("/:id/reactivate", async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
@@ -198,7 +220,11 @@ employeesRoutes.post("/:id/reactivate", async (c) => {
   const [updated] = await db
     .update(employees)
     .set({ status: "active", updatedAt: new Date() })
-    .where(and(eq(employees.id, id), eq(employees.organizationId, organizationId)))
+    .where(
+      bakeryId
+        ? and(eq(employees.id, id), eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+        : and(eq(employees.id, id), eq(employees.organizationId, organizationId))!
+    )
     .returning();
 
   if (!updated) {
