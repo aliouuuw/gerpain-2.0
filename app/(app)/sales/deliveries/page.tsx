@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/Button";
 import {
@@ -23,44 +24,11 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
+import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem } from "@/lib/hooks/useDeliveries";
+import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
-
 type SellingPeriod = (typeof SELLING_PERIODS)[number];
-
-type DeliveryEmployee = {
-  id: string;
-  name: string;
-  routeLabel: string;
-};
-
-type DeliveryProduct = {
-  id: string;
-  name: string;
-  unit: string;
-  unitPrice: number;
-};
-
-type DeliveryStatus = "draft" | "in_progress" | "validated";
-
-type DeliveryItem = {
-  id: string;
-  productId: string;
-  quantityOut: number;
-  quantityReturned: number;
-  unitPrice: number;
-  sellingPeriod?: SellingPeriod;
-};
-
-type DeliveryRun = {
-  id: string;
-  employeeId: string;
-  date: string;
-  locationName: string;
-  status: DeliveryStatus;
-  notes: string;
-  items: DeliveryItem[];
-};
 
 type RunAggregates = {
   quantityEntrusted: number;
@@ -71,85 +39,9 @@ type RunAggregates = {
   returnRate: number;
 };
 
-const mockEmployees: DeliveryEmployee[] = [
-  {
-    id: "ali",
-    name: "Ali – Tournée centre-ville",
-    routeLabel: "Centre-ville",
-  },
-  {
-    id: "amina",
-    name: "Amina – Tournée bureaux",
-    routeLabel: "Bureaux & administrations",
-  },
-  {
-    id: "moussa",
-    name: "Moussa – Tournée quartiers résidentiels",
-    routeLabel: "Résidentiel",
-  },
-];
-
-const mockProducts: DeliveryProduct[] = [
-  {
-    id: "baguette-500g",
-    name: "Baguette 500g",
-    unit: "pièce",
-    unitPrice: 250,
-  },
-  {
-    id: "baguette-750g",
-    name: "Baguette 750g",
-    unit: "pièce",
-    unitPrice: 350,
-  },
-  {
-    id: "pain-kilo",
-    name: "Pain kilo",
-    unit: "pièce",
-    unitPrice: 1500,
-  },
-  {
-    id: "croissant",
-    name: "Croissant au beurre",
-    unit: "pièce",
-    unitPrice: 400,
-  },
-];
-
-function createInitialRuns(date: string): DeliveryRun[] {
-  return mockEmployees.map((employee) => ({
-    id: `${employee.id}-${date}`,
-    employeeId: employee.id,
-    date,
-    locationName: "Point de vente actif",
-    status: "draft",
-    notes: "",
-    items: mockProducts.map((product) => ({
-      id: `${employee.id}-${product.id}`,
-      productId: product.id,
-      quantityOut: 0,
-      quantityReturned: 0,
-      unitPrice: product.unitPrice,
-    })),
-  }));
-}
-
-function createEmptyDeliveryItem(runId: string, productId: string): DeliveryItem {
-  const product = mockProducts.find((candidate) => candidate.id === productId);
-  return {
-    id: `${runId}-${productId}-${Date.now().toString(36)}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`,
-    productId,
-    quantityOut: 0,
-    quantityReturned: 0,
-    unitPrice: product?.unitPrice ?? 0,
-  };
-}
-
 function computeRunAggregates(run: DeliveryRun): RunAggregates {
   const quantityEntrusted = run.items.reduce(
-    (sum, item) => sum + item.quantityOut,
+    (sum, item) => sum + item.quantityEntrusted,
     0,
   );
   const quantityReturned = run.items.reduce(
@@ -158,12 +50,12 @@ function computeRunAggregates(run: DeliveryRun): RunAggregates {
   );
   const quantitySold = quantityEntrusted - quantityReturned;
   const totalEntrusted = run.items.reduce(
-    (sum, item) => sum + item.quantityOut * item.unitPrice,
+    (sum, item) => sum + item.quantityEntrusted * item.unitPrice,
     0,
   );
   const revenue = run.items.reduce(
     (sum, item) =>
-      sum + (item.quantityOut - item.quantityReturned) * item.unitPrice,
+      sum + (item.quantityEntrusted - item.quantityReturned) * item.unitPrice,
     0,
   );
   const returnRate = quantityEntrusted > 0 ? quantityReturned / quantityEntrusted : 0;
@@ -222,9 +114,6 @@ export default function DeliveriesBoardPage() {
   const [date, setDate] = useState<string>(() =>
     new Date().toISOString().slice(0, 10),
   );
-  const [runs, setRuns] = useState<DeliveryRun[]>(() =>
-    createInitialRuns(new Date().toISOString().slice(0, 10)),
-  );
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     runId: string;
@@ -232,107 +121,66 @@ export default function DeliveriesBoardPage() {
     productName: string;
   } | null>(null);
 
+  // Real API hooks
+  const { data: runs = [], isLoading, refetch } = useDeliveryRuns({ date });
+  const updateDeliveryRun = useUpdateDeliveryRun();
+  const validateDeliveryRun = useValidateDeliveryRun();
+  const updateDeliveryItem = useUpdateDeliveryItem();
+
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
   function handleDateChange(newDate: string) {
     setDate(newDate);
-    setRuns(createInitialRuns(newDate));
     setSelectedRunId(null);
   }
 
-  function handleItemQuantityOutChange(
-    runId: string,
-    itemId: string,
-    quantityOut: number,
-  ) {
-    setRuns((previous) =>
-      previous.map((run) => {
-        if (run.id !== runId) return run;
-        return {
-          ...run,
-          items: run.items.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  quantityOut: Math.max(0, quantityOut),
-                }
-              : item,
-          ),
-        };
-      }),
-    );
+  function handlePrevDay() {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() - 1);
+    handleDateChange(currentDate.toISOString().slice(0, 10));
   }
 
-  function handleItemQuantityReturnedChange(
+  function handleNextDay() {
+    const currentDate = new Date(date);
+    currentDate.setDate(currentDate.getDate() + 1);
+    handleDateChange(currentDate.toISOString().slice(0, 10));
+  }
+
+  async function handleItemQuantityOutChange(
+    runId: string,
+    itemId: string,
+    quantityEntrusted: number,
+  ) {
+    await updateDeliveryItem.mutateAsync({
+      id: itemId,
+      data: { quantityEntrusted: Math.max(0, quantityEntrusted) },
+    });
+  }
+
+  async function handleItemQuantityReturnedChange(
     runId: string,
     itemId: string,
     quantityReturned: number,
   ) {
-    setRuns((previous) =>
-      previous.map((run) => {
-        if (run.id !== runId) return run;
-        return {
-          ...run,
-          items: run.items.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  quantityReturned: Math.max(0, quantityReturned),
-                }
-              : item,
-          ),
-        };
-      }),
-    );
+    await updateDeliveryItem.mutateAsync({
+      id: itemId,
+      data: { quantityReturned: Math.max(0, quantityReturned) },
+    });
   }
 
-  function handleItemSellingPeriodChange(
-    runId: string,
-    itemId: string,
-    sellingPeriod: SellingPeriod | "",
-  ) {
-    setRuns((previous) =>
-      previous.map((run) => {
-        if (run.id !== runId) return run;
-        return {
-          ...run,
-          items: run.items.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  sellingPeriod: sellingPeriod || undefined,
-                }
-              : item,
-          ),
-        };
-      }),
-    );
+  // Placeholder functions for features not yet implemented with real API
+  function handleItemSellingPeriodChange(runId: string, itemId: string, period: SellingPeriod | "") {
+    console.log("Update period:", runId, itemId, period);
+    // TODO: Implement when API supports period updates
   }
 
   function handleAddPeriodLine(runId: string, productId: string) {
-    setRuns((previous) =>
-      previous.map((run) =>
-        run.id === runId
-          ? {
-              ...run,
-              items: [...run.items, createEmptyDeliveryItem(runId, productId)],
-            }
-          : run,
-      ),
-    );
+    console.log("Add period line:", runId, productId);
+    // TODO: Implement when API supports adding items
   }
 
-  function handleDeleteItem(runId: string, itemId: string) {
-    setRuns((previous) =>
-      previous.map((run) =>
-        run.id === runId
-          ? {
-              ...run,
-              items: run.items.filter((item) => item.id !== itemId),
-            }
-          : run,
-      ),
-    );
+  async function handleDeleteItem(runId: string, itemId: string) {
+    console.log("Delete item:", runId, itemId);
     setPendingDelete(null);
   }
 
@@ -343,78 +191,24 @@ export default function DeliveriesBoardPage() {
   }
 
   function handleClearItem(runId: string, itemId: string) {
-    setRuns((previous) =>
-      previous.map((run) =>
-        run.id === runId
-          ? {
-              ...run,
-              items: run.items.map((item) =>
-                item.id === itemId
-                  ? {
-                      ...item,
-                      quantityOut: 0,
-                      quantityReturned: 0,
-                      sellingPeriod: undefined,
-                    }
-                  : item,
-              ),
-            }
-          : run,
-      ),
-    );
+    console.log("Clear item:", runId, itemId);
+    // TODO: Implement when API supports clearing items
   }
 
   function handleNotesChange(runId: string, notes: string) {
-    setRuns((previous) =>
-      previous.map((run) =>
-        run.id === runId
-          ? {
-              ...run,
-              notes,
-            }
-          : run,
-      ),
-    );
+    console.log("Update notes:", runId, notes);
+    // TODO: Implement when API supports notes updates
   }
 
-  function handleSaveDraft(runId: string) {
-    const run = runs.find((current) => current.id === runId);
-    console.log("Save draft delivery run:", run);
-    setRuns((previous) =>
-      previous.map((current) =>
-        current.id === runId
-          ? {
-              ...current,
-              status: "draft",
-            }
-          : current,
-      ),
-    );
-    notify({
-      variant: "success",
-      title: "Brouillon enregistré",
-      description: "La tournée a été enregistrée en brouillon.",
+  async function handleSaveDraft(runId: string) {
+    await updateDeliveryRun.mutateAsync({
+      id: runId,
+      data: { status: "draft" },
     });
   }
 
-  function handleValidateRun(runId: string) {
-    const run = runs.find((current) => current.id === runId);
-    console.log("Validate delivery run:", run);
-    setRuns((previous) =>
-      previous.map((current) =>
-        current.id === runId
-          ? {
-              ...current,
-              status: "validated",
-            }
-          : current,
-      ),
-    );
-    notify({
-      variant: "success",
-      title: "Tournée validée",
-      description: "La tournée a été validée avec succès.",
-    });
+  async function handleValidateRun(runId: string) {
+    await validateDeliveryRun.mutateAsync(runId);
   }
 
   const overallTotals = runs.reduce(
@@ -447,7 +241,7 @@ export default function DeliveriesBoardPage() {
   const overallDistinctProductsCount = runs.reduce((sum, run) => {
     const distinctProducts = new Set(
       run.items
-        .filter((item) => item.quantityOut > 0)
+        .filter((item) => item.quantityEntrusted > 0)
         .map((item) => item.productId),
     );
     return sum + distinctProducts.size;
@@ -466,6 +260,15 @@ export default function DeliveriesBoardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handlePrevDay}
+            aria-label="Jour précédent"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
           <div className="flex items-center gap-2">
             <label htmlFor="delivery-date" className="text-sm font-medium text-[var(--muted-foreground)]">
               Date
@@ -476,6 +279,15 @@ export default function DeliveriesBoardPage() {
               placeholder="Choisir une date"
             />
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleNextDay}
+            aria-label="Jour suivant"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -505,13 +317,10 @@ export default function DeliveriesBoardPage() {
             </TableHeader>
             <TableBody>
                 {runs.map((run) => {
-                  const employee = mockEmployees.find(
-                    (candidate) => candidate.id === run.employeeId,
-                  );
                   const aggregates = computeRunAggregates(run);
                   const distinctProducts = new Set(
                     run.items
-                      .filter((item) => item.quantityOut > 0)
+                      .filter((item) => item.quantityEntrusted > 0)
                       .map((item) => item.productId),
                   );
 
@@ -520,10 +329,10 @@ export default function DeliveriesBoardPage() {
                       <TableCell>
                         <div className="space-y-0.5">
                           <p className="font-medium">
-                            {employee?.name ?? "Livreur"}
+                            {run.employeeName}
                           </p>
                           <p className="text-xs text-[var(--muted-foreground)]">
-                            {employee?.routeLabel ?? "Tournée"}
+                            {run.locationName}
                           </p>
                         </div>
                       </TableCell>
@@ -615,10 +424,10 @@ export default function DeliveriesBoardPage() {
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-[var(--secondary)]/50 p-4">
                 <div className="space-y-1">
                   <p className="font-medium text-[var(--foreground)]">
-                    {mockEmployees.find((e) => e.id === selectedRun.employeeId)?.name}
+                    {selectedRun.employeeName}
                   </p>
                   <p className="text-sm text-[var(--muted-foreground)]">
-                    {mockEmployees.find((e) => e.id === selectedRun.employeeId)?.routeLabel} · {selectedRun.date}
+                    {selectedRun.locationName} · {selectedRun.date}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -645,189 +454,194 @@ export default function DeliveriesBoardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {mockProducts.map((product) => {
-                      const productItems = selectedRun.items.filter(
-                        (item) => item.productId === product.id,
-                      );
+                    {(() => {
+                      // Group items by productId
+                      const itemsByProduct = selectedRun.items.reduce((acc, item) => {
+                        if (!acc[item.productId]) {
+                          acc[item.productId] = {
+                            productId: item.productId,
+                            productName: item.productName,
+                            unitPrice: item.unitPrice,
+                            items: [],
+                          };
+                        }
+                        acc[item.productId].items.push(item);
+                        return acc;
+                      }, {} as Record<string, { productId: string; productName: string; unitPrice: number; items: typeof selectedRun.items }>);
 
-                      if (productItems.length === 0) {
-                        return null;
-                      }
+                      return Object.values(itemsByProduct).map((product) => {
+                        const productEntrusted = product.items.reduce(
+                          (sum, item) => sum + item.quantityEntrusted,
+                          0,
+                        );
+                        const productReturned = product.items.reduce(
+                          (sum, item) => sum + item.quantityReturned,
+                          0,
+                        );
+                        const productSold = productEntrusted - productReturned;
+                        const productTotal = product.items.reduce(
+                          (sum, item) =>
+                            sum +
+                            (item.quantityEntrusted - item.quantityReturned) *
+                              item.unitPrice,
+                          0,
+                        );
+                        const productReturnRate =
+                          productEntrusted > 0
+                            ? productReturned / productEntrusted
+                            : 0;
 
-                      const productEntrusted = productItems.reduce(
-                        (sum, item) => sum + item.quantityOut,
-                        0,
-                      );
-                      const productReturned = productItems.reduce(
-                        (sum, item) => sum + item.quantityReturned,
-                        0,
-                      );
-                      const productSold = productEntrusted - productReturned;
-                      const productTotal = productItems.reduce(
-                        (sum, item) =>
-                          sum +
-                          (item.quantityOut - item.quantityReturned) *
-                            item.unitPrice,
-                        0,
-                      );
-                      const productReturnRate =
-                        productEntrusted > 0
-                          ? productReturned / productEntrusted
-                          : 0;
-
-                      return (
-                        <React.Fragment key={product.id}>
-                          <TableRow className="bg-[var(--surface)]">
-                            <TableCell>
-                              <div className="space-y-0.5">
-                                <p className="font-semibold">
-                                  {product.name}
-                                </p>
-                                <p className="text-xs text-[var(--muted-foreground)]">
-                                  {product.unit}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell numeric className="font-semibold">
-                              {formatCurrency(product.unitPrice)}
-                            </TableCell>
-                            <TableCell numeric className="font-semibold">
-                              {productEntrusted}
-                            </TableCell>
-                            <TableCell numeric className="font-semibold">
-                              {productReturned}
-                            </TableCell>
-                            <TableCell numeric className="font-semibold">
-                              {formatReturnRate(productReturnRate)}
-                            </TableCell>
-                            <TableCell numeric className="font-semibold">
-                              {productSold}
-                            </TableCell>
-                            <TableCell numeric className="font-semibold">
-                              {formatCurrency(productTotal)}
-                            </TableCell>
-                            <TableCell numeric>
-                              <div className="flex justify-end">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  className="h-8 px-2 text-xs"
-                                  onClick={() =>
-                                    handleAddPeriodLine(selectedRun.id, product.id)
-                                  }
-                                >
-                                  + Période
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-
-                          {productItems.map((item) => {
-                            const soldQuantity =
-                              item.quantityOut - item.quantityReturned;
-                            const canDelete = productItems.length > 1;
-                            const lineReturnRate =
-                              item.quantityOut > 0
-                                ? item.quantityReturned / item.quantityOut
-                                : 0;
-
-                            return (
-                              <TableRow key={item.id}>
-                                <TableCell>
-                                  <select
-                                    value={item.sellingPeriod ?? ""}
-                                    onChange={(event) =>
-                                      handleItemSellingPeriodChange(
-                                        selectedRun.id,
-                                        item.id,
-                                        event.target.value as SellingPeriod | "",
-                                      )
+                        return (
+                          <React.Fragment key={product.productId}>
+                            <TableRow className="bg-[var(--surface)]">
+                              <TableCell>
+                                <div className="space-y-0.5">
+                                  <p className="font-semibold">
+                                    {product.productName}
+                                  </p>
+                                </div>
+                              </TableCell>
+                              <TableCell numeric className="font-semibold">
+                                {formatCurrency(product.unitPrice)}
+                              </TableCell>
+                              <TableCell numeric className="font-semibold">
+                                {productEntrusted}
+                              </TableCell>
+                              <TableCell numeric className="font-semibold">
+                                {productReturned}
+                              </TableCell>
+                              <TableCell numeric className="font-semibold">
+                                {formatReturnRate(productReturnRate)}
+                              </TableCell>
+                              <TableCell numeric className="font-semibold">
+                                {productSold}
+                              </TableCell>
+                              <TableCell numeric className="font-semibold">
+                                {formatCurrency(productTotal)}
+                              </TableCell>
+                              <TableCell numeric>
+                                <div className="flex justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-8 px-2 text-xs"
+                                    onClick={() =>
+                                      handleAddPeriodLine(selectedRun.id, product.productId)
                                     }
-                                    className="h-8 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                   >
-                                    <option value="">Non précisé</option>
-                                    {SELLING_PERIODS.map((period) => (
-                                      <option key={period} value={period}>
-                                        {period}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </TableCell>
-                                <TableCell numeric className="text-[var(--muted-foreground)]">⇓</TableCell>
-                                <TableCell numeric>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={item.quantityOut || ""}
-                                    onChange={(event) =>
-                                      handleItemQuantityOutChange(
-                                        selectedRun.id,
-                                        item.id,
-                                        Number(event.target.value || 0),
-                                      )
-                                    }
-                                    className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                                  />
-                                </TableCell>
-                                <TableCell numeric>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    value={item.quantityReturned || ""}
-                                    onChange={(event) =>
-                                      handleItemQuantityReturnedChange(
-                                        selectedRun.id,
-                                        item.id,
-                                        Number(event.target.value || 0),
-                                      )
-                                    }
-                                    className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-                                  />
-                                </TableCell>
-                                <TableCell numeric>
-                                  {formatReturnRate(lineReturnRate)}
-                                </TableCell>
-                                <TableCell numeric className="font-medium">
-                                  {soldQuantity}
-                                </TableCell>
-                                <TableCell numeric className="font-medium">
-                                  {formatCurrency(soldQuantity * item.unitPrice)}
-                                </TableCell>
-                                <TableCell numeric>
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="h-8 px-2 text-xs"
-                                      onClick={() =>
-                                        handleClearItem(selectedRun.id, item.id)
+                                    + Période
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+
+                            {product.items.map((item) => {
+                              const soldQuantity =
+                                item.quantityEntrusted - item.quantityReturned;
+                              const canDelete = product.items.length > 1;
+                              const lineReturnRate =
+                                item.quantityEntrusted > 0
+                                  ? item.quantityReturned / item.quantityEntrusted
+                                  : 0;
+
+                              return (
+                                <TableRow key={item.id}>
+                                  <TableCell>
+                                    <select
+                                      value={item.period ?? ""}
+                                      onChange={(event) =>
+                                        handleItemSellingPeriodChange(
+                                          selectedRun.id,
+                                          item.id,
+                                          event.target.value as SellingPeriod | "",
+                                        )
                                       }
+                                      className="h-8 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                     >
-                                      Réinitialiser
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="h-8 px-2 text-xs text-[var(--error)] hover:text-[var(--error)]/90 disabled:text-[var(--muted-foreground)]"
-                                      disabled={!canDelete}
-                                      onClick={() =>
-                                        setPendingDelete({
-                                          runId: selectedRun.id,
-                                          itemId: item.id,
-                                          productName: product.name,
-                                        })
+                                      <option value="">Non précisé</option>
+                                      {SELLING_PERIODS.map((period) => (
+                                        <option key={period} value={period}>
+                                          {period}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </TableCell>
+                                  <TableCell numeric className="text-[var(--muted-foreground)]">⇓</TableCell>
+                                  <TableCell numeric>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={item.quantityEntrusted || ""}
+                                      onChange={(event) =>
+                                        handleItemQuantityOutChange(
+                                          selectedRun.id,
+                                          item.id,
+                                          Number(event.target.value || 0),
+                                        )
                                       }
-                                    >
-                                      Supprimer
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </React.Fragment>
-                      );
-                    })}
+                                      className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                                    />
+                                  </TableCell>
+                                  <TableCell numeric>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={item.quantityReturned || ""}
+                                      onChange={(event) =>
+                                        handleItemQuantityReturnedChange(
+                                          selectedRun.id,
+                                          item.id,
+                                          Number(event.target.value || 0),
+                                        )
+                                      }
+                                      className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                                    />
+                                  </TableCell>
+                                  <TableCell numeric>
+                                    {formatReturnRate(lineReturnRate)}
+                                  </TableCell>
+                                  <TableCell numeric className="font-medium">
+                                    {soldQuantity}
+                                  </TableCell>
+                                  <TableCell numeric className="font-medium">
+                                    {formatCurrency(soldQuantity * item.unitPrice)}
+                                  </TableCell>
+                                  <TableCell numeric>
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="h-8 px-2 text-xs"
+                                        onClick={() =>
+                                          handleClearItem(selectedRun.id, item.id)
+                                        }
+                                      >
+                                        Réinitialiser
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        className="h-8 px-2 text-xs text-[var(--error)] hover:text-[var(--error)]/90 disabled:text-[var(--muted-foreground)]"
+                                        disabled={!canDelete}
+                                        onClick={() =>
+                                          setPendingDelete({
+                                            runId: selectedRun.id,
+                                            itemId: item.id,
+                                            productName: product.productName,
+                                          })
+                                        }
+                                      >
+                                        Supprimer
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
                 </TableBody>
               </Table>
 
