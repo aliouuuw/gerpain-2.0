@@ -233,6 +233,7 @@ export const employees = pgTable("employees", {
   role: text("role").notNull(), // "delivery", "cashier", "manager", "baker"
   status: text("status").notNull().default("active"), // "active", "inactive"
   commissionRate: integer("commission_rate").default(0), // percentage (0-100)
+  baseSalary: integer("base_salary").default(0), // monthly base salary in FCFA
   hireDate: date("hire_date"),
   photoUrl: text("photo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -250,6 +251,21 @@ export const employeeLocations = pgTable("employee_locations", {
     .references(() => locations.id, { onDelete: "cascade" }),
   isPrimary: boolean("is_primary").default(false),
   assignedAt: timestamp("assigned_at").defaultNow().notNull(),
+});
+
+// Employee-Product assignments with per-product commission
+export const employeeProducts = pgTable("employee_products", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references(() => employees.id, { onDelete: "cascade" }),
+  productId: uuid("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  commissionPerUnit: integer("commission_per_unit").notNull().default(0), // FCFA per unit sold
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Delivery Runs table
@@ -397,6 +413,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     references: [categories.id],
   }),
   deliveryItems: many(deliveryItems),
+  employeeProducts: many(employeeProducts),
 }));
 
 export const categoriesRelations = relations(categories, ({ one, many }) => ({
@@ -421,6 +438,7 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
     references: [users.id],
   }),
   employeeLocations: many(employeeLocations),
+  employeeProducts: many(employeeProducts),
   deliveryRuns: many(deliveryRuns),
   cashCollections: many(cashCollections),
 }));
@@ -433,6 +451,17 @@ export const employeeLocationsRelations = relations(employeeLocations, ({ one })
   location: one(locations, {
     fields: [employeeLocations.locationId],
     references: [locations.id],
+  }),
+}));
+
+export const employeeProductsRelations = relations(employeeProducts, ({ one }) => ({
+  employee: one(employees, {
+    fields: [employeeProducts.employeeId],
+    references: [employees.id],
+  }),
+  product: one(products, {
+    fields: [employeeProducts.productId],
+    references: [products.id],
   }),
 }));
 
@@ -795,6 +824,7 @@ export const insertEmployeeSchema = z.object({
   role: z.enum(["delivery", "cashier", "manager", "baker"]),
   status: z.enum(["active", "inactive"]).optional(),
   commissionRate: z.number().int().min(0).max(100).optional(),
+  baseSalary: z.number().int().min(0).optional(),
   hireDate: z.string().optional(), // date string
   photoUrl: z.string().url().optional(),
 });
@@ -841,6 +871,13 @@ export const insertPricingRuleSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+export const insertEmployeeProductSchema = z.object({
+  employeeId: z.string().uuid(),
+  productId: z.string().uuid(),
+  commissionPerUnit: z.number().int().min(0).default(0),
+  isActive: z.boolean().optional(),
+});
+
 export const insertInventoryItemSchema = z.object({
   organizationId: z.string().uuid(),
   locationId: z.string().uuid(),
@@ -871,6 +908,9 @@ export type DeliveryItem = typeof deliveryItems.$inferSelect;
 export type NewDeliveryItem = typeof deliveryItems.$inferInsert;
 export type CashCollection = typeof cashCollections.$inferSelect;
 export type NewCashCollection = typeof cashCollections.$inferInsert;
+
+export type EmployeeProduct = typeof employeeProducts.$inferSelect;
+export type NewEmployeeProduct = typeof employeeProducts.$inferInsert;
 
 // Pricing Rule types
 export type PricingRule = typeof pricingRules.$inferSelect;

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { db } from "../../config/database.js";
-import { employees, employeeLocations, insertEmployeeSchema } from "../../shared/database/schema.js";
+import { employees, employeeLocations, employeeProducts, insertEmployeeSchema, insertEmployeeProductSchema } from "../../shared/database/schema.js";
 import { eq, and } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -233,5 +233,108 @@ employeesRoutes.post("/:id/reactivate", async (c) => {
 
   return c.json({ success: true, data: updated });
 });
+
+// Get employee product assignments
+employeesRoutes.get("/:id/products", async (c) => {
+  const id = c.req.param("id");
+  const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  // Verify employee exists and belongs to org/bakery
+  const [employee] = await db
+    .select()
+    .from(employees)
+    .where(
+      bakeryId
+        ? and(eq(employees.id, id), eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+        : and(eq(employees.id, id), eq(employees.organizationId, organizationId))!
+    );
+
+  if (!employee) {
+    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, 404);
+  }
+
+  // Get product assignments with product details
+  const assignments = await db
+    .select({
+      id: employeeProducts.id,
+      employeeId: employeeProducts.employeeId,
+      productId: employeeProducts.productId,
+      commissionPerUnit: employeeProducts.commissionPerUnit,
+      isActive: employeeProducts.isActive,
+      createdAt: employeeProducts.createdAt,
+      updatedAt: employeeProducts.updatedAt,
+    })
+    .from(employeeProducts)
+    .where(eq(employeeProducts.employeeId, id));
+
+  return c.json({ success: true, data: assignments });
+});
+
+// Update employee product assignments (bulk upsert)
+const updateEmployeeProductsSchema = z.object({
+  products: z.array(z.object({
+    productId: z.string().uuid(),
+    commissionPerUnit: z.number().int().min(0).default(0),
+    isActive: z.boolean().default(true),
+  })),
+});
+
+employeesRoutes.put(
+  "/:id/products",
+  zValidator("json", updateEmployeeProductsSchema),
+  async (c) => {
+    const id = c.req.param("id");
+    const organizationId = c.req.header("X-Organization-ID");
+    const bakeryId = c.req.header("X-Bakery-ID");
+
+    if (!organizationId) {
+      return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+    }
+
+    // Verify employee exists and belongs to org/bakery
+    const [employee] = await db
+      .select()
+      .from(employees)
+      .where(
+        bakeryId
+          ? and(eq(employees.id, id), eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
+          : and(eq(employees.id, id), eq(employees.organizationId, organizationId))!
+      );
+
+    if (!employee) {
+      return c.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, 404);
+    }
+
+    const { products } = c.req.valid("json");
+
+    // Delete existing assignments
+    await db.delete(employeeProducts).where(eq(employeeProducts.employeeId, id));
+
+    // Insert new assignments
+    if (products.length > 0) {
+      await db.insert(employeeProducts).values(
+        products.map((p) => ({
+          employeeId: id,
+          productId: p.productId,
+          commissionPerUnit: p.commissionPerUnit,
+          isActive: p.isActive,
+        }))
+      );
+    }
+
+    // Return updated assignments
+    const assignments = await db
+      .select()
+      .from(employeeProducts)
+      .where(eq(employeeProducts.employeeId, id));
+
+    return c.json({ success: true, data: assignments });
+  }
+);
 
 export { employeesRoutes };
