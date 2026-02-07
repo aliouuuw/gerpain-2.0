@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem } from "@/lib/hooks/useDeliveries";
+import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem, useDeleteDeliveryItem } from "@/lib/hooks/useDeliveries";
 import { useEmployeeProducts } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
@@ -134,6 +134,7 @@ export default function DeliveriesBoardPage() {
   const validateDeliveryRun = useValidateDeliveryRun();
   const updateDeliveryItem = useUpdateDeliveryItem();
   const createDeliveryItem = useCreateDeliveryItem();
+  const deleteDeliveryItemMutation = useDeleteDeliveryItem();
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
@@ -153,15 +154,23 @@ export default function DeliveriesBoardPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const init: Record<string, EditedItemState> = {};
-    for (const item of filteredSelectedRunItems) {
-      init[item.id] = {
-        quantityEntrusted: item.quantityEntrusted,
-        quantityReturned: item.quantityReturned,
-        period: item.period ?? "",
-      };
-    }
-    setEditedItems(init);
+    setEditedItems((prev) => {
+      const newIds = filteredSelectedRunItems.map((i) => i.id);
+      const prevIds = Object.keys(prev);
+      const sameStructure =
+        newIds.length === prevIds.length && newIds.every((id) => id in prev);
+      if (sameStructure) return prev;
+
+      const init: Record<string, EditedItemState> = {};
+      for (const item of filteredSelectedRunItems) {
+        init[item.id] = prev[item.id] ?? {
+          quantityEntrusted: item.quantityEntrusted,
+          quantityReturned: item.quantityReturned,
+          period: item.period ?? "",
+        };
+      }
+      return init;
+    });
   }, [filteredSelectedRunItems]);
 
   useEffect(() => {
@@ -251,9 +260,14 @@ export default function DeliveriesBoardPage() {
     }
   }
 
-  async function handleDeleteItem(runId: string, itemId: string) {
+  async function handleDeleteItem(_runId: string, itemId: string) {
     try {
-      await updateDeliveryItem.mutateAsync({ id: itemId, data: { quantityEntrusted: 0, quantityReturned: 0 } });
+      await deleteDeliveryItemMutation.mutateAsync(itemId);
+      setEditedItems((prev) => {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      });
       await refetch();
     } catch {
       notify({ variant: "error", title: "Erreur", description: "Impossible de supprimer la ligne." });
