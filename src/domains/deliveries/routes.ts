@@ -10,7 +10,8 @@ import {
   insertDeliveryRunSchema, 
   insertDeliveryItemSchema 
 } from "../../shared/database/schema.js";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { locations as locationsTable } from "../../shared/database/schema.js";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -87,14 +88,13 @@ deliveriesRoutes.get("/runs", async (c) => {
           : activeProducts.map(p => p.id);
 
         // Get the first location for the bakery (needed for locationId)
-        const { locations } = await import("../../shared/database/schema.js");
         const [firstLocation] = await db
           .select()
-          .from(locations)
+          .from(locationsTable)
           .where(
             and(
-              eq(locations.organizationId, organizationId),
-              eq(locations.bakeryId, bakeryId)
+              eq(locationsTable.organizationId, organizationId),
+              eq(locationsTable.bakeryId, bakeryId)
             )
           )
           .limit(1);
@@ -163,7 +163,7 @@ deliveriesRoutes.get("/runs", async (c) => {
     filtered = filtered.filter(r => r.locationId === locationId);
   }
 
-  // Get items and employee info for each run
+  // Get items and employee/location info for each run
   const runsWithDetails = await Promise.all(
     filtered.map(async (run) => {
       const items = await db
@@ -176,7 +176,12 @@ deliveriesRoutes.get("/runs", async (c) => {
         .from(employees)
         .where(eq(employees.id, run.employeeId));
 
-      // Get product names for items
+      const [location] = await db
+        .select()
+        .from(locationsTable)
+        .where(eq(locationsTable.id, run.locationId));
+
+      // Get product names for items and compute quantitySold
       const itemsWithProducts = await Promise.all(
         items.map(async (item) => {
           const [product] = await db
@@ -186,14 +191,16 @@ deliveriesRoutes.get("/runs", async (c) => {
           return {
             ...item,
             productName: product?.name || "Unknown",
+            quantitySold: item.quantityEntrusted - item.quantityReturned,
           };
         })
       );
 
       return {
         ...run,
+        notes: run.notes ?? "",
         employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
-        routeLabel: employee ? `${employee.firstName} – Tournée` : "Tournée",
+        locationName: location?.name ?? "Unknown",
         items: itemsWithProducts,
       };
     })
@@ -232,7 +239,13 @@ deliveriesRoutes.get("/runs/:id", async (c) => {
     .from(employees)
     .where(eq(employees.id, run.employeeId));
 
-  // Get product names
+  // Get location
+  const [location] = await db
+    .select()
+    .from(locationsTable)
+    .where(eq(locationsTable.id, run.locationId));
+
+  // Get product names and compute quantitySold
   const itemsWithProducts = await Promise.all(
     items.map(async (item) => {
       const [product] = await db
@@ -242,6 +255,7 @@ deliveriesRoutes.get("/runs/:id", async (c) => {
       return {
         ...item,
         productName: product?.name || "Unknown",
+        quantitySold: item.quantityEntrusted - item.quantityReturned,
       };
     })
   );
@@ -250,7 +264,9 @@ deliveriesRoutes.get("/runs/:id", async (c) => {
     success: true,
     data: {
       ...run,
+      notes: run.notes ?? "",
       employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
+      locationName: location?.name ?? "Unknown",
       items: itemsWithProducts,
     },
   });
