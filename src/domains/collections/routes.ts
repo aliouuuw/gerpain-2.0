@@ -3,34 +3,61 @@ import { db } from "../../config/database.js";
 import { 
   cashCollections, 
   employees,
+  deliveryRuns,
   insertCashCollectionSchema 
 } from "../../shared/database/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 const collectionsRoutes = new Hono();
 
-// List cash collections
+// List cash collections with filters
 collectionsRoutes.get("/", async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
   const date = c.req.query("date");
   const status = c.req.query("status");
   const locationId = c.req.query("locationId");
+  const employeeId = c.req.query("employeeId");
+  const startDate = c.req.query("startDate");
+  const endDate = c.req.query("endDate");
+  const isSettled = c.req.query("isSettled");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  const collections = await db
+  let query = db
     .select()
     .from(cashCollections)
     .where(eq(cashCollections.organizationId, organizationId));
+
+  // Apply filters
+  if (bakeryId) {
+    query = db
+      .select()
+      .from(cashCollections)
+      .where(
+        and(
+          eq(cashCollections.organizationId, organizationId),
+          eq(cashCollections.bakeryId, bakeryId)
+        )
+      );
+  }
+
+  const collections = await query;
 
   // Filter by query params
   let filtered = collections;
   if (date) {
     filtered = filtered.filter(c => c.date === date);
+  }
+  if (startDate) {
+    filtered = filtered.filter(c => c.date >= startDate);
+  }
+  if (endDate) {
+    filtered = filtered.filter(c => c.date <= endDate);
   }
   if (status) {
     filtered = filtered.filter(c => c.status === status);
@@ -38,8 +65,15 @@ collectionsRoutes.get("/", async (c) => {
   if (locationId) {
     filtered = filtered.filter(c => c.locationId === locationId);
   }
+  if (employeeId) {
+    filtered = filtered.filter(c => c.employeeId === employeeId);
+  }
+  if (isSettled !== undefined) {
+    const settledFlag = isSettled === "true";
+    filtered = filtered.filter(c => c.isSettled === settledFlag);
+  }
 
-  // Get employee info for each collection
+  // Get employee and delivery run info for each collection
   const collectionsWithDetails = await Promise.all(
     filtered.map(async (col) => {
       const [employee] = await db
@@ -47,10 +81,22 @@ collectionsRoutes.get("/", async (c) => {
         .from(employees)
         .where(eq(employees.id, col.employeeId));
 
+      // Get delivery run if linked
+      let deliveryRun = null;
+      if (col.deliveryRunId) {
+        const [run] = await db
+          .select()
+          .from(deliveryRuns)
+          .where(eq(deliveryRuns.id, col.deliveryRunId));
+        deliveryRun = run;
+      }
+
       return {
         ...col,
         employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
-        routeLabel: employee?.role === "delivery" ? "Livreur" : employee?.role || "Unknown",
+        employeeRole: employee?.role || "unknown",
+        routeLabel: employee?.role === "delivery" ? "Livreur" : employee?.role === "cashier" ? "Caissier" : employee?.role || "Unknown",
+        source: deliveryRun ? "Livraison" : "Boutique",
       };
     })
   );
@@ -228,5 +274,108 @@ collectionsRoutes.post(
     return c.json({ success: true, data: updated });
   }
 );
+
+// Get aggregates for period (summary cards data)
+collectionsRoutes.get("/aggregates", async (c) => {
+  const organizationId = c.req.header("X-Organization-ID");
+  const employeeId = c.req.query("employeeId");
+  const startDate = c.req.query("startDate");
+  const endDate = c.req.query("endDate");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  let query = db
+    .select()
+    .from(cashCollections)
+    .where(eq(cashCollections.organizationId, organizationId));
+
+  const collections = await query;
+
+  // Filter by employee and date range
+  let filtered = collections;
+  if (employeeId) {
+    filtered = filtered.filter(c => c.employeeId === employeeId);
+  }
+  if (startDate) {
+    filtered = filtered.filter(c => c.date >= startDate);
+  }
+  if (endDate) {
+    filtered = filtered.filter(c => c.date <= endDate);
+  }
+
+  // Calculate aggregates
+  const totalExpected = filtered.reduce((sum, c) => sum + c.expectedAmount, 0);
+  const totalCollected = filtered.reduce((sum, c) => sum + (c.actualAmount || 0), 0);
+  const outstandingBalance = totalExpected - totalCollected;
+  const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
+
+  return c.json({
+    success: true,
+    data: {
+      totalExpected,
+      totalCollected,
+      outstandingBalance,
+      collectionRate,
+      count: filtered.length,
+    }
+  });
+});
+
+// Settle all collections for a period
+collectionsRoutes.post("/settle", async (c) => {
+  const organizationId = c.req.header("X-Organization-ID");
+  const employeeId = c.req.query("employeeId");
+  const startDate = c.req.query("startDate");
+  const endDate = c.req.query("endDate");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  // Get collections to settle
+  let query = db
+    .select()
+    .from(cashCollections)
+    .where(
+      and(
+        eq(cashCollections.organizationId, organizationId),
+        eq(cashCollections.isSettled, false)
+      )
+    );
+
+  const collections = await query;
+
+  // Filter by params
+  let toSettle = collections;
+  if (employeeId) {
+    toSettle = toSettle.filter(c => c.employeeId === employeeId);
+  }
+  if (startDate) {
+    toSettle = toSettle.filter(c => c.date >= startDate);
+  }
+  if (endDate) {
+    toSettle = toSettle.filter(c => c.date <= endDate);
+  }
+
+  // Mark all as settled
+  const settledIds: string[] = [];
+  for (const col of toSettle) {
+    await db
+      .update(cashCollections)
+      .set({ isSettled: true, updatedAt: new Date() })
+      .where(eq(cashCollections.id, col.id));
+    settledIds.push(col.id);
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      settledCount: settledIds.length,
+      settledIds,
+    }
+  });
+});
 
 export { collectionsRoutes };
