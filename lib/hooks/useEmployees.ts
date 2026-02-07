@@ -10,10 +10,13 @@ import {
   deactivateEmployee,
   reactivateEmployee,
   getEmployeePerformance,
+  getEmployeeProducts,
+  updateEmployeeProducts,
   type EmployeesParams,
   type CreateEmployeeRequest,
   type UpdateEmployeeRequest,
   type PerformanceParams,
+  type EmployeeProductInput,
 } from "@/lib/api/employees";
 
 export const employeeKeys = {
@@ -22,6 +25,7 @@ export const employeeKeys = {
   detail: (id: string) => [...employeeKeys.all, "detail", id] as const,
   performance: (id: string, params: PerformanceParams) =>
     [...employeeKeys.all, "performance", id, params] as const,
+  products: (id: string) => [...employeeKeys.all, "products", id] as const,
 };
 
 export function useEmployees(params: EmployeesParams = {}) {
@@ -141,6 +145,39 @@ export function useReactivateEmployee() {
         variant: "error",
         title: "Erreur",
         description: "Impossible de réactiver l'employé.",
+      });
+    },
+  });
+}
+
+export function useEmployeeProducts(id: string) {
+  return useQuery({
+    queryKey: employeeKeys.products(id),
+    queryFn: () => getEmployeeProducts(id),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateEmployeeProducts() {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, products }: { id: string; products: EmployeeProductInput[] }) =>
+      updateEmployeeProducts(id, products),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.products(variables.id) });
+      notify({
+        variant: "success",
+        title: "Produits assignés",
+        description: "Les produits ont été assignés à l'employé.",
+      });
+    },
+    onError: () => {
+      notify({
+        variant: "error",
+        title: "Erreur",
+        description: "Impossible d'assigner les produits.",
       });
     },
   });

@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee } from "@/lib/hooks/useEmployees";
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee, useEmployeeProducts, useUpdateEmployeeProducts } from "@/lib/hooks/useEmployees";
 import { useLocations } from "@/lib/hooks/useLocations";
+import { useProducts } from "@/lib/hooks/useProducts";
 import type { Employee, EmployeeRole, EmployeeStatus } from "@/lib/api/employees";
 
 const roleLabels: Record<EmployeeRole, string> = {
@@ -44,7 +45,9 @@ const emptyFormData = {
   status: "active" as EmployeeStatus,
   locations: [] as string[],
   commissionRate: 0,
+  baseSalary: 0,
   hireDate: new Date().toISOString().slice(0, 10),
+  products: [] as { productId: string; commissionPerUnit: number; isActive: boolean }[],
 };
 
 export default function EmployeesListPage() {
@@ -62,10 +65,13 @@ export default function EmployeesListPage() {
     status: statusFilter !== "all" ? (statusFilter as EmployeeStatus) : undefined,
   });
   const { data: locations = [], isLoading: isLoadingLocations } = useLocations();
+  const { data: products = [], isLoading: isLoadingProducts } = useProducts();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deactivateEmployee = useDeactivateEmployee();
   const reactivateEmployee = useReactivateEmployee();
+  const { data: employeeProducts = [], isLoading: isLoadingEmployeeProducts } = useEmployeeProducts(editingEmployee?.id || "");
+  const updateEmployeeProducts = useUpdateEmployeeProducts();
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -95,7 +101,9 @@ export default function EmployeesListPage() {
       status: employee.status,
       locations: employee.locations,
       commissionRate: employee.commissionRate,
+      baseSalary: employee.baseSalary || 0,
       hireDate: employee.hireDate,
+      products: [],
     });
     setIsFormOpen(true);
   };
@@ -111,13 +119,24 @@ export default function EmployeesListPage() {
     }
 
     try {
+      let employeeId: string;
       if (editingEmployee) {
         await updateEmployee.mutateAsync({
           id: editingEmployee.id,
           data: formData,
         });
+        employeeId = editingEmployee.id;
       } else {
-        await createEmployee.mutateAsync(formData);
+        const newEmployee = await createEmployee.mutateAsync(formData);
+        employeeId = newEmployee.id;
+      }
+
+      // Save product assignments if any
+      if (formData.products.length > 0) {
+        await updateEmployeeProducts.mutateAsync({
+          id: employeeId,
+          products: formData.products,
+        });
       }
 
       setIsFormOpen(false);
@@ -448,7 +467,7 @@ export default function EmployeesListPage() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="block text-sm font-medium text-[var(--foreground)]">
                   Taux de commission (%)
@@ -466,6 +485,21 @@ export default function EmployeesListPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--foreground)]">
+                  Salaire de base (FCFA)
+                </label>
+                <input
+                  type="number"
+                  value={formData.baseSalary}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, baseSalary: Number(e.target.value) }))
+                  }
+                  className="mt-1.5 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
+                  min={0}
+                  step={1000}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--foreground)]">
                   Date d&apos;embauche
                 </label>
                 <input
@@ -474,6 +508,73 @@ export default function EmployeesListPage() {
                   onChange={(e) => setFormData((prev) => ({ ...prev, hireDate: e.target.value }))}
                   className="mt-1.5 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
                 />
+              </div>
+            </div>
+
+            {/* Product Assignment Panel */}
+            <div className="border-t border-[var(--border)] pt-4">
+              <label className="block text-sm font-medium text-[var(--foreground)] mb-3">
+                Produits assignés
+              </label>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {isLoadingProducts ? (
+                  <p className="text-sm text-[var(--muted-foreground)]">Chargement des produits...</p>
+                ) : products.length === 0 ? (
+                  <p className="text-sm text-[var(--muted-foreground)]">Aucun produit disponible</p>
+                ) : (
+                  products.map((product) => {
+                    const assignment = formData.products.find((p) => p.productId === product.id);
+                    const isAssigned = !!assignment;
+                    return (
+                      <div key={product.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--secondary)]">
+                        <input
+                          type="checkbox"
+                          checked={isAssigned}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData((prev) => ({
+                                ...prev,
+                                products: [
+                                  ...prev.products,
+                                  { productId: product.id, commissionPerUnit: 0, isActive: true },
+                                ],
+                              }));
+                            } else {
+                              setFormData((prev) => ({
+                                ...prev,
+                                products: prev.products.filter((p) => p.productId !== product.id),
+                              }));
+                            }
+                          }}
+                          className="size-4 rounded border-[var(--border)]"
+                        />
+                        <span className="flex-1 text-sm">{product.name}</span>
+                        {isAssigned && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[var(--muted-foreground)]">Commission:</span>
+                            <input
+                              type="number"
+                              value={assignment.commissionPerUnit}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  products: prev.products.map((p) =>
+                                    p.productId === product.id ? { ...p, commissionPerUnit: value } : p
+                                  ),
+                                }));
+                              }}
+                              className="w-20 rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm"
+                              min={0}
+                              step={10}
+                              placeholder="FCFA"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

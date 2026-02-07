@@ -13,6 +13,7 @@ export interface Employee {
   status: EmployeeStatus;
   locations: string[];
   commissionRate: number;
+  baseSalary: number;
   hireDate: string;
   photoUrl?: string;
   createdAt: string;
@@ -34,6 +35,7 @@ export interface CreateEmployeeRequest {
   status?: EmployeeStatus;
   locations?: string[];
   commissionRate?: number;
+  baseSalary?: number;
   hireDate?: string;
 }
 
@@ -46,7 +48,24 @@ export interface UpdateEmployeeRequest {
   status?: EmployeeStatus;
   locations?: string[];
   commissionRate?: number;
+  baseSalary?: number;
   hireDate?: string;
+}
+
+export interface EmployeeProduct {
+  id: string;
+  employeeId: string;
+  productId: string;
+  commissionPerUnit: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeeProductInput {
+  productId: string;
+  commissionPerUnit: number;
+  isActive: boolean;
 }
 
 export interface EmployeePerformance {
@@ -122,4 +141,18 @@ export async function getEmployeePerformance(
   return apiClient<EmployeePerformance>(
     `/api/v1/employees/${id}/performance?${searchParams.toString()}`
   );
+}
+
+export async function getEmployeeProducts(id: string): Promise<EmployeeProduct[]> {
+  return apiClient<EmployeeProduct[]>(`/api/v1/employees/${id}/products`);
+}
+
+export async function updateEmployeeProducts(
+  id: string,
+  products: EmployeeProductInput[]
+): Promise<EmployeeProduct[]> {
+  return apiClient<EmployeeProduct[]>(`/api/v1/employees/${id}/products`, {
+    method: "PUT",
+    body: { products },
+  });
 }
