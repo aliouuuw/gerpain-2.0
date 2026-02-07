@@ -8,7 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select-radix";
 import { useToast } from "@/components/ui/toast";
 import { useCashCollections, useUpdateCashCollection, useSubmitCashCollection } from "@/lib/hooks/useCollections";
 import { useEmployees } from "@/lib/hooks/useEmployees";
@@ -231,7 +237,7 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
 
 export default function CollectionsPage() {
   const { notify } = useToast();
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
   const [periodValue, setPeriodValue] = useState<string>("this_week");
   const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({});
   const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
@@ -259,7 +265,7 @@ export default function CollectionsPage() {
   // Fetch collections - use a date param since API may not support range yet
   const { data: collections = [], isLoading, error } = useCashCollections({ 
     date: endDate,
-    employeeId: selectedEmployeeId || undefined,
+    employeeId: selectedEmployeeId === "all" ? undefined : selectedEmployeeId,
   });
   
   // Filter by date range if needed (client-side until API supports range)
@@ -302,27 +308,47 @@ export default function CollectionsPage() {
           </p>
         </div>
         
-        <div className="flex flex-wrap gap-4">
-          <div className="w-64">
-            <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="w-64 space-y-1.5">
+            <label className="text-xs font-medium text-[var(--muted-foreground)] block">
               Employé
             </label>
             <Select
               value={selectedEmployeeId}
-              onValueChange={(val) => setSelectedEmployeeId(val as string)}
-              options={employeeOptions}
-              placeholder="Tous les employés"
-            />
+              onValueChange={setSelectedEmployeeId}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Tous les employés" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Tous les employés</SelectItem>
+                {employees.map((emp) => (
+                  <SelectItem key={emp.id} value={emp.id}>
+                    {emp.firstName} {emp.lastName} ({getRoleLabel(emp.role)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="w-48">
-            <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">
+          <div className="w-48 space-y-1.5">
+            <label className="text-xs font-medium text-[var(--muted-foreground)] block">
               Période
             </label>
             <Select
               value={periodValue}
-              onValueChange={(val) => setPeriodValue(val as string)}
-              options={PERIOD_OPTIONS}
-            />
+              onValueChange={setPeriodValue}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIOD_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {periodValue === "custom" && (
             <div className="w-64">
