@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/Button";
@@ -25,6 +25,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem } from "@/lib/hooks/useDeliveries";
+import { useEmployeeProducts } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
@@ -128,6 +129,20 @@ export default function DeliveriesBoardPage() {
   const updateDeliveryItem = useUpdateDeliveryItem();
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
+
+   const { data: selectedEmployeeProducts = [] } = useEmployeeProducts(selectedRun?.employeeId ?? "");
+
+   const filteredSelectedRunItems = useMemo(() => {
+     if (!selectedRun) return [] as DeliveryItem[];
+
+     const activeAssignments = selectedEmployeeProducts.filter((p) => p.isActive !== false);
+     if (activeAssignments.length === 0) {
+       return selectedRun.items;
+     }
+
+     const assignedProductIds = new Set(activeAssignments.map((p) => p.productId));
+     return selectedRun.items.filter((item) => assignedProductIds.has(item.productId));
+   }, [selectedEmployeeProducts, selectedRun]);
 
   function handleDateChange(newDate: string) {
     setDate(newDate);
@@ -473,7 +488,7 @@ export default function DeliveriesBoardPage() {
                 <TableBody>
                     {(() => {
                       // Group items by productId
-                      const itemsByProduct = selectedRun.items.reduce((acc, item) => {
+                      const itemsByProduct = filteredSelectedRunItems.reduce((acc, item) => {
                         if (!acc[item.productId]) {
                           acc[item.productId] = {
                             productId: item.productId,
@@ -484,7 +499,7 @@ export default function DeliveriesBoardPage() {
                         }
                         acc[item.productId].items.push(item);
                         return acc;
-                      }, {} as Record<string, { productId: string; productName: string; unitPrice: number; items: typeof selectedRun.items }>);
+                      }, {} as Record<string, { productId: string; productName: string; unitPrice: number; items: typeof filteredSelectedRunItems }>);
 
                       return Object.values(itemsByProduct).map((product) => {
                         const productEntrusted = product.items.reduce(
