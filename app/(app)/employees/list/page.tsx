@@ -77,8 +77,8 @@ export default function EmployeesListPage() {
     const matchesSearch =
       searchQuery === "" ||
       `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.phone.includes(searchQuery);
+      (emp.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (emp.phone?.includes(searchQuery) ?? false);
     const matchesRole = roleFilter === "all" || emp.role === roleFilter;
     const matchesStatus = statusFilter === "all" || emp.status === statusFilter;
     return matchesSearch && matchesRole && matchesStatus;
@@ -95,14 +95,14 @@ export default function EmployeesListPage() {
     setFormData({
       firstName: employee.firstName,
       lastName: employee.lastName,
-      email: employee.email,
-      phone: employee.phone,
+      email: employee.email ?? "",
+      phone: employee.phone ?? "",
       role: employee.role,
       status: employee.status,
       locations: employee.locations,
-      commissionRate: employee.commissionRate,
-      baseSalary: employee.baseSalary || 0,
-      hireDate: employee.hireDate,
+      commissionRate: employee.commissionRate ?? 0,
+      baseSalary: employee.baseSalary ?? 0,
+      hireDate: employee.hireDate ?? new Date().toISOString().slice(0, 10),
       products: [],
     });
     setIsFormOpen(true);
@@ -120,14 +120,21 @@ export default function EmployeesListPage() {
 
     try {
       let employeeId: string;
+      const { products: productAssignments, ...employeeFields } = formData;
+      const payload = {
+        ...employeeFields,
+        email: employeeFields.email || undefined,
+        phone: employeeFields.phone || undefined,
+        hireDate: employeeFields.hireDate || undefined,
+      };
       if (editingEmployee) {
         await updateEmployee.mutateAsync({
           id: editingEmployee.id,
-          data: formData,
+          data: payload,
         });
         employeeId = editingEmployee.id;
       } else {
-        const newEmployee = await createEmployee.mutateAsync(formData);
+        const newEmployee = await createEmployee.mutateAsync(payload);
         employeeId = newEmployee.id;
       }
 
@@ -307,11 +314,13 @@ export default function EmployeesListPage() {
                     </TableCell>
                     <TableCell numeric>{emp.commissionRate}%</TableCell>
                     <TableCell>
-                      {new Date(emp.hireDate).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
+                      {emp.hireDate
+                        ? new Date(emp.hireDate).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "—"}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

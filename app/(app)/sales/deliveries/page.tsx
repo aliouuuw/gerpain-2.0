@@ -316,64 +316,78 @@ export default function DeliveriesBoardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-                {runs.map((run) => {
-                  const aggregates = computeRunAggregates(run);
-                  const distinctProducts = new Set(
-                    run.items
-                      .filter((item) => item.quantityEntrusted > 0)
-                      .map((item) => item.productId),
-                  );
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-[var(--muted-foreground)]">
+                      Chargement des tournées…
+                    </TableCell>
+                  </TableRow>
+                ) : runs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="py-8 text-center text-sm text-[var(--muted-foreground)]">
+                      Aucune tournée pour cette date. Vérifiez qu&apos;il existe des livreurs actifs et au moins une localisation.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  runs.map((run) => {
+                    const aggregates = computeRunAggregates(run);
+                    const distinctProducts = new Set(
+                      run.items
+                        .filter((item) => item.quantityEntrusted > 0)
+                        .map((item) => item.productId),
+                    );
 
-                  return (
-                    <TableRow key={run.id}>
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <p className="font-medium">
-                            {run.employeeName}
-                          </p>
-                          <p className="text-xs text-[var(--muted-foreground)]">
-                            {run.locationName}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell numeric className="font-medium">
-                        {aggregates.quantityEntrusted}
-                      </TableCell>
-                      <TableCell numeric className="text-[var(--muted-foreground)]">
-                        {distinctProducts.size}
-                      </TableCell>
-                      <TableCell numeric className="font-medium">
-                        {aggregates.quantityReturned}
-                      </TableCell>
-                      <TableCell numeric>
-                        <span className={aggregates.returnRate > 0.1 ? "font-medium text-[var(--error)]" : "text-[var(--muted-foreground)]"}>
-                          {formatReturnRate(aggregates.returnRate)}
-                        </span>
-                      </TableCell>
-                      <TableCell numeric className="font-medium">
-                        {aggregates.quantitySold}
-                      </TableCell>
-                      <TableCell numeric className="font-semibold">
-                        {formatCurrency(aggregates.revenue)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(run.status)}>
-                          {getStatusLabel(run.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell numeric>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setSelectedRunId(run.id)}
-                        >
-                          Détails
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                    return (
+                      <TableRow key={run.id}>
+                        <TableCell>
+                          <div className="space-y-0.5">
+                            <p className="font-medium">
+                              {run.employeeName}
+                            </p>
+                            <p className="text-xs text-[var(--muted-foreground)]">
+                              {run.locationName}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell numeric className="font-medium">
+                          {aggregates.quantityEntrusted}
+                        </TableCell>
+                        <TableCell numeric className="text-[var(--muted-foreground)]">
+                          {distinctProducts.size}
+                        </TableCell>
+                        <TableCell numeric className="font-medium">
+                          {aggregates.quantityReturned}
+                        </TableCell>
+                        <TableCell numeric>
+                          <span className={aggregates.returnRate > 0.1 ? "font-medium text-[var(--error)]" : "text-[var(--muted-foreground)]"}>
+                            {formatReturnRate(aggregates.returnRate)}
+                          </span>
+                        </TableCell>
+                        <TableCell numeric className="font-medium">
+                          {aggregates.quantitySold}
+                        </TableCell>
+                        <TableCell numeric className="font-semibold">
+                          {formatCurrency(aggregates.revenue)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(run.status)}>
+                            {getStatusLabel(run.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell numeric>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setSelectedRunId(run.id)}
+                          >
+                            Détails
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
             </TableBody>
             <TableFooter>
               <TableRow variant="muted">
