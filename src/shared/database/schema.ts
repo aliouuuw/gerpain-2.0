@@ -324,6 +324,7 @@ export const cashCollections = pgTable("cash_collections", {
   locationId: uuid("location_id")
     .notNull()
     .references(() => locations.id, { onDelete: "cascade" }),
+  deliveryRunId: uuid("delivery_run_id").references(() => deliveryRuns.id, { onDelete: "set null" }), // FK to source delivery
   date: date("date").notNull(),
   expectedAmount: integer("expected_amount").notNull(), // calculated from delivery runs
   actualAmount: integer("actual_amount"), // total collected
@@ -332,6 +333,8 @@ export const cashCollections = pgTable("cash_collections", {
   mobileAmount: integer("mobile_amount").default(0),
   variance: integer("variance"), // actualAmount - expectedAmount
   status: text("status").notNull().default("pending"), // "pending", "submitted", "validated", "rejected"
+  isSettled: boolean("is_settled").default(false).notNull(), // payroll settlement flag
+  period: text("period"), // flexible payroll period label like 'Jan-2026', 'Week-3'
   notes: text("notes"),
   submittedAt: timestamp("submitted_at"),
   validatedAt: timestamp("validated_at"),
@@ -487,6 +490,7 @@ export const deliveryRunsRelations = relations(deliveryRuns, ({ one, many }) => 
     references: [users.id],
   }),
   items: many(deliveryItems),
+  cashCollections: many(cashCollections),
 }));
 
 export const deliveryItemsRelations = relations(deliveryItems, ({ one }) => ({
@@ -516,6 +520,10 @@ export const cashCollectionsRelations = relations(cashCollections, ({ one }) => 
   location: one(locations, {
     fields: [cashCollections.locationId],
     references: [locations.id],
+  }),
+  deliveryRun: one(deliveryRuns, {
+    fields: [cashCollections.deliveryRunId],
+    references: [deliveryRuns.id],
   }),
   validatedByUser: one(users, {
     fields: [cashCollections.validatedBy],
@@ -853,6 +861,7 @@ export const insertCashCollectionSchema = z.object({
   bakeryId: z.string().uuid(),
   employeeId: z.string().uuid(),
   locationId: z.string().uuid(),
+  deliveryRunId: z.string().uuid().optional(),
   date: z.string(), // date string
   expectedAmount: z.number().int().min(0),
   actualAmount: z.number().int().min(0).optional(),
@@ -860,6 +869,8 @@ export const insertCashCollectionSchema = z.object({
   cardAmount: z.number().int().min(0).optional(),
   mobileAmount: z.number().int().min(0).optional(),
   status: z.enum(["pending", "submitted", "validated", "rejected"]).optional(),
+  isSettled: z.boolean().optional(),
+  period: z.string().optional(),
   notes: z.string().optional(),
 });
 
