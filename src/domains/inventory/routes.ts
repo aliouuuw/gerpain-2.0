@@ -30,20 +30,22 @@ inventoryRoutes.get("/stock", async (c) => {
   }
 
   if (lowStock === "true") {
-    filtered = filtered.filter(item => 
-      item.reorderPoint > 0 && item.currentQuantity <= item.reorderPoint
-    );
+    filtered = filtered.filter(item => {
+      const rp = item.reorderPoint ?? 0;
+      return rp > 0 && item.currentQuantity <= rp;
+    });
   }
 
   const enriched = filtered.map(item => {
     const availableQuantity = item.currentQuantity - item.reservedQuantity;
+    const rp = item.reorderPoint ?? 0;
     let status: "normal" | "low" | "critical" | "out" = "normal";
     
     if (item.currentQuantity === 0) {
       status = "out";
-    } else if (item.reorderPoint > 0 && item.currentQuantity <= item.reorderPoint) {
+    } else if (rp > 0 && item.currentQuantity <= rp) {
       status = "critical";
-    } else if (item.reorderPoint > 0 && item.currentQuantity <= item.reorderPoint * 1.5) {
+    } else if (rp > 0 && item.currentQuantity <= rp * 1.5) {
       status = "low";
     }
 
@@ -98,10 +100,18 @@ inventoryRoutes.get("/stock/:id", async (c) => {
 });
 
 // Create or update inventory item
+const createInventoryItemSchema = insertInventoryItemSchema.omit({ organizationId: true });
+
 inventoryRoutes.post(
   "/stock",
-  zValidator("json", insertInventoryItemSchema),
+  zValidator("json", createInventoryItemSchema),
   async (c) => {
+    const organizationId = c.req.header("X-Organization-ID");
+
+    if (!organizationId) {
+      return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+    }
+
     const body = c.req.valid("json");
 
     const [existing] = await db
@@ -111,7 +121,7 @@ inventoryRoutes.post(
         and(
           eq(inventoryItems.locationId, body.locationId),
           eq(inventoryItems.productId, body.productId),
-          eq(inventoryItems.organizationId, body.organizationId)
+          eq(inventoryItems.organizationId, organizationId)
         )
       );
 
@@ -131,7 +141,7 @@ inventoryRoutes.post(
       return c.json({ success: true, data: updated });
     }
 
-    const [item] = await db.insert(inventoryItems).values(body).returning();
+    const [item] = await db.insert(inventoryItems).values({ ...body, organizationId }).returning();
     return c.json({ success: true, data: item }, 201);
   }
 );

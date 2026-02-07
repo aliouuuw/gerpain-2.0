@@ -55,10 +55,18 @@ pricingRoutes.get("/:id", async (c) => {
 });
 
 // Create pricing rule
+const createPricingRuleSchema = insertPricingRuleSchema.omit({ organizationId: true });
+
 pricingRoutes.post(
   "/",
-  zValidator("json", insertPricingRuleSchema),
+  zValidator("json", createPricingRuleSchema),
   async (c) => {
+    const organizationId = c.req.header("X-Organization-ID");
+
+    if (!organizationId) {
+      return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+    }
+
     const body = c.req.valid("json");
 
     // Check for existing rule for this product+location combo
@@ -69,7 +77,7 @@ pricingRoutes.post(
         and(
           eq(pricingRules.productId, body.productId),
           eq(pricingRules.locationId, body.locationId),
-          eq(pricingRules.organizationId, body.organizationId)
+          eq(pricingRules.organizationId, organizationId)
         )
       );
 
@@ -77,7 +85,7 @@ pricingRoutes.post(
       return c.json({ success: false, error: { code: "DUPLICATE", message: "Pricing rule already exists for this product and location" } }, 409);
     }
 
-    const [rule] = await db.insert(pricingRules).values(body).returning();
+    const [rule] = await db.insert(pricingRules).values({ ...body, organizationId }).returning();
 
     return c.json({ success: true, data: rule }, 201);
   }

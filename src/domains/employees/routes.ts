@@ -79,7 +79,7 @@ employeesRoutes.get("/:id", async (c) => {
 });
 
 // Create employee
-const createEmployeeSchema = insertEmployeeSchema.extend({
+const createEmployeeSchema = insertEmployeeSchema.omit({ organizationId: true, bakeryId: true }).extend({
   locations: z.array(z.string().uuid()).optional(),
 });
 
@@ -87,7 +87,15 @@ employeesRoutes.post(
   "/",
   zValidator("json", createEmployeeSchema),
   async (c) => {
-    const { locations: locationIds, ...employeeData } = c.req.valid("json");
+    const organizationId = c.req.header("X-Organization-ID");
+    const bakeryId = c.req.header("X-Bakery-ID");
+
+    if (!organizationId || !bakeryId) {
+      return c.json({ success: false, error: { code: "MISSING_CONTEXT", message: "Organization ID and Bakery ID required" } }, 400);
+    }
+
+    const { locations: locationIds, ...bodyData } = c.req.valid("json");
+    const employeeData = { ...bodyData, organizationId, bakeryId };
 
     const [employee] = await db.insert(employees).values(employeeData).returning();
 

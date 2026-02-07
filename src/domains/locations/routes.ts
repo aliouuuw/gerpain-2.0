@@ -55,13 +55,22 @@ locationsRoutes.get("/:id", async (c) => {
 });
 
 // Create location
+const createLocationSchema = insertLocationSchema.omit({ organizationId: true, bakeryId: true });
+
 locationsRoutes.post(
   "/",
-  zValidator("json", insertLocationSchema),
+  zValidator("json", createLocationSchema),
   async (c) => {
+    const organizationId = c.req.header("X-Organization-ID");
+    const bakeryId = c.req.header("X-Bakery-ID");
+
+    if (!organizationId || !bakeryId) {
+      return c.json({ success: false, error: { code: "MISSING_CONTEXT", message: "Organization ID and Bakery ID required" } }, 400);
+    }
+
     const body = c.req.valid("json");
 
-    const [location] = await db.insert(locations).values(body).returning();
+    const [location] = await db.insert(locations).values({ ...body, organizationId, bakeryId }).returning();
 
     return c.json({ success: true, data: location }, 201);
   }

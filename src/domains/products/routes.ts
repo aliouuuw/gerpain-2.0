@@ -55,13 +55,26 @@ productsRoutes.get("/:id", async (c) => {
 });
 
 // Create product
+const createProductSchema = insertProductSchema.omit({ organizationId: true, bakeryId: true });
+
 productsRoutes.post(
   "/",
-  zValidator("json", insertProductSchema),
+  zValidator("json", createProductSchema),
   async (c) => {
+    const organizationId = c.req.header("X-Organization-ID");
+    const bakeryId = c.req.header("X-Bakery-ID");
+
+    if (!organizationId) {
+      return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+    }
+
     const body = c.req.valid("json");
 
-    const [product] = await db.insert(products).values(body).returning();
+    const [product] = await db.insert(products).values({
+      ...body,
+      organizationId,
+      ...(bakeryId ? { bakeryId } : {}),
+    }).returning();
 
     return c.json({ success: true, data: product }, 201);
   }

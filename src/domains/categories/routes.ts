@@ -56,7 +56,9 @@ app.get("/:id", async (c) => {
 });
 
 // Create category
-app.post("/", zValidator("json", insertCategorySchema), async (c) => {
+const createCategorySchema = insertCategorySchema.omit({ organizationId: true });
+
+app.post("/", zValidator("json", createCategorySchema), async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
   if (!organizationId) {
     return c.json({ success: false, error: { code: "UNAUTHORIZED", message: "Organization ID required" } }, 401);
