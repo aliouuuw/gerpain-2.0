@@ -6,6 +6,7 @@ import {
   employees,
   products,
   employeeProducts,
+  cashCollections,
   insertDeliveryRunSchema, 
   insertDeliveryItemSchema 
 } from "../../shared/database/schema.js";
@@ -295,16 +296,39 @@ deliveriesRoutes.patch(
   }
 );
 
-// Validate delivery run
+// Validate delivery run - auto-creates cash collection
 deliveriesRoutes.post("/runs/:id/validate", async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
-  // Note: validatedBy would come from auth middleware in production
+  const bakeryId = c.req.header("X-Bakery-ID");
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
+  // Get the run with items for calculating expected amount
+  const [run] = await db
+    .select()
+    .from(deliveryRuns)
+    .where(and(eq(deliveryRuns.id, id), eq(deliveryRuns.organizationId, organizationId)));
+
+  if (!run) {
+    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Delivery run not found" } }, 404);
+  }
+
+  // Get all items for this run
+  const items = await db
+    .select()
+    .from(deliveryItems)
+    .where(eq(deliveryItems.runId, id));
+
+  // Calculate expectedAmount = sum((quantityEntrusted - quantityReturned) × unitPrice)
+  const expectedAmount = items.reduce((sum, item) => {
+    const sold = item.quantityEntrusted - item.quantityReturned;
+    return sum + (sold * item.unitPrice);
+  }, 0);
+
+  // Update run status to validated
   const [updated] = await db
     .update(deliveryRuns)
     .set({ 
@@ -315,11 +339,55 @@ deliveriesRoutes.post("/runs/:id/validate", async (c) => {
     .where(and(eq(deliveryRuns.id, id), eq(deliveryRuns.organizationId, organizationId)))
     .returning();
 
-  if (!updated) {
-    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Delivery run not found" } }, 404);
+  // Check if cash collection already exists for this delivery run
+  const [existingCollection] = await db
+    .select()
+    .from(cashCollections)
+    .where(eq(cashCollections.deliveryRunId, id));
+
+  let collection;
+  if (existingCollection) {
+    // Update existing collection's expectedAmount
+    [collection] = await db
+      .update(cashCollections)
+      .set({
+        expectedAmount,
+        updatedAt: new Date(),
+      })
+      .where(eq(cashCollections.id, existingCollection.id))
+      .returning();
+  } else {
+    // Create new cash collection
+    [collection] = await db
+      .insert(cashCollections)
+      .values({
+        organizationId,
+        bakeryId: bakeryId || run.bakeryId,
+        employeeId: run.employeeId,
+        locationId: run.locationId,
+        deliveryRunId: id,
+        date: run.date,
+        expectedAmount,
+        actualAmount: 0,
+        cashAmount: 0,
+        cardAmount: 0,
+        mobileAmount: 0,
+        status: "pending",
+        isSettled: false,
+      })
+      .returning();
   }
 
-  return c.json({ success: true, data: updated });
+  return c.json({ 
+    success: true, 
+    data: {
+      ...updated,
+      collection: {
+        id: collection.id,
+        expectedAmount: collection.expectedAmount,
+      }
+    }
+  });
 });
 
 // Add item to delivery run
