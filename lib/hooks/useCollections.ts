@@ -6,6 +6,7 @@ import {
   getCashCollections,
   getCashCollection,
   getCollectionAggregates,
+  getCashCollectionsOverview,
   createCashCollection,
   updateCashCollection,
   submitCashCollection,
@@ -15,6 +16,7 @@ import {
   type CollectionsParams,
   type CreateCashCollectionRequest,
   type UpdateCashCollectionRequest,
+  type OverviewParams,
 } from "@/lib/api/collections";
 
 export const collectionKeys = {
@@ -23,6 +25,7 @@ export const collectionKeys = {
   detail: (id: string) => [...collectionKeys.all, "detail", id] as const,
   aggregates: (params: Omit<CollectionsParams, "status" | "locationId" | "isSettled">) =>
     [...collectionKeys.all, "aggregates", params] as const,
+  overview: (params: OverviewParams) => [...collectionKeys.all, "overview", params] as const,
 };
 
 export function useCashCollections(params: CollectionsParams) {
@@ -193,5 +196,13 @@ export function useSettleCollectionsPeriod() {
         description: "Impossible de régler la période.",
       });
     },
+  });
+}
+
+export function useCashCollectionsOverview(params: OverviewParams = {}) {
+  return useQuery({
+    queryKey: collectionKeys.overview(params),
+    queryFn: () => getCashCollectionsOverview(params),
+    staleTime: 30 * 1000,
   });
 }

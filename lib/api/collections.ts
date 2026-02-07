@@ -65,6 +65,25 @@ export interface SettlePeriodResponse {
   settledIds: string[];
 }
 
+export interface EmployeeOverview {
+  employeeId: string;
+  employeeName: string;
+  role: string;
+  roleLabel: string;
+  tournées: number;
+  totalExpected: number;
+  totalCollected: number;
+  solde: number;
+  unsettledCount: number;
+}
+
+export interface OverviewParams {
+  startDate?: string;
+  endDate?: string;
+  role?: string;
+  isSettled?: boolean;
+}
+
 export async function getCashCollections(
   params: CollectionsParams = {}
 ): Promise<CashCollection[]> {
@@ -155,6 +174,22 @@ export async function settleCollectionsPeriod(
     {
       method: "POST",
     }
+  );
+  return response.data;
+}
+
+export async function getCashCollectionsOverview(
+  params: OverviewParams = {}
+): Promise<EmployeeOverview[]> {
+  const searchParams = new URLSearchParams();
+  if (params.startDate) searchParams.set("startDate", params.startDate);
+  if (params.endDate) searchParams.set("endDate", params.endDate);
+  if (params.role) searchParams.set("role", params.role);
+  if (params.isSettled !== undefined) searchParams.set("isSettled", String(params.isSettled));
+
+  const queryString = searchParams.toString();
+  const response = await apiClient<{ data: EmployeeOverview[] }>(
+    `/api/v1/cash-collections/overview${queryString ? `?${queryString}` : ""}`
   );
   return response.data;
 }
