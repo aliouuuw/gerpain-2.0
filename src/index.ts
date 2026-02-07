@@ -36,7 +36,7 @@ console.log("CORS Origins:", corsOrigins);
 app.use("*", cors({
   origin: corsOrigins,
   credentials: true,
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'User-Agent', 'DNT', 'Cache-Control', 'X-Mx-ReqToken', 'Keep-Alive', 'X-Requested-With', 'If-Modified-Since', 'X-Organization-ID', 'X-Bakery-ID'],
   exposeHeaders: ['Content-Length', 'X-Kuma-Revision'],
   maxAge: 86400, // 24 hours
