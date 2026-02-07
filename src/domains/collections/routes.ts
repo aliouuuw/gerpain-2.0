@@ -12,6 +12,96 @@ import { z } from "zod";
 
 const collectionsRoutes = new Hono();
 
+// Get overview - per-employee aggregates for a period
+collectionsRoutes.get("/overview", async (c) => {
+  const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
+  const startDate = c.req.query("startDate");
+  const endDate = c.req.query("endDate");
+  const role = c.req.query("role");
+  const isSettled = c.req.query("isSettled");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  // Get all collections for the period
+  let query = db
+    .select()
+    .from(cashCollections)
+    .where(eq(cashCollections.organizationId, organizationId));
+
+  const allCollections = await query;
+
+  // Filter by date range and bakery
+  let filtered = allCollections;
+  if (bakeryId) {
+    filtered = filtered.filter(c => c.bakeryId === bakeryId);
+  }
+  if (startDate) {
+    filtered = filtered.filter(c => c.date >= startDate);
+  }
+  if (endDate) {
+    filtered = filtered.filter(c => c.date <= endDate);
+  }
+  if (isSettled !== undefined) {
+    const settledFlag = isSettled === "true";
+    filtered = filtered.filter(c => c.isSettled === settledFlag);
+  }
+
+  // Get all employees for the organization
+  let employeesQuery = db
+    .select()
+    .from(employees)
+    .where(eq(employees.organizationId, organizationId));
+
+  const allEmployees = await employeesQuery;
+
+  // Filter employees by role if specified
+  let filteredEmployees = allEmployees;
+  if (role) {
+    filteredEmployees = filteredEmployees.filter(e => e.role === role);
+  }
+
+  // Group collections by employee and calculate aggregates
+  const overview = await Promise.all(
+    filteredEmployees.map(async (employee) => {
+      const employeeCollections = filtered.filter(c => c.employeeId === employee.id);
+      
+      const tournées = employeeCollections.length;
+      const totalExpected = employeeCollections.reduce((sum, c) => sum + c.expectedAmount, 0);
+      const totalCollected = employeeCollections.reduce((sum, c) => sum + (c.actualAmount || 0), 0);
+      const solde = totalCollected - totalExpected; // negative = owes money
+      const unsettledCount = employeeCollections.filter(c => !c.isSettled).length;
+
+      return {
+        employeeId: employee.id,
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        role: employee.role,
+        roleLabel: employee.role === "delivery" ? "Livreur" : 
+                   employee.role === "cashier" ? "Caissier" : 
+                   employee.role === "manager" ? "Manager" : 
+                   employee.role === "baker" ? "Boulanger" : employee.role,
+        tournées,
+        totalExpected,
+        totalCollected,
+        solde,
+        unsettledCount,
+      };
+    })
+  );
+
+  // Filter out employees with no collections if showing unsettled only
+  const finalOverview = isSettled === "false" 
+    ? overview.filter(e => e.unsettledCount > 0)
+    : overview;
+
+  return c.json({
+    success: true,
+    data: finalOverview,
+  });
+});
+
 // List cash collections with filters
 collectionsRoutes.get("/", async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
