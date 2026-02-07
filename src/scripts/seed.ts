@@ -1,411 +1,178 @@
 import { db } from "../config/database.js";
-import { 
-  users, 
-  apiKeys, 
-  roles, 
-  userRoles, 
+import { sql } from "drizzle-orm";
+import {
+  users,
+  apiKeys,
   organizations,
   bakeries,
   locations,
+  categories,
   products,
   employees,
   employeeLocations,
-  deliveryRuns,
-  deliveryItems,
-  cashCollections,
 } from "../shared/database/schema.js";
 import bcrypt from "bcryptjs";
 import { generateRandomString } from "../shared/utils/crypto.js";
 import { RBACService } from "../shared/rbac/rbac-service.js";
 import { OrganizationService } from "../shared/organization/organization-service.js";
- import { and, eq } from "drizzle-orm";
-
- async function getOrCreateUser(params: {
-   email: string;
-   hashedPassword: string;
-   name: string;
- }) {
-   const [existing] = await db
-     .select()
-     .from(users)
-     .where(eq(users.email, params.email));
-
-   if (existing) {
-     return existing;
-   }
-
-   const [created] = await db
-     .insert(users)
-     .values({
-       email: params.email,
-       hashedPassword: params.hashedPassword,
-       name: params.name,
-       emailVerified: true,
-     })
-     .returning();
-
-   return created;
- }
-
- async function getOrCreateOrganization(params: {
-   slug: string;
-   name: string;
-   ownerId: string;
-   description?: string;
- }) {
-   const [existing] = await db
-     .select()
-     .from(organizations)
-     .where(eq(organizations.slug, params.slug));
-
-   if (existing) {
-     return existing.id;
-   }
-
-   return await OrganizationService.createOrganization(
-     params.name,
-     params.slug,
-     params.ownerId,
-     params.description,
-   );
- }
+import { eq } from "drizzle-orm";
 
 async function seed() {
-  console.log("Starting database seed...");
+  console.log("🧹 Cleaning domain tables...");
+  await db.execute(sql`TRUNCATE TABLE delivery_items, delivery_runs, cash_collections, inventory_items, pricing_rules, employee_locations, employees, products, categories, locations, bakeries CASCADE`);
+  console.log("   Domain tables cleaned.\n");
 
-  try {
-    // Ensure default roles exist
-    console.log("Creating default roles...");
-    await RBACService.ensureDefaultRoles();
+  // ─── Auth & Roles ───────────────────────────────────
+  console.log("🔑 Setting up roles...");
+  await RBACService.ensureDefaultRoles();
 
-    // Create super admin user
-    console.log("Creating super admin user...");
-    const adminPassword = await bcrypt.hash("admin123", 10);
-
-    const adminUser = await getOrCreateUser({
-      email: "admin@example.com",
+  console.log("👤 Creating admin user...");
+  const adminPassword = await bcrypt.hash("admin123", 10);
+  let [adminUser] = await db.select().from(users).where(eq(users.email, "admin@gerpain.com"));
+  if (!adminUser) {
+    [adminUser] = await db.insert(users).values({
+      email: "admin@gerpain.com",
       hashedPassword: adminPassword,
-      name: "Super Admin User",
-    });
-
-    // Assign super admin role
-    const superAdminRole = await RBACService.getRoleByName("super_admin");
-    if (superAdminRole) {
-      await RBACService.assignRoleToUser(adminUser.id, superAdminRole.id);
-    }
-
-    console.log("Created super admin user:", adminUser.email);
-    console.log("Super admin login: admin@example.com / admin123");
-
-    // Create sample organization
-    console.log("Creating sample organization...");
-    const orgSlug = "acme-corp";
-    const orgId = await getOrCreateOrganization({
-      name: "Acme Corporation",
-      slug: orgSlug,
-      ownerId: adminUser.id,
-      description: "A sample organization for testing",
-    });
-
-    if (orgId) {
-      console.log("Created organization:", orgSlug);
-
-      // Create org admin user
-      const orgAdminPassword = await bcrypt.hash("orgadmin123", 10);
-      const orgAdminUser = await getOrCreateUser({
-        email: "orgadmin@example.com",
-        hashedPassword: orgAdminPassword,
-        name: "Org Admin User",
-      });
-
-      // Assign user role globally
-      await RBACService.assignDefaultRoleToUser(orgAdminUser.id);
-
-      // Add to organization as org admin
-      const orgAdminRole = await RBACService.getRoleByName("org_admin");
-      if (orgAdminRole) {
-        await OrganizationService.addUserToOrganization(orgId, orgAdminUser.id, orgAdminRole.id, adminUser.id);
-      }
-
-      console.log("Created org admin user:", orgAdminUser.email);
-      console.log("Org admin login: orgadmin@example.com / orgadmin123");
-    }
-
-    // Create a test user
-    const hashedPassword = await bcrypt.hash("password123", 10);
-
-    const testUser = await getOrCreateUser({
-      email: "test@example.com",
-      hashedPassword,
-      name: "Test User",
-    });
-
-    // Assign default user role globally
-    await RBACService.assignDefaultRoleToUser(testUser.id);
-
-    // Add test user to organization if it exists
-    if (orgId) {
-      const userRole = await RBACService.getRoleByName("user");
-      if (userRole) {
-        await OrganizationService.addUserToOrganization(orgId, testUser.id, userRole.id, adminUser.id);
-      }
-    }
-
-    console.log("Created test user:", testUser.email);
-    console.log("Test login: test@example.com / password123");
-
-    // Create a test API key
-    const [existingKey] = await db
-      .select()
-      .from(apiKeys)
-      .where(and(eq(apiKeys.userId, testUser.id), eq(apiKeys.name, "Test API Key")));
-
-    if (existingKey) {
-      console.log("Test API key already exists:", existingKey.key);
-    } else {
-      const apiKey = generateRandomString(32);
-      await db.insert(apiKeys).values({
-        userId: testUser.id,
-        name: "Test API Key",
-        key: apiKey,
-      });
-      console.log("Created test API key:", apiKey);
-    }
-
-    // =====================================================
-    // DOMAIN DATA SEEDING
-    // =====================================================
-
-    if (orgId) {
-      console.log("\n--- Seeding domain data ---");
-
-      // Seed Bakeries first
-      console.log("Creating bakeries...");
-      const [bakery1] = await db.insert(bakeries).values({
-        organizationId: orgId,
-        name: "Boulangerie Centre",
-        code: "BC",
-        address: "12 Rue Principale, Dakar",
-        phone: "+221 33 123 45 67",
-        settings: "{}",
-      }).returning();
-
-      console.log(`Created 1 bakery: ${bakery1.name}`);
-
-      // Check if domain data already exists
-      const [existingLocation] = await db
-        .select()
-        .from(locations)
-        .where(eq(locations.organizationId, orgId))
-        .limit(1);
-
-      if (existingLocation) {
-        console.log("Domain data already seeded (locations exist). Skipping domain seeding.");
-        console.log("\nSeed completed successfully!");
-        return;
-      }
-
-      // Seed Locations (now only shops and warehouses, linked to bakery)
-      console.log("Creating locations...");
-      const [loc1] = await db.insert(locations).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        name: "Point de vente Marché",
-        type: "shop",
-        address: "Place du Marché, Dakar",
-        phone: "+221 33 234 56 78",
-      }).returning();
-
-      const [loc2] = await db.insert(locations).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        name: "Dépôt Zone Industrielle",
-        type: "warehouse",
-        address: "Zone Industrielle, Dakar",
-        phone: "+221 33 345 67 89",
-      }).returning();
-
-      console.log(`Created ${2} locations`);
-
-      // Seed Products (org-wide products, no bakeryId)
-      console.log("Creating products...");
-      const productData = [
-        { name: "Baguette tradition", category: "pain", unitPrice: 300 },
-        { name: "Pain de mie", category: "pain", unitPrice: 500 },
-        { name: "Croissant", category: "viennoiserie", unitPrice: 400 },
-        { name: "Pain au chocolat", category: "viennoiserie", unitPrice: 450 },
-        { name: "Brioche", category: "viennoiserie", unitPrice: 350 },
-        { name: "Sandwich poulet", category: "sandwich", unitPrice: 1500 },
-        { name: "Sandwich thon", category: "sandwich", unitPrice: 1200 },
-        { name: "Gâteau chocolat", category: "patisserie", unitPrice: 2500 },
-        { name: "Tarte aux fruits", category: "patisserie", unitPrice: 2000 },
-        { name: "Fataya", category: "snack", unitPrice: 250 },
-      ];
-
-      const insertedProducts = await db.insert(products).values(
-        productData.map(p => ({ ...p, organizationId: orgId }))
-      ).returning();
-
-      console.log(`Created ${insertedProducts.length} products`);
-
-      // Seed Employees (linked to bakery)
-      console.log("Creating employees...");
-      const [emp1] = await db.insert(employees).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        firstName: "Moussa",
-        lastName: "Diallo",
-        email: "moussa.diallo@gerpain.com",
-        phone: "+221 77 123 45 67",
-        role: "delivery",
-        status: "active",
-        commissionRate: 5,
-        hireDate: "2023-03-15",
-      }).returning();
-
-      const [emp2] = await db.insert(employees).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        firstName: "Fatou",
-        lastName: "Ndiaye",
-        email: "fatou.ndiaye@gerpain.com",
-        phone: "+221 78 234 56 78",
-        role: "cashier",
-        status: "active",
-        commissionRate: 3,
-        hireDate: "2023-06-01",
-      }).returning();
-
-      const [emp3] = await db.insert(employees).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        firstName: "Ibrahima",
-        lastName: "Sow",
-        email: "ibrahima.sow@gerpain.com",
-        phone: "+221 76 345 67 89",
-        role: "delivery",
-        status: "active",
-        commissionRate: 5,
-        hireDate: "2024-01-10",
-      }).returning();
-
-      const [emp4] = await db.insert(employees).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        firstName: "Aminata",
-        lastName: "Ba",
-        email: "aminata.ba@gerpain.com",
-        phone: "+221 77 456 78 90",
-        role: "manager",
-        status: "active",
-        commissionRate: 0,
-        hireDate: "2022-08-20",
-      }).returning();
-
-      const [emp5] = await db.insert(employees).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        firstName: "Ousmane",
-        lastName: "Fall",
-        email: "ousmane.fall@gerpain.com",
-        phone: "+221 78 567 89 01",
-        role: "baker",
-        status: "inactive",
-        commissionRate: 0,
-        hireDate: "2023-02-01",
-      }).returning();
-
-      console.log(`Created 5 employees`);
-
-      // Assign employees to locations
-      console.log("Assigning employees to locations...");
-      await db.insert(employeeLocations).values([
-        { employeeId: emp1.id, locationId: loc1.id, isPrimary: true },
-        { employeeId: emp2.id, locationId: loc1.id, isPrimary: true },
-        { employeeId: emp3.id, locationId: loc1.id, isPrimary: true },
-        { employeeId: emp4.id, locationId: loc1.id, isPrimary: true },
-        { employeeId: emp4.id, locationId: loc2.id, isPrimary: false },
-        { employeeId: emp5.id, locationId: loc2.id, isPrimary: true },
-      ]);
-
-      console.log("Employee-location assignments created");
-
-      // Create sample delivery runs for today (linked to bakery)
-      const today = new Date().toISOString().slice(0, 10);
-      console.log(`Creating sample delivery runs for ${today}...`);
-
-      const [run1] = await db.insert(deliveryRuns).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        employeeId: emp1.id,
-        locationId: loc1.id,
-        date: today,
-        status: "draft",
-        notes: "",
-      }).returning();
-
-      const [run2] = await db.insert(deliveryRuns).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        employeeId: emp3.id,
-        locationId: loc2.id,
-        date: today,
-        status: "draft",
-        notes: "",
-      }).returning();
-
-      // Add sample items to delivery runs
-      const periods = ["Matin", "Après-midi"];
-      for (const run of [run1, run2]) {
-        for (let i = 0; i < 5; i++) {
-          const product = insertedProducts[i];
-          await db.insert(deliveryItems).values({
-            runId: run.id,
-            productId: product.id,
-            period: periods[i % 2],
-            quantityEntrusted: 20 + Math.floor(Math.random() * 30),
-            quantityReturned: 0,
-            unitPrice: product.unitPrice,
-          });
-        }
-      }
-
-      console.log(`Created 2 delivery runs with items`);
-
-      // Create sample cash collections (linked to bakery)
-      console.log("Creating sample cash collections...");
-      await db.insert(cashCollections).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        employeeId: emp1.id,
-        locationId: loc1.id,
-        date: today,
-        expectedAmount: 185000,
-        actualAmount: null,
-        status: "pending",
-      });
-
-      await db.insert(cashCollections).values({
-        organizationId: orgId,
-        bakeryId: bakery1.id,
-        employeeId: emp3.id,
-        locationId: loc2.id,
-        date: today,
-        expectedAmount: 142000,
-        actualAmount: null,
-        status: "pending",
-      });
-
-      console.log("Created 2 cash collections");
-      console.log("\n--- Domain data seeding complete ---");
-    }
-
-    console.log("\nSeed completed successfully!");
-
-  } catch (error) {
-    console.error("Seed failed:", error);
-    process.exit(1);
+      name: "Admin Gerpain",
+      emailVerified: true,
+    }).returning();
   }
+  const superAdminRole = await RBACService.getRoleByName("super_admin");
+  if (superAdminRole) {
+    await RBACService.assignRoleToUser(adminUser.id, superAdminRole.id);
+  }
+  console.log("   Login: admin@gerpain.com / admin123\n");
+
+  // ─── Organization ───────────────────────────────────
+  console.log("🏢 Creating organization...");
+  let [org] = await db.select().from(organizations).where(eq(organizations.slug, "gerpain"));
+  if (!org) {
+    const orgId = await OrganizationService.createOrganization(
+      "Gerpain Boulangerie",
+      "gerpain",
+      adminUser.id,
+      "Chaîne de boulangeries — Dakar, Sénégal",
+    );
+    [org] = await db.select().from(organizations).where(eq(organizations.id, orgId!));
+  }
+  console.log(`   Organization: ${org.name} (${org.slug})\n`);
+
+  // ─── Bakery ─────────────────────────────────────────
+  console.log("🍞 Creating bakery...");
+  const [bakery] = await db.insert(bakeries).values({
+    organizationId: org.id,
+    name: "Boulangerie Centrale",
+    code: "BC",
+    address: "12 Avenue Cheikh Anta Diop, Dakar",
+    phone: "+221 33 820 00 00",
+  }).returning();
+  console.log(`   Bakery: ${bakery.name} [${bakery.code}]\n`);
+
+  // ─── Locations ──────────────────────────────────────
+  console.log("📍 Creating locations...");
+  const [boutique] = await db.insert(locations).values({
+    organizationId: org.id,
+    bakeryId: bakery.id,
+    name: "Boutique Centre-ville",
+    type: "shop",
+    address: "45 Rue Carnot, Plateau, Dakar",
+    phone: "+221 33 821 11 11",
+  }).returning();
+
+  const [depot] = await db.insert(locations).values({
+    organizationId: org.id,
+    bakeryId: bakery.id,
+    name: "Dépôt Principal",
+    type: "warehouse",
+    address: "Zone Industrielle, Hann, Dakar",
+    phone: "+221 33 832 22 22",
+  }).returning();
+  console.log(`   ${boutique.name} (shop)`);
+  console.log(`   ${depot.name} (warehouse)\n`);
+
+  // ─── Categories ─────────────────────────────────────
+  console.log("📦 Creating categories...");
+  const catData = [
+    { name: "Pain", description: "Pains traditionnels", color: "#D97706", sortOrder: 1 },
+    { name: "Viennoiserie", description: "Croissants, brioches, etc.", color: "#059669", sortOrder: 2 },
+    { name: "Boissons", description: "Jus, eaux, sodas", color: "#2563EB", sortOrder: 3 },
+    { name: "Consommables", description: "Snacks et autres", color: "#7C3AED", sortOrder: 4 },
+  ];
+  const insertedCategories = await db.insert(categories).values(
+    catData.map(c => ({ ...c, organizationId: org.id }))
+  ).returning();
+  const catMap = Object.fromEntries(insertedCategories.map(c => [c.name, c.id]));
+  console.log(`   ${insertedCategories.map(c => c.name).join(", ")}\n`);
+
+  // ─── Products ───────────────────────────────────────
+  console.log("🛒 Creating products...");
+  const prodData = [
+    { name: "Pain Kilo",     unitPrice: 1500, categoryId: catMap["Pain"] },
+    { name: "Pain Moyen",    unitPrice: 250,  categoryId: catMap["Pain"] },
+    { name: "Pain Petit",    unitPrice: 150,  categoryId: catMap["Pain"] },
+    { name: "Croissant",     unitPrice: 400,  categoryId: catMap["Viennoiserie"] },
+    { name: "Pain au chocolat", unitPrice: 450, categoryId: catMap["Viennoiserie"] },
+    { name: "Brioche",       unitPrice: 350,  categoryId: catMap["Viennoiserie"] },
+    { name: "Jus d'orange",  unitPrice: 800,  categoryId: catMap["Boissons"] },
+    { name: "Eau minérale",  unitPrice: 300,  categoryId: catMap["Boissons"] },
+    { name: "Fataya",        unitPrice: 250,  categoryId: catMap["Consommables"] },
+  ];
+  const insertedProducts = await db.insert(products).values(
+    prodData.map(p => ({ ...p, organizationId: org.id }))
+  ).returning();
+  for (const p of insertedProducts) {
+    console.log(`   ${p.name.padEnd(20)} ${String(p.unitPrice).padStart(5)} FCFA`);
+  }
+  console.log();
+
+  // ─── Employees ──────────────────────────────────────
+  console.log("👥 Creating employees...");
+  const empData = [
+    { firstName: "Ali",      lastName: "Konaté",  role: "delivery" as const, phone: "+221 77 100 00 01" },
+    { firstName: "Amina",    lastName: "Diallo",  role: "delivery" as const, phone: "+221 77 100 00 02" },
+    { firstName: "Moussa",   lastName: "Traoré",  role: "delivery" as const, phone: "+221 77 100 00 03" },
+    { firstName: "Marie",    lastName: "Camara",  role: "cashier"  as const, phone: "+221 77 100 00 04" },
+    { firstName: "Aminata",  lastName: "Ba",      role: "manager"  as const, phone: "+221 77 100 00 05" },
+  ];
+  const insertedEmployees = await db.insert(employees).values(
+    empData.map(e => ({
+      ...e,
+      organizationId: org.id,
+      bakeryId: bakery.id,
+      status: "active" as const,
+      commissionRate: 0,
+      hireDate: "2025-01-01",
+    }))
+  ).returning();
+
+  // Assign all employees to the boutique
+  await db.insert(employeeLocations).values(
+    insertedEmployees.map((emp, i) => ({
+      employeeId: emp.id,
+      locationId: boutique.id,
+      isPrimary: true,
+    }))
+  );
+
+  for (const e of insertedEmployees) {
+    console.log(`   ${(e.firstName + " " + e.lastName).padEnd(20)} ${e.role}`);
+  }
+
+  // ─── Summary ────────────────────────────────────────
+  console.log("\n" + "═".repeat(50));
+  console.log("✅ Seed complete!");
+  console.log("═".repeat(50));
+  console.log(`  Organization : ${org.name}`);
+  console.log(`  Bakery       : ${bakery.name}`);
+  console.log(`  Locations    : ${2}`);
+  console.log(`  Categories   : ${insertedCategories.length}`);
+  console.log(`  Products     : ${insertedProducts.length}`);
+  console.log(`  Employees    : ${insertedEmployees.length}`);
+  console.log(`  Login        : admin@gerpain.com / admin123`);
+  console.log("═".repeat(50));
+  console.log("\nReady for manual CRUD testing in the app.");
+
+  process.exit(0);
 }
 
 seed();
