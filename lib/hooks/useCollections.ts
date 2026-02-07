@@ -5,11 +5,13 @@ import { useToast } from "@/components/ui/toast";
 import {
   getCashCollections,
   getCashCollection,
+  getCollectionAggregates,
   createCashCollection,
   updateCashCollection,
   submitCashCollection,
   validateCashCollection,
   rejectCashCollection,
+  settleCollectionsPeriod,
   type CollectionsParams,
   type CreateCashCollectionRequest,
   type UpdateCashCollectionRequest,
@@ -19,6 +21,8 @@ export const collectionKeys = {
   all: ["collections"] as const,
   list: (params: CollectionsParams) => [...collectionKeys.all, "list", params] as const,
   detail: (id: string) => [...collectionKeys.all, "detail", id] as const,
+  aggregates: (params: Omit<CollectionsParams, "status" | "locationId" | "isSettled">) =>
+    [...collectionKeys.all, "aggregates", params] as const,
 };
 
 export function useCashCollections(params: CollectionsParams) {
@@ -152,6 +156,41 @@ export function useRejectCashCollection() {
         variant: "error",
         title: "Erreur",
         description: "Impossible de rejeter la collecte.",
+      });
+    },
+  });
+}
+
+export function useCollectionAggregates(
+  params: Omit<CollectionsParams, "status" | "locationId" | "isSettled"> = {}
+) {
+  return useQuery({
+    queryKey: collectionKeys.aggregates(params),
+    queryFn: () => getCollectionAggregates(params),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useSettleCollectionsPeriod() {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+
+  return useMutation({
+    mutationFn: (params: Omit<CollectionsParams, "status" | "locationId" | "isSettled">) =>
+      settleCollectionsPeriod(params),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+      notify({
+        variant: "success",
+        title: "Période réglée",
+        description: `${data.settledCount} collecte(s) marquée(s) comme réglée(s).`,
+      });
+    },
+    onError: () => {
+      notify({
+        variant: "error",
+        title: "Erreur",
+        description: "Impossible de régler la période.",
       });
     },
   });
