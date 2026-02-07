@@ -181,9 +181,24 @@ deliveriesRoutes.get("/runs", async (c) => {
         .from(locationsTable)
         .where(eq(locationsTable.id, run.locationId));
 
+      // Check if employee has assigned products — if so, filter items
+      const assignedProducts = await db
+        .select({ productId: employeeProducts.productId })
+        .from(employeeProducts)
+        .where(
+          and(
+            eq(employeeProducts.employeeId, run.employeeId),
+            eq(employeeProducts.isActive, true)
+          )
+        );
+      const assignedIds = assignedProducts.map(p => p.productId);
+      const filteredItems = assignedIds.length > 0
+        ? items.filter(item => assignedIds.includes(item.productId))
+        : items;
+
       // Get product names for items and compute quantitySold
       const itemsWithProducts = await Promise.all(
-        items.map(async (item) => {
+        filteredItems.map(async (item) => {
           const [product] = await db
             .select()
             .from(products)
@@ -245,9 +260,24 @@ deliveriesRoutes.get("/runs/:id", async (c) => {
     .from(locationsTable)
     .where(eq(locationsTable.id, run.locationId));
 
+  // Check if employee has assigned products — if so, filter items
+  const assignedProducts = await db
+    .select({ productId: employeeProducts.productId })
+    .from(employeeProducts)
+    .where(
+      and(
+        eq(employeeProducts.employeeId, run.employeeId),
+        eq(employeeProducts.isActive, true)
+      )
+    );
+  const assignedIds = assignedProducts.map(p => p.productId);
+  const filteredItems = assignedIds.length > 0
+    ? items.filter(item => assignedIds.includes(item.productId))
+    : items;
+
   // Get product names and compute quantitySold
   const itemsWithProducts = await Promise.all(
-    items.map(async (item) => {
+    filteredItems.map(async (item) => {
       const [product] = await db
         .select()
         .from(products)
