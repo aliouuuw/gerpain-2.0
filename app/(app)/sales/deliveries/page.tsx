@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/Button";
@@ -24,59 +24,14 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem, useDeleteDeliveryItem } from "@/lib/hooks/useDeliveries";
+import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem } from "@/lib/hooks/useDeliveries";
 import { useEmployeeProducts } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
-function QuantityInput({
-  value,
-  onCommit,
-  className,
-}: {
-  value: number;
-  onCommit: (v: number) => void;
-  className?: string;
-}) {
-  const [local, setLocal] = useState(value);
-
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
-
-  const commit = useCallback(() => {
-    const clamped = Math.max(0, local);
-    if (clamped !== value) {
-      onCommit(clamped);
-    }
-  }, [local, value, onCommit]);
-
-  return (
-    <input
-      type="number"
-      min={0}
-      value={local || ""}
-      onChange={(e) => setLocal(Number(e.target.value || 0))}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.currentTarget.blur();
-        }
-      }}
-      className={className}
-    />
-  );
-}
-
-type LocalItemEdit = {
-  itemId: string;
-  quantityEntrusted?: number;
-  quantityReturned?: number;
-  period?: string;
-};
-
-type LocalEditState = {
-  items: LocalItemEdit[];
-  notes: string;
+type EditedItemState = {
+  quantityEntrusted: number;
+  quantityReturned: number;
+  period: string;
 };
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
@@ -179,84 +134,68 @@ export default function DeliveriesBoardPage() {
   const validateDeliveryRun = useValidateDeliveryRun();
   const updateDeliveryItem = useUpdateDeliveryItem();
   const createDeliveryItem = useCreateDeliveryItem();
-  const deleteDeliveryItem = useDeleteDeliveryItem();
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
-  // Local state for pending edits (immediate UI reactivity, batch save)
-  const [pendingEdits, setPendingEdits] = useState<LocalEditState>({ items: [], notes: "" });
+  const { data: selectedEmployeeProducts = [] } = useEmployeeProducts(selectedRun?.employeeId ?? "");
 
-   const { data: selectedEmployeeProducts = [] } = useEmployeeProducts(selectedRun?.employeeId ?? "");
+  const filteredSelectedRunItems = useMemo(() => {
+    if (!selectedRun) return [] as DeliveryItem[];
+    const activeAssignments = selectedEmployeeProducts.filter((p) => p.isActive !== false);
+    if (activeAssignments.length === 0) return [] as DeliveryItem[];
+    const assignedProductIds = new Set(activeAssignments.map((p) => p.productId));
+    return selectedRun.items.filter((item) => assignedProductIds.has(item.productId));
+  }, [selectedEmployeeProducts, selectedRun]);
 
-   // Helper to merge server data with pending edits
-  const itemsWithEdits = useMemo(() => {
-    if (!selectedRun) return [];
-    const editsMap = new Map(pendingEdits.items.map(e => [e.itemId, e]));
-    return selectedRun.items.map(item => {
-      const edit = editsMap.get(item.id);
+  // --- Local editable state (live reactivity, save on click) ---
+  const [editedItems, setEditedItems] = useState<Record<string, EditedItemState>>({});
+  const [editedNotes, setEditedNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const init: Record<string, EditedItemState> = {};
+    for (const item of filteredSelectedRunItems) {
+      init[item.id] = {
+        quantityEntrusted: item.quantityEntrusted,
+        quantityReturned: item.quantityReturned,
+        period: item.period ?? "",
+      };
+    }
+    setEditedItems(init);
+  }, [filteredSelectedRunItems]);
+
+  useEffect(() => {
+    setEditedNotes(selectedRun?.notes ?? "");
+  }, [selectedRun?.id, selectedRun?.notes]);
+
+  const displayItems = useMemo(() => {
+    return filteredSelectedRunItems.map((item) => {
+      const edited = editedItems[item.id];
+      if (!edited) return item;
       return {
         ...item,
-        quantityEntrusted: edit?.quantityEntrusted ?? item.quantityEntrusted,
-        quantityReturned: edit?.quantityReturned ?? item.quantityReturned,
-        period: edit?.period ?? item.period,
+        quantityEntrusted: edited.quantityEntrusted,
+        quantityReturned: edited.quantityReturned,
+        period: edited.period,
       };
     });
-  }, [selectedRun, pendingEdits]);
+  }, [filteredSelectedRunItems, editedItems]);
 
-   const filteredSelectedRunItems = useMemo(() => {
-     if (!selectedRun) return [] as DeliveryItem[];
-
-     const activeAssignments = selectedEmployeeProducts.filter((p) => p.isActive !== false);
-     if (activeAssignments.length === 0) {
-       return [] as DeliveryItem[];
-     }
-
-     const assignedProductIds = new Set(activeAssignments.map((p) => p.productId));
-     return itemsWithEdits.filter((item) => assignedProductIds.has(item.productId));
-   }, [selectedEmployeeProducts, itemsWithEdits]);
-
-  // Local edit handlers (immediate UI update, no API call)
-  function updateLocalItem(itemId: string, changes: Partial<LocalItemEdit>) {
-    setPendingEdits(prev => ({
-      ...prev,
-      items: prev.items.some(e => e.itemId === itemId)
-        ? prev.items.map(e => e.itemId === itemId ? { ...e, ...changes } : e)
-        : [...prev.items, { itemId, ...changes }]
-    }));
-  }
-
-  function updateLocalNotes(notes: string) {
-    setPendingEdits(prev => ({ ...prev, notes }));
-  }
-
-  // Batch save function
-  async function handleSaveChanges() {
-    if (!selectedRun) return;
-    await Promise.all(
-      pendingEdits.items.map(edit =>
-        updateDeliveryItem.mutateAsync({
-          id: edit.itemId,
-          data: {
-            ...(edit.quantityEntrusted !== undefined && { quantityEntrusted: edit.quantityEntrusted }),
-            ...(edit.quantityReturned !== undefined && { quantityReturned: edit.quantityReturned }),
-            ...(edit.period !== undefined && { period: edit.period }),
-          }
-        })
-      )
-    );
-    if (pendingEdits.notes !== selectedRun.notes) {
-      await updateDeliveryRun.mutateAsync({
-        id: selectedRun.id,
-        data: { notes: pendingEdits.notes }
-      });
+  const isDirty = useMemo(() => {
+    for (const item of filteredSelectedRunItems) {
+      const edited = editedItems[item.id];
+      if (!edited) continue;
+      if (edited.quantityEntrusted !== item.quantityEntrusted) return true;
+      if (edited.quantityReturned !== item.quantityReturned) return true;
+      if (edited.period !== (item.period ?? "")) return true;
     }
-    setPendingEdits({ items: [], notes: "" });
-  }
+    if (selectedRun && editedNotes !== (selectedRun.notes ?? "")) return true;
+    return false;
+  }, [filteredSelectedRunItems, editedItems, editedNotes, selectedRun]);
 
   function handleDateChange(newDate: string) {
     setDate(newDate);
     setSelectedRunId(null);
-    setPendingEdits({ items: [], notes: "" });
   }
 
   function handlePrevDay() {
@@ -271,51 +210,54 @@ export default function DeliveriesBoardPage() {
     handleDateChange(currentDate.toISOString().slice(0, 10));
   }
 
-  // Reset pending edits when switching runs
-  useEffect(() => {
-    setPendingEdits({ items: [], notes: "" });
-  }, [selectedRunId]);
-
-  function handleItemQuantityOutChange(
-    runId: string,
-    itemId: string,
-    quantityEntrusted: number,
-  ) {
-    updateLocalItem(itemId, { quantityEntrusted: Math.max(0, quantityEntrusted) });
+  function handleLocalQuantityChange(itemId: string, field: "quantityEntrusted" | "quantityReturned", value: number) {
+    setEditedItems((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: Math.max(0, value) },
+    }));
   }
 
-  function handleItemQuantityReturnedChange(
-    runId: string,
-    itemId: string,
-    quantityReturned: number,
-  ) {
-    updateLocalItem(itemId, { quantityReturned: Math.max(0, quantityReturned) });
+  function handleLocalPeriodChange(itemId: string, period: string) {
+    setEditedItems((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], period },
+    }));
   }
 
-  // Placeholder functions for features not yet implemented with real API
-  function handleItemSellingPeriodChange(runId: string, itemId: string, period: SellingPeriod | "") {
-    updateLocalItem(itemId, { period });
+  function handleClearItem(itemId: string) {
+    setEditedItems((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], quantityEntrusted: 0, quantityReturned: 0 },
+    }));
   }
 
   async function handleAddPeriodLine(runId: string, productId: string) {
-    if (!selectedRun) return;
-    // Find the product's unit price from existing items
-    const existingItem = selectedRun.items.find(i => i.productId === productId);
-    const unitPrice = existingItem?.unitPrice ?? 0;
-    await createDeliveryItem.mutateAsync({
-      runId,
-      data: {
-        productId,
-        period: "Matin",
-        quantityEntrusted: 0,
-        quantityReturned: 0,
-        unitPrice,
-      }
-    });
+    const item = filteredSelectedRunItems.find((i) => i.productId === productId);
+    if (!item) return;
+    try {
+      await createDeliveryItem.mutateAsync({
+        runId,
+        data: {
+          productId,
+          period: "Après-midi",
+          quantityEntrusted: 0,
+          quantityReturned: 0,
+          unitPrice: item.unitPrice,
+        },
+      });
+      await refetch();
+    } catch {
+      notify({ variant: "error", title: "Erreur", description: "Impossible d'ajouter la période." });
+    }
   }
 
   async function handleDeleteItem(runId: string, itemId: string) {
-    await deleteDeliveryItem.mutateAsync(itemId);
+    try {
+      await updateDeliveryItem.mutateAsync({ id: itemId, data: { quantityEntrusted: 0, quantityReturned: 0 } });
+      await refetch();
+    } catch {
+      notify({ variant: "error", title: "Erreur", description: "Impossible de supprimer la ligne." });
+    }
     setPendingDelete(null);
   }
 
@@ -325,22 +267,38 @@ export default function DeliveriesBoardPage() {
     }
   }
 
-  function handleClearItem(runId: string, itemId: string) {
-    updateLocalItem(itemId, { quantityEntrusted: 0, quantityReturned: 0 });
-  }
-
-  function handleNotesChange(runId: string, notes: string) {
-    updateLocalNotes(notes);
-  }
-
-  async function handleSaveDraft(runId: string) {
-    await updateDeliveryRun.mutateAsync({
-      id: runId,
-      data: { status: "draft" },
-    });
+  async function handleSave(runId: string) {
+    setIsSaving(true);
+    try {
+      const promises: Promise<unknown>[] = [];
+      for (const item of filteredSelectedRunItems) {
+        const edited = editedItems[item.id];
+        if (!edited) continue;
+        const changes: Record<string, unknown> = {};
+        if (edited.quantityEntrusted !== item.quantityEntrusted) changes.quantityEntrusted = edited.quantityEntrusted;
+        if (edited.quantityReturned !== item.quantityReturned) changes.quantityReturned = edited.quantityReturned;
+        if (edited.period !== (item.period ?? "") && edited.period !== "") changes.period = edited.period;
+        if (Object.keys(changes).length > 0) {
+          promises.push(updateDeliveryItem.mutateAsync({ id: item.id, data: changes as { quantityEntrusted?: number; quantityReturned?: number } }));
+        }
+      }
+      if (selectedRun && editedNotes !== (selectedRun.notes ?? "")) {
+        promises.push(updateDeliveryRun.mutateAsync({ id: runId, data: { notes: editedNotes } }));
+      }
+      await Promise.all(promises);
+      await refetch();
+      notify({ variant: "success", title: "Enregistré", description: "Les modifications ont été sauvegardées." });
+    } catch {
+      notify({ variant: "error", title: "Erreur", description: "Impossible de sauvegarder les modifications." });
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function handleValidateRun(runId: string) {
+    if (isDirty) {
+      await handleSave(runId);
+    }
     await validateDeliveryRun.mutateAsync(runId);
   }
 
@@ -604,7 +562,7 @@ export default function DeliveriesBoardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {filteredSelectedRunItems.length === 0 ? (
+                    {displayItems.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="py-8 text-center">
                           <p className="text-sm font-medium text-[var(--foreground)]">Aucun produit assigné</p>
@@ -615,7 +573,7 @@ export default function DeliveriesBoardPage() {
                       </TableRow>
                     ) : (() => {
                       // Group items by productId
-                      const itemsByProduct = filteredSelectedRunItems.reduce((acc, item) => {
+                      const itemsByProduct = displayItems.reduce((acc, item) => {
                         if (!acc[item.productId]) {
                           acc[item.productId] = {
                             productId: item.productId,
@@ -626,7 +584,7 @@ export default function DeliveriesBoardPage() {
                         }
                         acc[item.productId].items.push(item);
                         return acc;
-                      }, {} as Record<string, { productId: string; productName: string; unitPrice: number; items: typeof filteredSelectedRunItems }>);
+                      }, {} as Record<string, { productId: string; productName: string; unitPrice: number; items: typeof displayItems }>);
 
                       return Object.values(itemsByProduct).map((product) => {
                         const productEntrusted = product.items.reduce(
@@ -707,12 +665,11 @@ export default function DeliveriesBoardPage() {
                                 <TableRow key={item.id}>
                                   <TableCell>
                                     <select
-                                      value={item.period ?? ""}
+                                      value={editedItems[item.id]?.period ?? item.period ?? ""}
                                       onChange={(event) =>
-                                        handleItemSellingPeriodChange(
-                                          selectedRun.id,
+                                        handleLocalPeriodChange(
                                           item.id,
-                                          event.target.value as SellingPeriod | "",
+                                          event.target.value,
                                         )
                                       }
                                       className="h-8 w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
@@ -727,26 +684,30 @@ export default function DeliveriesBoardPage() {
                                   </TableCell>
                                   <TableCell numeric className="text-[var(--muted-foreground)]">⇓</TableCell>
                                   <TableCell numeric>
-                                    <QuantityInput
-                                      value={item.quantityEntrusted}
-                                      onCommit={(v) =>
-                                        handleItemQuantityOutChange(
-                                          selectedRun.id,
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={(editedItems[item.id]?.quantityEntrusted ?? item.quantityEntrusted) || ""}
+                                      onChange={(e) =>
+                                        handleLocalQuantityChange(
                                           item.id,
-                                          v,
+                                          "quantityEntrusted",
+                                          Number(e.target.value || 0),
                                         )
                                       }
                                       className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                     />
                                   </TableCell>
                                   <TableCell numeric>
-                                    <QuantityInput
-                                      value={item.quantityReturned}
-                                      onCommit={(v) =>
-                                        handleItemQuantityReturnedChange(
-                                          selectedRun.id,
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      value={(editedItems[item.id]?.quantityReturned ?? item.quantityReturned) || ""}
+                                      onChange={(e) =>
+                                        handleLocalQuantityChange(
                                           item.id,
-                                          v,
+                                          "quantityReturned",
+                                          Number(e.target.value || 0),
                                         )
                                       }
                                       className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
@@ -768,7 +729,7 @@ export default function DeliveriesBoardPage() {
                                         variant="ghost"
                                         className="h-8 px-2 text-xs"
                                         onClick={() =>
-                                          handleClearItem(selectedRun.id, item.id)
+                                          handleClearItem(item.id)
                                         }
                                       >
                                         Réinitialiser
@@ -801,7 +762,8 @@ export default function DeliveriesBoardPage() {
               </Table>
 
               {(() => {
-                const aggregates = computeRunAggregates(selectedRun);
+                const displayRun = { ...selectedRun, items: displayItems };
+                const aggregates = computeRunAggregates(displayRun);
                 return (
                   <div className="space-y-1 text-sm text-[var(--muted-foreground)]">
                     <p>
@@ -847,9 +809,9 @@ export default function DeliveriesBoardPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-[var(--foreground)]">Remarques</p>
                 <textarea
-                  value={pendingEdits.notes || selectedRun.notes || ""}
+                  value={editedNotes}
                   onChange={(event) =>
-                    handleNotesChange(selectedRun.id, event.target.value)
+                    setEditedNotes(event.target.value)
                   }
                   className="min-h-[80px] w-full rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)] shadow-[var(--shadow-sm)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                   placeholder="Ajouter des remarques sur la tournée (retards, incidents, demandes clients, etc.)."
@@ -860,21 +822,15 @@ export default function DeliveriesBoardPage() {
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={handleSaveChanges}
-                  disabled={pendingEdits.items.length === 0 && pendingEdits.notes === (selectedRun?.notes ?? "")}
+                  onClick={() => handleSave(selectedRun.id)}
+                  disabled={!isDirty || isSaving}
                 >
-                  Enregistrer les modifications
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => handleSaveDraft(selectedRun.id)}
-                >
-                  Enregistrer comme brouillon
+                  {isSaving ? "Enregistrement…" : isDirty ? "Enregistrer les modifications" : "Aucune modification"}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => handleValidateRun(selectedRun.id)}
+                  disabled={isSaving}
                 >
                   Valider la tournée
                 </Button>
