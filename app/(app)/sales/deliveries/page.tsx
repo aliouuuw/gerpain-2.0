@@ -137,7 +137,7 @@ export default function DeliveriesBoardPage() {
 
      const activeAssignments = selectedEmployeeProducts.filter((p) => p.isActive !== false);
      if (activeAssignments.length === 0) {
-       return selectedRun.items;
+       return [] as DeliveryItem[];
      }
 
      const assignedProductIds = new Set(activeAssignments.map((p) => p.productId));
@@ -486,7 +486,16 @@ export default function DeliveriesBoardPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {(() => {
+                    {filteredSelectedRunItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="py-8 text-center">
+                          <p className="text-sm font-medium text-[var(--foreground)]">Aucun produit assigné</p>
+                          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                            Assignez des produits à ce livreur dans la fiche employé pour pouvoir saisir les quantités.
+                          </p>
+                        </TableCell>
+                      </TableRow>
+                    ) : (() => {
                       // Group items by productId
                       const itemsByProduct = filteredSelectedRunItems.reduce((acc, item) => {
                         if (!acc[item.productId]) {
