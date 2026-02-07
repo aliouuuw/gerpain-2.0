@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/Button";
@@ -27,6 +27,45 @@ import { useToast } from "@/components/ui/toast";
 import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem } from "@/lib/hooks/useDeliveries";
 import { useEmployeeProducts } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
+
+function QuantityInput({
+  value,
+  onCommit,
+  className,
+}: {
+  value: number;
+  onCommit: (v: number) => void;
+  className?: string;
+}) {
+  const [local, setLocal] = useState(value);
+
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  const commit = useCallback(() => {
+    const clamped = Math.max(0, local);
+    if (clamped !== value) {
+      onCommit(clamped);
+    }
+  }, [local, value, onCommit]);
+
+  return (
+    <input
+      type="number"
+      min={0}
+      value={local || ""}
+      onChange={(e) => setLocal(Number(e.target.value || 0))}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.currentTarget.blur();
+        }
+      }}
+      className={className}
+    />
+  );
+}
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
 type SellingPeriod = (typeof SELLING_PERIODS)[number];
@@ -609,30 +648,26 @@ export default function DeliveriesBoardPage() {
                                   </TableCell>
                                   <TableCell numeric className="text-[var(--muted-foreground)]">⇓</TableCell>
                                   <TableCell numeric>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      value={item.quantityEntrusted || ""}
-                                      onChange={(event) =>
+                                    <QuantityInput
+                                      value={item.quantityEntrusted}
+                                      onCommit={(v) =>
                                         handleItemQuantityOutChange(
                                           selectedRun.id,
                                           item.id,
-                                          Number(event.target.value || 0),
+                                          v,
                                         )
                                       }
                                       className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
                                     />
                                   </TableCell>
                                   <TableCell numeric>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      value={item.quantityReturned || ""}
-                                      onChange={(event) =>
+                                    <QuantityInput
+                                      value={item.quantityReturned}
+                                      onCommit={(v) =>
                                         handleItemQuantityReturnedChange(
                                           selectedRun.id,
                                           item.id,
-                                          Number(event.target.value || 0),
+                                          v,
                                         )
                                       }
                                       className="h-8 w-20 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-2 text-right text-xs text-[var(--foreground)] shadow-[var(--shadow-sm)] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
