@@ -5,18 +5,20 @@ import {
   deliveryItems, 
   employees,
   products,
+  employeeProducts,
   insertDeliveryRunSchema, 
   insertDeliveryItemSchema 
 } from "../../shared/database/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
 const deliveriesRoutes = new Hono();
 
-// List delivery runs
+// List delivery runs - auto-creates drafts for date if none exist
 deliveriesRoutes.get("/runs", async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
   const date = c.req.query("date");
   const employeeId = c.req.query("employeeId");
   const locationId = c.req.query("locationId");
@@ -25,10 +27,128 @@ deliveriesRoutes.get("/runs", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  const runs = await db
+  // If date provided, auto-create draft runs for active delivery employees if none exist
+  if (date && bakeryId) {
+    // Check if runs exist for this date
+    const existingRuns = await db
+      .select()
+      .from(deliveryRuns)
+      .where(
+        and(
+          eq(deliveryRuns.organizationId, organizationId),
+          eq(deliveryRuns.bakeryId, bakeryId),
+          eq(deliveryRuns.date, date)
+        )
+      );
+
+    // If no runs exist, create drafts for all active delivery employees
+    if (existingRuns.length === 0) {
+      // Get active delivery employees
+      const deliveryEmployees = await db
+        .select()
+        .from(employees)
+        .where(
+          and(
+            eq(employees.organizationId, organizationId),
+            eq(employees.bakeryId, bakeryId),
+            eq(employees.role, "delivery"),
+            eq(employees.status, "active")
+          )
+        );
+
+      // Get all active products for this bakery as fallback
+      const activeProducts = await db
+        .select()
+        .from(products)
+        .where(
+          and(
+            eq(products.organizationId, organizationId),
+            eq(products.isActive, true)
+          )
+        );
+
+      // Create draft runs for each employee
+      for (const employee of deliveryEmployees) {
+        // Get employee's assigned products
+        const assignedProducts = await db
+          .select({ productId: employeeProducts.productId })
+          .from(employeeProducts)
+          .where(
+            and(
+              eq(employeeProducts.employeeId, employee.id),
+              eq(employeeProducts.isActive, true)
+            )
+          );
+
+        // Use assigned products or fallback to all active products
+        const productIdsToUse = assignedProducts.length > 0 
+          ? assignedProducts.map(p => p.productId)
+          : activeProducts.map(p => p.id);
+
+        // Get the first location for the bakery (needed for locationId)
+        const { locations } = await import("../../shared/database/schema.js");
+        const [firstLocation] = await db
+          .select()
+          .from(locations)
+          .where(
+            and(
+              eq(locations.organizationId, organizationId),
+              eq(locations.bakeryId, bakeryId)
+            )
+          )
+          .limit(1);
+
+        if (!firstLocation) continue;
+
+        // Create the run
+        const [run] = await db.insert(deliveryRuns).values({
+          organizationId,
+          bakeryId,
+          employeeId: employee.id,
+          locationId: firstLocation.id,
+          date,
+          status: "draft",
+          notes: "",
+        }).returning();
+
+        // Create delivery items for each product (qty 0)
+        const productsToUse = activeProducts.filter(p => productIdsToUse.includes(p.id));
+        if (productsToUse.length > 0) {
+          await db.insert(deliveryItems).values(
+            productsToUse.map(product => ({
+              runId: run.id,
+              productId: product.id,
+              period: "Matin" as const,
+              quantityEntrusted: 0,
+              quantityReturned: 0,
+              unitPrice: product.unitPrice,
+            }))
+          );
+        }
+      }
+    }
+  }
+
+  // Now fetch and return the runs (including any newly created ones)
+  let query = db
     .select()
     .from(deliveryRuns)
     .where(eq(deliveryRuns.organizationId, organizationId));
+
+  // Filter by bakery if provided
+  if (bakeryId) {
+    query = db
+      .select()
+      .from(deliveryRuns)
+      .where(
+        and(
+          eq(deliveryRuns.organizationId, organizationId),
+          eq(deliveryRuns.bakeryId, bakeryId)
+        )
+      );
+  }
+
+  const runs = await query;
 
   // Filter by query params
   let filtered = runs;
@@ -72,6 +192,7 @@ deliveriesRoutes.get("/runs", async (c) => {
       return {
         ...run,
         employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
+        routeLabel: employee ? `${employee.firstName} – Tournée` : "Tournée",
         items: itemsWithProducts,
       };
     })
