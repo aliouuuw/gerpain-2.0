@@ -321,7 +321,7 @@ export default function CollectionsPage() {
                 <SelectValue placeholder="Tous les employés" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les employés</SelectItem>
+                <SelectItem value="all">Tous les employés</SelectItem>
                 {employees.map((emp) => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.firstName} {emp.lastName} ({getRoleLabel(emp.role)})
