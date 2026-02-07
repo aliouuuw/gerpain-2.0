@@ -476,6 +476,7 @@ deliveriesRoutes.patch(
     quantityEntrusted: z.number().int().min(0).optional(),
     quantityReturned: z.number().int().min(0).optional(),
     unitPrice: z.number().int().positive().optional(),
+    period: z.enum(["Matin", "Après-midi", "Soir"]).optional(),
   })),
   async (c) => {
     const id = c.req.param("id");
