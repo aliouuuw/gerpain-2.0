@@ -24,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem } from "@/lib/hooks/useDeliveries";
+import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem, useDeleteDeliveryItem } from "@/lib/hooks/useDeliveries";
 import { useEmployeeProducts } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
@@ -66,6 +66,18 @@ function QuantityInput({
     />
   );
 }
+
+type LocalItemEdit = {
+  itemId: string;
+  quantityEntrusted?: number;
+  quantityReturned?: number;
+  period?: string;
+};
+
+type LocalEditState = {
+  items: LocalItemEdit[];
+  notes: string;
+};
 
 const SELLING_PERIODS = ["Matin", "Après-midi", "Soir"] as const;
 type SellingPeriod = (typeof SELLING_PERIODS)[number];
@@ -166,10 +178,30 @@ export default function DeliveriesBoardPage() {
   const updateDeliveryRun = useUpdateDeliveryRun();
   const validateDeliveryRun = useValidateDeliveryRun();
   const updateDeliveryItem = useUpdateDeliveryItem();
+  const createDeliveryItem = useCreateDeliveryItem();
+  const deleteDeliveryItem = useDeleteDeliveryItem();
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
+  // Local state for pending edits (immediate UI reactivity, batch save)
+  const [pendingEdits, setPendingEdits] = useState<LocalEditState>({ items: [], notes: "" });
+
    const { data: selectedEmployeeProducts = [] } = useEmployeeProducts(selectedRun?.employeeId ?? "");
+
+   // Helper to merge server data with pending edits
+  const itemsWithEdits = useMemo(() => {
+    if (!selectedRun) return [];
+    const editsMap = new Map(pendingEdits.items.map(e => [e.itemId, e]));
+    return selectedRun.items.map(item => {
+      const edit = editsMap.get(item.id);
+      return {
+        ...item,
+        quantityEntrusted: edit?.quantityEntrusted ?? item.quantityEntrusted,
+        quantityReturned: edit?.quantityReturned ?? item.quantityReturned,
+        period: edit?.period ?? item.period,
+      };
+    });
+  }, [selectedRun, pendingEdits]);
 
    const filteredSelectedRunItems = useMemo(() => {
      if (!selectedRun) return [] as DeliveryItem[];
@@ -180,12 +212,51 @@ export default function DeliveriesBoardPage() {
      }
 
      const assignedProductIds = new Set(activeAssignments.map((p) => p.productId));
-     return selectedRun.items.filter((item) => assignedProductIds.has(item.productId));
-   }, [selectedEmployeeProducts, selectedRun]);
+     return itemsWithEdits.filter((item) => assignedProductIds.has(item.productId));
+   }, [selectedEmployeeProducts, itemsWithEdits]);
+
+  // Local edit handlers (immediate UI update, no API call)
+  function updateLocalItem(itemId: string, changes: Partial<LocalItemEdit>) {
+    setPendingEdits(prev => ({
+      ...prev,
+      items: prev.items.some(e => e.itemId === itemId)
+        ? prev.items.map(e => e.itemId === itemId ? { ...e, ...changes } : e)
+        : [...prev.items, { itemId, ...changes }]
+    }));
+  }
+
+  function updateLocalNotes(notes: string) {
+    setPendingEdits(prev => ({ ...prev, notes }));
+  }
+
+  // Batch save function
+  async function handleSaveChanges() {
+    if (!selectedRun) return;
+    await Promise.all(
+      pendingEdits.items.map(edit =>
+        updateDeliveryItem.mutateAsync({
+          id: edit.itemId,
+          data: {
+            ...(edit.quantityEntrusted !== undefined && { quantityEntrusted: edit.quantityEntrusted }),
+            ...(edit.quantityReturned !== undefined && { quantityReturned: edit.quantityReturned }),
+            ...(edit.period !== undefined && { period: edit.period }),
+          }
+        })
+      )
+    );
+    if (pendingEdits.notes !== selectedRun.notes) {
+      await updateDeliveryRun.mutateAsync({
+        id: selectedRun.id,
+        data: { notes: pendingEdits.notes }
+      });
+    }
+    setPendingEdits({ items: [], notes: "" });
+  }
 
   function handleDateChange(newDate: string) {
     setDate(newDate);
     setSelectedRunId(null);
+    setPendingEdits({ items: [], notes: "" });
   }
 
   function handlePrevDay() {
@@ -200,41 +271,51 @@ export default function DeliveriesBoardPage() {
     handleDateChange(currentDate.toISOString().slice(0, 10));
   }
 
-  async function handleItemQuantityOutChange(
+  // Reset pending edits when switching runs
+  useEffect(() => {
+    setPendingEdits({ items: [], notes: "" });
+  }, [selectedRunId]);
+
+  function handleItemQuantityOutChange(
     runId: string,
     itemId: string,
     quantityEntrusted: number,
   ) {
-    await updateDeliveryItem.mutateAsync({
-      id: itemId,
-      data: { quantityEntrusted: Math.max(0, quantityEntrusted) },
-    });
+    updateLocalItem(itemId, { quantityEntrusted: Math.max(0, quantityEntrusted) });
   }
 
-  async function handleItemQuantityReturnedChange(
+  function handleItemQuantityReturnedChange(
     runId: string,
     itemId: string,
     quantityReturned: number,
   ) {
-    await updateDeliveryItem.mutateAsync({
-      id: itemId,
-      data: { quantityReturned: Math.max(0, quantityReturned) },
-    });
+    updateLocalItem(itemId, { quantityReturned: Math.max(0, quantityReturned) });
   }
 
   // Placeholder functions for features not yet implemented with real API
   function handleItemSellingPeriodChange(runId: string, itemId: string, period: SellingPeriod | "") {
-    console.log("Update period:", runId, itemId, period);
-    // TODO: Implement when API supports period updates
+    updateLocalItem(itemId, { period });
   }
 
-  function handleAddPeriodLine(runId: string, productId: string) {
-    console.log("Add period line:", runId, productId);
-    // TODO: Implement when API supports adding items
+  async function handleAddPeriodLine(runId: string, productId: string) {
+    if (!selectedRun) return;
+    // Find the product's unit price from existing items
+    const existingItem = selectedRun.items.find(i => i.productId === productId);
+    const unitPrice = existingItem?.unitPrice ?? 0;
+    await createDeliveryItem.mutateAsync({
+      runId,
+      data: {
+        productId,
+        period: "Matin",
+        quantityEntrusted: 0,
+        quantityReturned: 0,
+        unitPrice,
+      }
+    });
   }
 
   async function handleDeleteItem(runId: string, itemId: string) {
-    console.log("Delete item:", runId, itemId);
+    await deleteDeliveryItem.mutateAsync(itemId);
     setPendingDelete(null);
   }
 
@@ -245,13 +326,11 @@ export default function DeliveriesBoardPage() {
   }
 
   function handleClearItem(runId: string, itemId: string) {
-    console.log("Clear item:", runId, itemId);
-    // TODO: Implement when API supports clearing items
+    updateLocalItem(itemId, { quantityEntrusted: 0, quantityReturned: 0 });
   }
 
   function handleNotesChange(runId: string, notes: string) {
-    console.log("Update notes:", runId, notes);
-    // TODO: Implement when API supports notes updates
+    updateLocalNotes(notes);
   }
 
   async function handleSaveDraft(runId: string) {
@@ -768,7 +847,7 @@ export default function DeliveriesBoardPage() {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-[var(--foreground)]">Remarques</p>
                 <textarea
-                  value={selectedRun.notes}
+                  value={pendingEdits.notes || selectedRun.notes || ""}
                   onChange={(event) =>
                     handleNotesChange(selectedRun.id, event.target.value)
                   }
@@ -778,6 +857,14 @@ export default function DeliveriesBoardPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--border-subtle)] pt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleSaveChanges}
+                  disabled={pendingEdits.items.length === 0 && pendingEdits.notes === (selectedRun?.notes ?? "")}
+                >
+                  Enregistrer les modifications
+                </Button>
                 <Button
                   type="button"
                   variant="secondary"
