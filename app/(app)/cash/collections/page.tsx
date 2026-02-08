@@ -81,7 +81,10 @@ function getPeriodDates(periodValue: string): { startDate: string; endDate: stri
   switch (periodValue) {
     case "this_week": {
       const start = new Date(today);
-      start.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+      const dayOfWeek = today.getDay();
+      // Adjust to Monday (0 = Sunday, 1 = Monday, so we need to subtract dayOfWeek-1)
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      start.setDate(today.getDate() - daysToMonday); // Start of week (Monday)
       return { startDate: start.toISOString().slice(0, 10), endDate };
     }
     case "this_month": {

@@ -33,7 +33,10 @@ function getPeriodDates(preset: PeriodPreset, customStart?: Date, customEnd?: Da
   switch (preset) {
     case "this_week": {
       const start = new Date(today);
-      start.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+      const dayOfWeek = today.getDay();
+      // Adjust to Monday (0 = Sunday, 1 = Monday, so we need to subtract dayOfWeek-1)
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      start.setDate(today.getDate() - daysToMonday); // Start of week (Monday)
       return {
         label: "Cette semaine",
         startDate: formatDate(start),
