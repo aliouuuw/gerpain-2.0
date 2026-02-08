@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/Card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableEmptyState } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
   Select,
   SelectContent,
@@ -262,16 +262,14 @@ export default function CollectionsPage() {
     return getPeriodDates(periodValue);
   }, [periodValue, customDateRange]);
   
-  // Fetch collections - use a date param since API may not support range yet
+  // Fetch collections with date range
   const { data: collections = [], isLoading, error } = useCashCollections({ 
-    date: endDate,
+    startDate,
+    endDate,
     employeeId: selectedEmployeeId === "all" ? undefined : selectedEmployeeId,
   });
   
-  // Filter by date range if needed (client-side until API supports range)
-  const filteredCollections = useMemo(() => {
-    return collections.filter((c) => c.date >= startDate && c.date <= endDate);
-  }, [collections, startDate, endDate]);
+  const filteredCollections = collections;
   
   // Calculate summary stats
   const summary = useMemo(() => {
@@ -351,18 +349,14 @@ export default function CollectionsPage() {
             </Select>
           </div>
           {periodValue === "custom" && (
-            <div className="w-64">
-              <label className="text-xs font-medium text-[var(--muted-foreground)] mb-1 block">
+            <div className="w-auto space-y-1.5">
+              <label className="text-xs font-medium text-[var(--muted-foreground)] block">
                 Dates
               </label>
-              <DatePicker
-                value={customDateRange.from}
-                onValueChange={(val) => {
-                  if (val instanceof Date) {
-                    setCustomDateRange({ from: val, to: val });
-                  } else if (val && "from" in val) {
-                    setCustomDateRange({ from: val.from, to: val.to });
-                  }
+              <DateRangePicker
+                value={customDateRange.from ? { from: customDateRange.from, to: customDateRange.to } : undefined}
+                onValueChange={(range) => {
+                  setCustomDateRange({ from: range?.from, to: range?.to });
                 }}
                 placeholder="Choisir une période"
               />
