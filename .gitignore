@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# env files
+.env
+.env.local
+.env.production
+
+# logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Next.js
+.next/
+out/
+
+# build
+build/
+dist/
+
+# misc
+*.pem
+.vercel
+test.txt
