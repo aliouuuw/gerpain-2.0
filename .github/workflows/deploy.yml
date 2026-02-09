@@ -1,0 +1,72 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Backend checks
+      - name: Install backend dependencies
+        run: bun install
+        working-directory: gerpain_backend
+
+      - name: Backend typecheck
+        run: bunx tsc --noEmit
+        working-directory: gerpain_backend
+
+      # Frontend checks
+      - name: Install frontend dependencies
+        run: bun install
+        working-directory: nextjs_frontend
+
+      - name: Frontend typecheck
+        run: bun run typecheck
+        working-directory: nextjs_frontend
+
+      - name: Frontend build
+        run: bun run build
+        working-directory: nextjs_frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://gerpain.com
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to Hetzner via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export PATH="$HOME/.bun/bin:$HOME/.local/share/fnm:$PATH"
+            eval "$(fnm env)"
+
+            cd ~/projects/gerpain-2.0
+
+            git pull origin main
+
+            # Backend
+            cd gerpain_backend
+            bun install --frozen-lockfile
+            cd ..
+
+            # Frontend
+            cd nextjs_frontend
+            bun install --frozen-lockfile
+            bun run build
+            cd ..
+
+            # Reload services (zero-downtime)
+            pm2 reload ecosystem.config.cjs
