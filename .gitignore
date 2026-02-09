@@ -17,6 +17,7 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+.windsurf/
 
 # Next.js
 .next/
@@ -30,3 +31,7 @@ dist/
 *.pem
 .vercel
 test.txt
+
+# Ralph methodology (local only)
+progress.md
+prd.json
