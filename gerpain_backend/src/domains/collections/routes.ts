@@ -254,17 +254,26 @@ collectionsRoutes.patch(
       return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
     }
 
-    // Calculate variance if actualAmount is provided
+    // Get current collection to calculate variance
+    const [current] = await db
+      .select()
+      .from(cashCollections)
+      .where(eq(cashCollections.id, id));
+    
+    if (!current) {
+      return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
+    }
+
+    // Recalculate variance if any payment field is being updated
     let updateData: Record<string, unknown> = { ...body, updatedAt: new Date() };
-    if (body.actualAmount !== undefined) {
-      const [current] = await db
-        .select()
-        .from(cashCollections)
-        .where(eq(cashCollections.id, id));
+    if (body.cashAmount !== undefined || body.cardAmount !== undefined || body.mobileAmount !== undefined) {
+      const cashAmount = body.cashAmount ?? current.cashAmount ?? 0;
+      const cardAmount = body.cardAmount ?? current.cardAmount ?? 0;
+      const mobileAmount = body.mobileAmount ?? current.mobileAmount ?? 0;
+      const actualAmount = cashAmount + cardAmount + mobileAmount;
       
-      if (current) {
-        updateData.variance = body.actualAmount - current.expectedAmount;
-      }
+      updateData.actualAmount = actualAmount;
+      updateData.variance = actualAmount - current.expectedAmount;
     }
 
     const [updated] = await db
