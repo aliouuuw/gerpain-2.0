@@ -76,13 +76,13 @@ employeesRoutes.put(
 
     await db.transaction(async (tx) => {
       const caseExpr = sql.join(
-        order.map(o => sql`WHEN ${sql.raw(`'${o.id}'`)} THEN ${o.sortOrder}`),
+        order.map((o) => sql`WHEN ${o.id} THEN ${o.sortOrder}`),
         sql` `
       );
       await tx
         .update(employees)
         .set({
-          sortOrder: sql`CASE id ${caseExpr} END`,
+          sortOrder: sql`(CASE ${employees.id} ${caseExpr} ELSE ${employees.sortOrder} END)::int`,
           updatedAt: new Date(),
         })
         .where(and(inArray(employees.id, ids), eq(employees.organizationId, organizationId)));
