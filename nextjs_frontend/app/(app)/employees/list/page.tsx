@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Plus, Search, User, Mail, Phone, MapPin, Pencil, UserX, UserCheck } from "lucide-react";
 
 import { Button } from "@/components/Button";
@@ -59,6 +59,9 @@ export default function EmployeesListPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
+  const [initialProductAssignments, setInitialProductAssignments] = useState<
+    { productId: string; commissionPerUnit: number; isActive: boolean }[]
+  >([]);
   const [pendingStatusChange, setPendingStatusChange] = useState<
     | {
         id: string;
@@ -85,16 +88,38 @@ export default function EmployeesListPage() {
   // Load employee products into form when editing
   useEffect(() => {
     if (editingEmployee && employeeProducts.length > 0) {
+      const normalized = employeeProducts.map((ep) => ({
+        productId: ep.productId,
+        commissionPerUnit: ep.commissionPerUnit ?? 0,
+        isActive: ep.isActive ?? true,
+      }));
+      setInitialProductAssignments(normalized);
       setFormData((prev) => ({
         ...prev,
-        products: employeeProducts.map((ep) => ({
-          productId: ep.productId,
-          commissionPerUnit: ep.commissionPerUnit ?? 0,
-          isActive: ep.isActive ?? true,
-        })),
+        products: normalized,
       }));
     }
   }, [editingEmployee, employeeProducts]);
+
+  const normalizedInitialProducts = useMemo(() => {
+    return [...initialProductAssignments]
+      .map((p) => ({
+        productId: p.productId,
+        commissionPerUnit: Number(p.commissionPerUnit ?? 0),
+        isActive: p.isActive !== false,
+      }))
+      .sort((a, b) => a.productId.localeCompare(b.productId));
+  }, [initialProductAssignments]);
+
+  const normalizedCurrentProducts = useMemo(() => {
+    return [...formData.products]
+      .map((p) => ({
+        productId: p.productId,
+        commissionPerUnit: Number(p.commissionPerUnit ?? 0),
+        isActive: p.isActive !== false,
+      }))
+      .sort((a, b) => a.productId.localeCompare(b.productId));
+  }, [formData.products]);
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
@@ -110,6 +135,7 @@ export default function EmployeesListPage() {
   const openAddForm = () => {
     setEditingEmployee(null);
     setFormData(emptyFormData);
+    setInitialProductAssignments([]);
     setIsFormOpen(true);
   };
 
@@ -130,7 +156,9 @@ export default function EmployeesListPage() {
       sortOrder: employee.sortOrder ?? 0,
       baseSalary: employee.baseSalary ?? 0,
       hireDate: employee.hireDate ?? new Date().toISOString().slice(0, 10),
+      products: [],
     }));
+    setInitialProductAssignments([]);
     setIsFormOpen(true);
   };
 
@@ -164,8 +192,13 @@ export default function EmployeesListPage() {
         employeeId = newEmployee.id;
       }
 
-      // Save product assignments if any
-      if (formData.products.length > 0) {
+      const shouldUpdateProducts =
+        editingEmployee && normalizedInitialProducts.length > 0
+          ? JSON.stringify(normalizedCurrentProducts) !== JSON.stringify(normalizedInitialProducts)
+          : formData.products.length > 0;
+
+      // Save product assignments if changed
+      if (shouldUpdateProducts) {
         await updateEmployeeProducts.mutateAsync({
           id: employeeId,
           products: formData.products,
@@ -175,6 +208,7 @@ export default function EmployeesListPage() {
       setIsFormOpen(false);
       setEditingEmployee(null);
       setFormData(emptyFormData);
+      setInitialProductAssignments([]);
     } catch (error) {
       // Error handling is done in the hooks
       console.error("Failed to save employee:", error);

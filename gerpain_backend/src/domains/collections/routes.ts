@@ -6,7 +6,7 @@ import {
   deliveryRuns,
   insertCashCollectionSchema 
 } from "../../shared/database/schema.js";
-import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -62,6 +62,9 @@ collectionsRoutes.get("/overview", async (c) => {
   if (role) {
     filteredEmployees = filteredEmployees.filter(e => e.role === role);
   }
+
+  // Only include active employees in operational views
+  filteredEmployees = filteredEmployees.filter((e) => e.status === "active");
 
   // Group collections by employee and calculate aggregates
   const overview = await Promise.all(
@@ -163,33 +166,31 @@ collectionsRoutes.get("/", async (c) => {
     filtered = filtered.filter(c => c.isSettled === settledFlag);
   }
 
-  // Get employee and delivery run info for each collection
-  const collectionsWithDetails = await Promise.all(
-    filtered.map(async (col) => {
-      const [employee] = await db
-        .select()
-        .from(employees)
-        .where(eq(employees.id, col.employeeId));
+  const filteredEmployeeIds = [...new Set(filtered.map((c) => c.employeeId))];
+  const employeeRows = filteredEmployeeIds.length
+    ? await db.select().from(employees).where(and(inArray(employees.id, filteredEmployeeIds), eq(employees.status, "active")))
+    : [];
+  const employeeMap = new Map(employeeRows.map((e) => [e.id, e]));
 
-      // Get delivery run if linked
-      let deliveryRun = null;
-      if (col.deliveryRunId) {
-        const [run] = await db
-          .select()
-          .from(deliveryRuns)
-          .where(eq(deliveryRuns.id, col.deliveryRunId));
-        deliveryRun = run;
-      }
+  const activeCollections = filtered.filter((c) => employeeMap.has(c.employeeId));
 
-      return {
-        ...col,
-        employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
-        employeeRole: employee?.role || "unknown",
-        routeLabel: employee?.role === "delivery" ? "Livreur" : employee?.role === "cashier" ? "Caissier" : employee?.role || "Unknown",
-        source: deliveryRun ? "Livraison" : "Boutique",
-      };
-    })
-  );
+  const runIds = [...new Set(activeCollections.map((c) => c.deliveryRunId).filter(Boolean) as string[])];
+  const runRows = runIds.length
+    ? await db.select().from(deliveryRuns).where(inArray(deliveryRuns.id, runIds))
+    : [];
+  const runMap = new Map(runRows.map((r) => [r.id, r]));
+
+  const collectionsWithDetails = activeCollections.map((col) => {
+    const employee = employeeMap.get(col.employeeId);
+    const deliveryRun = col.deliveryRunId ? runMap.get(col.deliveryRunId) ?? null : null;
+    return {
+      ...col,
+      employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
+      employeeRole: employee?.role || "unknown",
+      routeLabel: employee?.role === "delivery" ? "Livreur" : employee?.role === "cashier" ? "Caissier" : employee?.role || "Unknown",
+      source: deliveryRun ? "Livraison" : "Boutique",
+    };
+  });
 
   return c.json({ success: true, data: collectionsWithDetails });
 });

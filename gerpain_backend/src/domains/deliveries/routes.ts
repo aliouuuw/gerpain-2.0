@@ -229,13 +229,18 @@ deliveriesRoutes.get("/runs", async (c) => {
     assignmentsByEmployee.set(a.employeeId, set);
   }
 
+  const filteredByEmployeeStatus = filtered.filter((run) => {
+    const employee = employeeMap.get(run.employeeId);
+    return employee?.status === "active";
+  });
+
   // Hide runs where selected date is before employee hire date
   const filteredByHireDate = date
-    ? filtered.filter((run) => {
+    ? filteredByEmployeeStatus.filter((run) => {
         const employee = employeeMap.get(run.employeeId);
         return !employee?.hireDate || employee.hireDate <= date;
       })
-    : filtered;
+    : filteredByEmployeeStatus;
 
   // Assemble response in-memory
   const runsWithDetails = filteredByHireDate.map((run) => {

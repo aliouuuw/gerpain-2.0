@@ -340,7 +340,7 @@ export default function CollectionsPage() {
   const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
   
   // Fetch employees for selector
-  const { data: employees = [] } = useEmployees();
+  const { data: employees = [] } = useEmployees({ status: "active" });
   const employeeOptions = useMemo(() => [
     { value: "", label: "Tous les employés" },
     ...employees.map((emp) => ({
