@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select-radix";
 import { useToast } from "@/components/ui/toast";
-import { useCashCollections, useUpdateCashCollection, useSubmitCashCollection } from "@/lib/hooks/useCollections";
+import { useCashCollections, useUpdateCashCollection, useSubmitCashCollection, useValidateCashCollection, useRejectCashCollection } from "@/lib/hooks/useCollections";
 import { useEmployees } from "@/lib/hooks/useEmployees";
 import type { CashCollection } from "@/lib/api/collections";
 
@@ -111,14 +111,20 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
   const { notify } = useToast();
   const updateCollection = useUpdateCashCollection();
   const submitCollection = useSubmitCashCollection();
+  const validateCollection = useValidateCashCollection();
+  const rejectCollection = useRejectCashCollection();
   
   const [cashAmount, setCashAmount] = useState<number>(collection.cashAmount || 0);
   const [cardAmount, setCardAmount] = useState<number>(collection.cardAmount || 0);
   const [mobileAmount, setMobileAmount] = useState<number>(collection.mobileAmount || 0);
   const [notes, setNotes] = useState<string>(collection.notes || "");
+  const [rejectReason, setRejectReason] = useState<string>(collection.rejectionReason || "");
   
   const totalCollected = cashAmount + cardAmount + mobileAmount;
   const variance = totalCollected - collection.expectedAmount;
+  const isReadOnly = collection.status === "validated";
+  const isSubmitted = collection.status === "submitted";
+  const isRejected = collection.status === "rejected";
   
   const handleSave = async (submit = false) => {
     try {
@@ -151,6 +157,36 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
       });
     }
   };
+
+  const handleValidate = async () => {
+    try {
+      await validateCollection.mutateAsync(collection.id);
+      onSave();
+    } catch {
+      // handled by hook toast
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      notify({
+        variant: "error",
+        title: "Motif requis",
+        description: "Veuillez saisir la raison du rejet.",
+      });
+      return;
+    }
+
+    try {
+      await rejectCollection.mutateAsync({
+        id: collection.id,
+        reason: rejectReason.trim(),
+      });
+      onSave();
+    } catch {
+      // handled by hook toast
+    }
+  };
   
   return (
     <div className="space-y-4 p-4 bg-[var(--secondary)]/30 rounded-lg">
@@ -162,6 +198,7 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
             min={0}
             value={cashAmount || ""}
             onChange={(e) => setCashAmount(Number(e.target.value) || 0)}
+            disabled={isReadOnly || isSubmitted}
             className="w-full h-10 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 text-right text-[var(--foreground)]"
             placeholder="0"
           />
@@ -173,6 +210,7 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
             min={0}
             value={cardAmount || ""}
             onChange={(e) => setCardAmount(Number(e.target.value) || 0)}
+            disabled={isReadOnly || isSubmitted}
             className="w-full h-10 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 text-right text-[var(--foreground)]"
             placeholder="0"
           />
@@ -184,6 +222,7 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
             min={0}
             value={mobileAmount || ""}
             onChange={(e) => setMobileAmount(Number(e.target.value) || 0)}
+            disabled={isReadOnly || isSubmitted}
             className="w-full h-10 rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 text-right text-[var(--foreground)]"
             placeholder="0"
           />
@@ -210,29 +249,71 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Remarques sur la collecte..."
+          disabled={isReadOnly || isSubmitted}
           className="w-full min-h-[60px] rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)]"
         />
       </div>
+
+      {isRejected && collection.rejectionReason && (
+        <div className="rounded-lg border border-[var(--error)]/30 bg-[var(--error)]/5 p-3">
+          <p className="text-xs font-medium text-[var(--error)]">Motif du rejet</p>
+          <p className="mt-1 text-sm text-[var(--foreground)]">{collection.rejectionReason}</p>
+        </div>
+      )}
+
+      {isSubmitted && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-[var(--foreground)]">Motif de rejet (si rejet)</label>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Expliquez pourquoi cette collecte est rejetée..."
+            className="w-full min-h-[60px] rounded-[var(--radius-control)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm text-[var(--foreground)]"
+          />
+        </div>
+      )}
       
       <div className="flex justify-end gap-2 pt-2">
         <Button size="sm" variant="ghost" onClick={onCancel}>
           Annuler
         </Button>
-        <Button 
-          size="sm" 
-          variant="secondary" 
-          onClick={() => handleSave(false)}
-          disabled={updateCollection.isPending}
-        >
-          Enregistrer
-        </Button>
-        <Button 
-          size="sm" 
-          onClick={() => handleSave(true)}
-          disabled={updateCollection.isPending || submitCollection.isPending}
-        >
-          Enregistrer et soumettre
-        </Button>
+        {isReadOnly ? null : isSubmitted ? (
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleReject}
+              disabled={rejectCollection.isPending || validateCollection.isPending}
+            >
+              Rejeter
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleValidate}
+              disabled={rejectCollection.isPending || validateCollection.isPending}
+            >
+              Valider
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleSave(false)}
+              disabled={updateCollection.isPending}
+            >
+              Enregistrer
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => handleSave(true)}
+              disabled={updateCollection.isPending || submitCollection.isPending}
+            >
+              Enregistrer et soumettre
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

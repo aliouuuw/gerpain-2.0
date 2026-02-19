@@ -18,6 +18,7 @@ export interface CashCollection {
   mobileAmount: number;
   variance: number | null;
   status: CollectionStatus;
+  rejectionReason?: string | null;
   isSettled: boolean;
   period: string | null;
   source: "Livraison" | "Boutique";

@@ -122,7 +122,7 @@ export default function DeliveriesBoardPage() {
     new Date().toISOString().slice(0, 10),
   );
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [pendingRunSwitchId, setPendingRunSwitchId] = useState<string | null>(null);
+  const [pendingRunSwitch, setPendingRunSwitch] = useState<{ nextRunId: string | null } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     runId: string;
     itemId: string;
@@ -220,14 +220,14 @@ export default function DeliveriesBoardPage() {
       setSelectedRunId(nextRunId);
       return;
     }
-    setPendingRunSwitchId(nextRunId);
+    setPendingRunSwitch({ nextRunId });
   }
 
   function confirmRunSwitch() {
     setEditedItems({});
     setEditedNotes("");
-    setSelectedRunId(pendingRunSwitchId);
-    setPendingRunSwitchId(null);
+    setSelectedRunId(pendingRunSwitch?.nextRunId ?? null);
+    setPendingRunSwitch(null);
   }
 
   function handleDateChange(newDate: string) {
@@ -957,8 +957,8 @@ export default function DeliveriesBoardPage() {
       />
 
       <ConfirmDialog
-        open={pendingRunSwitchId !== null}
-        onOpenChange={(open) => !open && setPendingRunSwitchId(null)}
+        open={pendingRunSwitch !== null}
+        onOpenChange={(open) => !open && setPendingRunSwitch(null)}
         title="Modifications non enregistrées"
         description="Vous avez des modifications non enregistrées. Continuer sans sauvegarder ?"
         confirmLabel="Continuer"
