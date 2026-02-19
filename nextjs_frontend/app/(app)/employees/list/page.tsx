@@ -45,6 +45,7 @@ const emptyFormData = {
   status: "active" as EmployeeStatus,
   locations: [] as string[],
   commissionRate: 0,
+  sortOrder: 0,
   baseSalary: 0,
   hireDate: new Date().toISOString().slice(0, 10),
   products: [] as { productId: string; commissionPerUnit: number; isActive: boolean }[],
@@ -118,6 +119,7 @@ export default function EmployeesListPage() {
       status: employee.status,
       locations: employee.locations,
       commissionRate: employee.commissionRate ?? 0,
+      sortOrder: employee.sortOrder ?? 0,
       baseSalary: employee.baseSalary ?? 0,
       hireDate: employee.hireDate ?? new Date().toISOString().slice(0, 10),
     }));
@@ -532,6 +534,20 @@ export default function EmployeesListPage() {
                   value={formData.hireDate}
                   onChange={(e) => setFormData((prev) => ({ ...prev, hireDate: e.target.value }))}
                   className="mt-1.5 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--foreground)]">
+                  Ordre d&apos;affichage
+                </label>
+                <input
+                  type="number"
+                  value={formData.sortOrder}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, sortOrder: Number(e.target.value) }))
+                  }
+                  className="mt-1.5 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm"
+                  min={0}
                 />
               </div>
             </div>

@@ -11,6 +11,7 @@ export interface Employee {
   phone: string | null;
   role: EmployeeRole;
   status: EmployeeStatus;
+  sortOrder: number | null;
   locations: string[];
   commissionRate: number | null;
   baseSalary: number | null;
@@ -33,6 +34,7 @@ export interface CreateEmployeeRequest {
   phone?: string;
   role: EmployeeRole;
   status?: EmployeeStatus;
+  sortOrder?: number;
   locations?: string[];
   commissionRate?: number;
   baseSalary?: number;
@@ -46,6 +48,7 @@ export interface UpdateEmployeeRequest {
   phone?: string;
   role?: EmployeeRole;
   status?: EmployeeStatus;
+  sortOrder?: number;
   locations?: string[];
   commissionRate?: number;
   baseSalary?: number;

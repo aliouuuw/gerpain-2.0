@@ -232,6 +232,7 @@ export const employees = pgTable("employees", {
   phone: text("phone"),
   role: text("role").notNull(), // "delivery", "cashier", "manager", "baker"
   status: text("status").notNull().default("active"), // "active", "inactive"
+  sortOrder: integer("sort_order").default(0), // custom sort order for display
   commissionRate: integer("commission_rate").default(0), // percentage (0-100)
   baseSalary: integer("base_salary").default(0), // monthly base salary in FCFA
   hireDate: date("hire_date"),

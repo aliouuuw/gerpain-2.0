@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../../config/database.js";
 import { employees, employeeLocations, employeeProducts, insertEmployeeSchema, insertEmployeeProductSchema } from "../../shared/database/schema.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ employeesRoutes.get("/", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  // Filter by org and optionally bakery
+  // Filter by org and optionally bakery, sorted by sortOrder and hireDate
   const result = await db
     .select()
     .from(employees)
@@ -26,7 +26,8 @@ employeesRoutes.get("/", async (c) => {
       bakeryId
         ? and(eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
         : eq(employees.organizationId, organizationId)
-    );
+    )
+    .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
 
   // Filter by role and status if provided
   let filtered = result;

@@ -57,6 +57,13 @@
       "when": 1770484576400,
       "tag": "0007_aspiring_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771507401787,
+      "tag": "0008_empty_reavers",
+      "breakpoints": true
     }
   ]
 }

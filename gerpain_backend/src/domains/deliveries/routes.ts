@@ -10,7 +10,7 @@ import {
   insertDeliveryRunSchema, 
   insertDeliveryItemSchema 
 } from "../../shared/database/schema.js";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, asc } from "drizzle-orm";
 import { locations as locationsTable, employeeLocations } from "../../shared/database/schema.js";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
@@ -45,7 +45,7 @@ deliveriesRoutes.get("/runs", async (c) => {
 
     // If no runs exist, create drafts for all active delivery employees
     if (existingRuns.length === 0) {
-      // Get active delivery employees
+      // Get active delivery employees, sorted by sortOrder and hireDate
       const deliveryEmployees = await db
         .select()
         .from(employees)
@@ -56,7 +56,8 @@ deliveriesRoutes.get("/runs", async (c) => {
             eq(employees.role, "delivery"),
             eq(employees.status, "active")
           )
-        );
+        )
+        .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
 
       // Get all active products for this bakery (used only for details/unitPrice snapshots)
       const activeProducts = await db
