@@ -396,6 +396,18 @@ deliveriesRoutes.post("/runs/:id/validate", async (c) => {
     .from(deliveryItems)
     .where(eq(deliveryItems.runId, id));
 
+  // Block validation if no quantities entrusted
+  const totalEntrusted = items.reduce((sum, item) => sum + item.quantityEntrusted, 0);
+  if (totalEntrusted === 0) {
+    return c.json({ 
+      success: false, 
+      error: { 
+        code: "ZERO_QUANTITY", 
+        message: "Impossible de valider une tournée sans quantité confiée" 
+      } 
+    }, 400);
+  }
+
   // Calculate expectedAmount = sum((quantityEntrusted - quantityReturned) × unitPrice)
   const expectedAmount = items.reduce((sum, item) => {
     const sold = item.quantityEntrusted - item.quantityReturned;
