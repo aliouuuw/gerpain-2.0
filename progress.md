@@ -995,3 +995,18 @@ UX-2 group tasks (Workflow Gaps) — starting with employee deactivate confirmat
 - Added confirmation dialog on deactivate/reactivate actions in employees list page
 - Dialog shows employee name and requires explicit confirmation before mutation
 - TypeScript check passed (`bunx tsc --noEmit`)
+
+---
+
+## Working on: Unsaved delivery changes warning
+
+**Plan:**
+- Reuse existing `ConfirmDialog` on deliveries board when switching selected run
+- If there are unsaved changes (`isDirty`), prompt before switching and discard local edits only on confirm
+- Verify with `bunx tsc --noEmit`
+
+**Result:** Success
+
+- Added confirmation dialog when switching employee/run while local edits are pending
+- Confirm discards local state and switches; cancel keeps the current selection
+- TypeScript check passed (`bunx tsc --noEmit`)

@@ -122,6 +122,7 @@ export default function DeliveriesBoardPage() {
     new Date().toISOString().slice(0, 10),
   );
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [pendingRunSwitchId, setPendingRunSwitchId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     runId: string;
     itemId: string;
@@ -213,6 +214,21 @@ export default function DeliveriesBoardPage() {
     if (selectedRun && editedNotes !== (selectedRun.notes ?? "")) return true;
     return false;
   }, [filteredSelectedRunItems, editedItems, editedNotes, selectedRun]);
+
+  function requestRunSwitch(nextRunId: string | null) {
+    if (!isDirty) {
+      setSelectedRunId(nextRunId);
+      return;
+    }
+    setPendingRunSwitchId(nextRunId);
+  }
+
+  function confirmRunSwitch() {
+    setEditedItems({});
+    setEditedNotes("");
+    setSelectedRunId(pendingRunSwitchId);
+    setPendingRunSwitchId(null);
+  }
 
   function handleDateChange(newDate: string) {
     setDate(newDate);
@@ -555,7 +571,7 @@ export default function DeliveriesBoardPage() {
                             type="button"
                             variant="secondary"
                             size="sm"
-                            onClick={() => setSelectedRunId(run.id)}
+                            onClick={() => requestRunSwitch(run.id)}
                           >
                             Détails
                           </Button>
@@ -624,7 +640,7 @@ export default function DeliveriesBoardPage() {
                   <Badge variant={getStatusVariant(selectedRun.status)}>
                     {getStatusLabel(selectedRun.status)}
                   </Badge>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedRunId(null)}>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => requestRunSwitch(null)}>
                     Fermer
                   </Button>
                 </div>
@@ -938,6 +954,17 @@ export default function DeliveriesBoardPage() {
         cancelLabel="Annuler"
         destructive
         onConfirm={confirmDeleteItem}
+      />
+
+      <ConfirmDialog
+        open={pendingRunSwitchId !== null}
+        onOpenChange={(open) => !open && setPendingRunSwitchId(null)}
+        title="Modifications non enregistrées"
+        description="Vous avez des modifications non enregistrées. Continuer sans sauvegarder ?"
+        confirmLabel="Continuer"
+        cancelLabel="Annuler"
+        destructive
+        onConfirm={confirmRunSwitch}
       />
     </div>
   );
