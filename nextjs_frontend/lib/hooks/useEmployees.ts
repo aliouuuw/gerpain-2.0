@@ -12,6 +12,7 @@ import {
   getEmployeePerformance,
   getEmployeeProducts,
   updateEmployeeProducts,
+  reorderEmployees,
   type EmployeesParams,
   type CreateEmployeeRequest,
   type UpdateEmployeeRequest,
@@ -179,6 +180,18 @@ export function useUpdateEmployeeProducts() {
         title: "Erreur",
         description: "Impossible d'assigner les produits.",
       });
+    },
+  });
+}
+
+export function useReorderEmployees() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (order: { id: string; sortOrder: number }[]) =>
+      reorderEmployees(order),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.all });
     },
   });
 }

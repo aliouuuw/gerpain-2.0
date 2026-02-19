@@ -159,3 +159,12 @@ export async function updateEmployeeProducts(
     body: { products },
   });
 }
+
+export async function reorderEmployees(
+  order: { id: string; sortOrder: number }[]
+): Promise<void> {
+  await apiClient<void>("/api/v1/employees/reorder", {
+    method: "PUT",
+    body: { order },
+  });
+}

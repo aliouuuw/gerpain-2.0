@@ -338,4 +338,32 @@ employeesRoutes.put(
   }
 );
 
+// Reorder employees - batch update sortOrder
+employeesRoutes.put(
+  "/reorder",
+  zValidator(
+    "json",
+    z.object({
+      order: z.array(z.object({ id: z.string(), sortOrder: z.number() })),
+    })
+  ),
+  async (c) => {
+    const organizationId = c.req.header("X-Organization-ID");
+    const { order } = c.req.valid("json");
+
+    if (!organizationId) {
+      return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+    }
+
+    for (const item of order) {
+      await db
+        .update(employees)
+        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
+        .where(and(eq(employees.id, item.id), eq(employees.organizationId, organizationId)));
+    }
+
+    return c.json({ success: true });
+  }
+);
+
 export { employeesRoutes };

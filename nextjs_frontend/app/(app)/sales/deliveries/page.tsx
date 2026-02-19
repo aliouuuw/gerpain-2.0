@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/Button";
 import {
@@ -25,7 +25,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem, useDeleteDeliveryItem } from "@/lib/hooks/useDeliveries";
-import { useEmployeeProducts } from "@/lib/hooks/useEmployees";
+import { useEmployeeProducts, useReorderEmployees } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
 type EditedItemState = {
@@ -135,6 +135,7 @@ export default function DeliveriesBoardPage() {
   const updateDeliveryItem = useUpdateDeliveryItem();
   const createDeliveryItem = useCreateDeliveryItem();
   const deleteDeliveryItemMutation = useDeleteDeliveryItem();
+  const reorderEmployees = useReorderEmployees();
 
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
 
@@ -437,7 +438,7 @@ export default function DeliveriesBoardPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  runs.map((run) => {
+                  runs.map((run, index) => {
                     const aggregates = computeRunAggregates(run);
                     const distinctProducts = new Set(
                       run.items
@@ -448,13 +449,49 @@ export default function DeliveriesBoardPage() {
                     return (
                       <TableRow key={run.id}>
                         <TableCell>
-                          <div className="space-y-0.5">
-                            <p className="font-medium">
-                              {run.employeeName}
-                            </p>
-                            <p className="text-xs text-[var(--muted-foreground)]">
-                              {run.locationName}
-                            </p>
+                          <div className="flex items-center gap-1">
+                            <div className="flex flex-col -my-1">
+                              <button
+                                type="button"
+                                className="p-0 h-4 w-4 flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] disabled:opacity-25"
+                                disabled={index === 0 || reorderEmployees.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const prevRun = runs[index - 1];
+                                  if (!prevRun) return;
+                                  reorderEmployees.mutate([
+                                    { id: run.employeeId, sortOrder: index - 1 },
+                                    { id: prevRun.employeeId, sortOrder: index },
+                                  ], { onSuccess: () => refetch() });
+                                }}
+                              >
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                className="p-0 h-4 w-4 flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] disabled:opacity-25"
+                                disabled={index === runs.length - 1 || reorderEmployees.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const nextRun = runs[index + 1];
+                                  if (!nextRun) return;
+                                  reorderEmployees.mutate([
+                                    { id: run.employeeId, sortOrder: index + 1 },
+                                    { id: nextRun.employeeId, sortOrder: index },
+                                  ], { onSuccess: () => refetch() });
+                                }}
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            <div className="space-y-0.5">
+                              <p className="font-medium">
+                                {run.employeeName}
+                              </p>
+                              <p className="text-xs text-[var(--muted-foreground)]">
+                                {run.locationName}
+                              </p>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell numeric className="font-medium">

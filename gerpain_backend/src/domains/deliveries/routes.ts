@@ -29,7 +29,7 @@ deliveriesRoutes.get("/runs", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  // If date provided, auto-create draft runs for active delivery employees if none exist
+  // If date provided, auto-create draft runs for active delivery employees missing runs
   if (date && bakeryId) {
     // Check if runs exist for this date
     const existingRuns = await db
@@ -43,22 +43,25 @@ deliveriesRoutes.get("/runs", async (c) => {
         )
       );
 
-    // If no runs exist, create drafts for all active delivery employees
-    if (existingRuns.length === 0) {
-      // Get active delivery employees, sorted by sortOrder and hireDate
-      const deliveryEmployees = await db
-        .select()
-        .from(employees)
-        .where(
-          and(
-            eq(employees.organizationId, organizationId),
-            eq(employees.bakeryId, bakeryId),
-            eq(employees.role, "delivery"),
-            eq(employees.status, "active")
-          )
+    // Get active delivery employees, sorted by sortOrder and hireDate
+    const deliveryEmployees = await db
+      .select()
+      .from(employees)
+      .where(
+        and(
+          eq(employees.organizationId, organizationId),
+          eq(employees.bakeryId, bakeryId),
+          eq(employees.role, "delivery"),
+          eq(employees.status, "active")
         )
-        .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
+      )
+      .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
 
+    // Find employees who don't have a run for this date yet
+    const existingEmployeeIds = new Set(existingRuns.map(r => r.employeeId));
+    const missingEmployees = deliveryEmployees.filter(e => !existingEmployeeIds.has(e.id));
+
+    if (missingEmployees.length > 0) {
       // Get all active products for this bakery (used only for details/unitPrice snapshots)
       const activeProducts = await db
         .select()
@@ -70,8 +73,8 @@ deliveriesRoutes.get("/runs", async (c) => {
           )
         );
 
-      // Create draft runs for each employee
-      for (const employee of deliveryEmployees) {
+      // Create draft runs for each missing employee
+      for (const employee of missingEmployees) {
         // Get employee's assigned products
         const assignedProducts = await db
           .select({ productId: employeeProducts.productId })
@@ -245,9 +248,20 @@ deliveriesRoutes.get("/runs", async (c) => {
       ...run,
       notes: run.notes ?? "",
       employeeName: employee ? `${employee.firstName} ${employee.lastName}` : "Unknown",
+      employeeSortOrder: employee?.sortOrder ?? 0,
+      employeeHireDate: employee?.hireDate ?? null,
       locationName: location?.name ?? "Unknown",
       items: itemsWithProducts,
     };
+  });
+
+  // Sort runs by employee sortOrder, then hireDate
+  runsWithDetails.sort((a, b) => {
+    if (a.employeeSortOrder !== b.employeeSortOrder) return a.employeeSortOrder - b.employeeSortOrder;
+    if (a.employeeHireDate && b.employeeHireDate) return a.employeeHireDate.localeCompare(b.employeeHireDate);
+    if (a.employeeHireDate) return -1;
+    if (b.employeeHireDate) return 1;
+    return 0;
   });
 
   return c.json({ success: true, data: runsWithDetails });
