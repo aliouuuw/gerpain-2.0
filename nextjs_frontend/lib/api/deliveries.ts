@@ -17,6 +17,7 @@ export interface DeliveryRun {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeHireDate?: string | null;
   date: string;
   locationId: string;
   locationName: string;

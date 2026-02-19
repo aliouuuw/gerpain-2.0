@@ -136,8 +136,15 @@ export default function DeliveriesBoardPage() {
   const createDeliveryItem = useCreateDeliveryItem();
   const deleteDeliveryItemMutation = useDeleteDeliveryItem();
   const reorderEmployees = useReorderEmployees();
+  const [optimisticRuns, setOptimisticRuns] = useState<DeliveryRun[] | null>(null);
 
-  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
+  const visibleRuns = useMemo(() => {
+    return runs.filter((run) => !run.employeeHireDate || run.employeeHireDate <= date);
+  }, [runs, date]);
+
+  const displayRuns = optimisticRuns ?? visibleRuns;
+
+  const selectedRun = displayRuns.find((run) => run.id === selectedRunId) ?? null;
 
   const { data: selectedEmployeeProducts = [] } = useEmployeeProducts(selectedRun?.employeeId ?? "");
 
@@ -177,6 +184,10 @@ export default function DeliveriesBoardPage() {
   useEffect(() => {
     setEditedNotes(selectedRun?.notes ?? "");
   }, [selectedRun?.id, selectedRun?.notes]);
+
+  useEffect(() => {
+    setOptimisticRuns(null);
+  }, [date]);
 
   const displayItems = useMemo(() => {
     return filteredSelectedRunItems.map((item) => {
@@ -317,7 +328,37 @@ export default function DeliveriesBoardPage() {
     await validateDeliveryRun.mutateAsync(runId);
   }
 
-  const overallTotals = runs.reduce(
+  function handleReorderRow(index: number, direction: "up" | "down") {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= displayRuns.length) return;
+
+    const currentRun = displayRuns[index];
+    const targetRun = displayRuns[targetIndex];
+    if (!currentRun || !targetRun) return;
+
+    const nextRuns = [...displayRuns];
+    [nextRuns[index], nextRuns[targetIndex]] = [nextRuns[targetIndex], nextRuns[index]];
+    setOptimisticRuns(nextRuns);
+
+    reorderEmployees.mutate(
+      [
+        { id: currentRun.employeeId, sortOrder: targetIndex },
+        { id: targetRun.employeeId, sortOrder: index },
+      ],
+      {
+        onError: () => {
+          setOptimisticRuns(null);
+          notify({
+            variant: "error",
+            title: "Erreur",
+            description: "Impossible de réordonner les livreurs.",
+          });
+        },
+      }
+    );
+  }
+
+  const overallTotals = displayRuns.reduce(
     (accumulator, run) => {
       const aggregates = computeRunAggregates(run);
       return {
@@ -344,7 +385,7 @@ export default function DeliveriesBoardPage() {
       ? overallTotals.quantityReturned / overallTotals.quantityEntrusted
       : 0;
 
-  const overallDistinctProductsCount = runs.reduce((sum, run) => {
+  const overallDistinctProductsCount = displayRuns.reduce((sum, run) => {
     const distinctProducts = new Set(
       run.items
         .filter((item) => item.quantityEntrusted > 0)
@@ -428,7 +469,7 @@ export default function DeliveriesBoardPage() {
                       Chargement des tournées…
                     </TableCell>
                   </TableRow>
-                ) : runs.length === 0 ? (
+                ) : displayRuns.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="py-8 text-center">
                       <p className="text-sm font-medium text-[var(--foreground)]">Aucune tournée pour cette date</p>
@@ -438,7 +479,7 @@ export default function DeliveriesBoardPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  runs.map((run, index) => {
+                  displayRuns.map((run, index) => {
                     const aggregates = computeRunAggregates(run);
                     const distinctProducts = new Set(
                       run.items
@@ -457,12 +498,7 @@ export default function DeliveriesBoardPage() {
                                 disabled={index === 0 || reorderEmployees.isPending}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const prevRun = runs[index - 1];
-                                  if (!prevRun) return;
-                                  reorderEmployees.mutate([
-                                    { id: run.employeeId, sortOrder: index - 1 },
-                                    { id: prevRun.employeeId, sortOrder: index },
-                                  ], { onSuccess: () => refetch() });
+                                  handleReorderRow(index, "up");
                                 }}
                               >
                                 <ChevronUp className="h-3.5 w-3.5" />
@@ -470,15 +506,10 @@ export default function DeliveriesBoardPage() {
                               <button
                                 type="button"
                                 className="p-0 h-4 w-4 flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] disabled:opacity-25"
-                                disabled={index === runs.length - 1 || reorderEmployees.isPending}
+                                disabled={index === displayRuns.length - 1 || reorderEmployees.isPending}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const nextRun = runs[index + 1];
-                                  if (!nextRun) return;
-                                  reorderEmployees.mutate([
-                                    { id: run.employeeId, sortOrder: index + 1 },
-                                    { id: nextRun.employeeId, sortOrder: index },
-                                  ], { onSuccess: () => refetch() });
+                                  handleReorderRow(index, "down");
                                 }}
                               >
                                 <ChevronDown className="h-3.5 w-3.5" />

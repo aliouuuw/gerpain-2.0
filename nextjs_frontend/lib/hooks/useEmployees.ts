@@ -192,6 +192,7 @@ export function useReorderEmployees() {
       reorderEmployees(order),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["deliveries"] });
     },
   });
 }

@@ -57,9 +57,14 @@ deliveriesRoutes.get("/runs", async (c) => {
       )
       .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
 
+    // Keep only employees hired on or before the selected date
+    const eligibleEmployees = deliveryEmployees.filter(
+      (employee) => !employee.hireDate || employee.hireDate <= date
+    );
+
     // Find employees who don't have a run for this date yet
     const existingEmployeeIds = new Set(existingRuns.map(r => r.employeeId));
-    const missingEmployees = deliveryEmployees.filter(e => !existingEmployeeIds.has(e.id));
+    const missingEmployees = eligibleEmployees.filter(e => !existingEmployeeIds.has(e.id));
 
     if (missingEmployees.length > 0) {
       // Get all active products for this bakery (used only for details/unitPrice snapshots)
@@ -224,8 +229,16 @@ deliveriesRoutes.get("/runs", async (c) => {
     assignmentsByEmployee.set(a.employeeId, set);
   }
 
+  // Hide runs where selected date is before employee hire date
+  const filteredByHireDate = date
+    ? filtered.filter((run) => {
+        const employee = employeeMap.get(run.employeeId);
+        return !employee?.hireDate || employee.hireDate <= date;
+      })
+    : filtered;
+
   // Assemble response in-memory
-  const runsWithDetails = filtered.map((run) => {
+  const runsWithDetails = filteredByHireDate.map((run) => {
     const employee = employeeMap.get(run.employeeId);
     const location = locationMap.get(run.locationId);
     const assignedProductIds = assignmentsByEmployee.get(run.employeeId);
