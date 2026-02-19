@@ -11,7 +11,7 @@ import {
   insertDeliveryItemSchema 
 } from "../../shared/database/schema.js";
 import { eq, and, inArray } from "drizzle-orm";
-import { locations as locationsTable } from "../../shared/database/schema.js";
+import { locations as locationsTable, employeeLocations } from "../../shared/database/schema.js";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -85,26 +85,44 @@ deliveriesRoutes.get("/runs", async (c) => {
         // Only use assigned products (no fallback)
         const productIdsToUse = assignedProducts.map(p => p.productId);
 
-        // Get the first location for the bakery (needed for locationId)
-        const [firstLocation] = await db
+        // Get employee's primary location, fall back to first bakery location
+        const primaryLocation = await db
           .select()
-          .from(locationsTable)
+          .from(employeeLocations)
           .where(
             and(
-              eq(locationsTable.organizationId, organizationId),
-              eq(locationsTable.bakeryId, bakeryId)
+              eq(employeeLocations.employeeId, employee.id),
+              eq(employeeLocations.isPrimary, true)
             )
           )
           .limit(1);
 
-        if (!firstLocation) continue;
+        let locationIdToUse: string;
+        if (primaryLocation.length > 0) {
+          locationIdToUse = primaryLocation[0].locationId;
+        } else {
+          // Fall back to first bakery location
+          const [firstLocation] = await db
+            .select()
+            .from(locationsTable)
+            .where(
+              and(
+                eq(locationsTable.organizationId, organizationId),
+                eq(locationsTable.bakeryId, bakeryId)
+              )
+            )
+            .limit(1);
+
+          if (!firstLocation) continue;
+          locationIdToUse = firstLocation.id;
+        }
 
         // Create the run
         const [run] = await db.insert(deliveryRuns).values({
           organizationId,
           bakeryId,
           employeeId: employee.id,
-          locationId: firstLocation.id,
+          locationId: locationIdToUse,
           date,
           status: "draft",
           notes: "",
