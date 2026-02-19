@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../../config/database.js";
 import { employees, employeeLocations, employeeProducts, insertEmployeeSchema, insertEmployeeProductSchema } from "../../shared/database/schema.js";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
@@ -72,12 +72,21 @@ employeesRoutes.put(
       return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
     }
 
-    for (const item of order) {
-      await db
+    const ids = order.map(o => o.id);
+
+    await db.transaction(async (tx) => {
+      const caseExpr = sql.join(
+        order.map(o => sql`WHEN ${sql.raw(`'${o.id}'`)} THEN ${o.sortOrder}`),
+        sql` `
+      );
+      await tx
         .update(employees)
-        .set({ sortOrder: item.sortOrder, updatedAt: new Date() })
-        .where(and(eq(employees.id, item.id), eq(employees.organizationId, organizationId)));
-    }
+        .set({
+          sortOrder: sql`CASE id ${caseExpr} END`,
+          updatedAt: new Date(),
+        })
+        .where(and(inArray(employees.id, ids), eq(employees.organizationId, organizationId)));
+    });
 
     return c.json({ success: true, data: { ok: true } });
   }
