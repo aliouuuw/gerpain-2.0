@@ -982,3 +982,16 @@ UX-2 group tasks (Workflow Gaps) — starting with employee deactivate confirmat
 - TypeScript check passed on both backend and frontend
 
 ---
+
+## Working on: Employee deactivate confirmation dialog
+
+**Plan:**
+- Add a `ConfirmDialog` around the deactivate/reactivate action to prevent accidental clicks
+- Include employee name in the confirmation message
+- Verify with `bunx tsc --noEmit`
+
+**Result:** Success
+
+- Added confirmation dialog on deactivate/reactivate actions in employees list page
+- Dialog shows employee name and requires explicit confirmation before mutation
+- TypeScript check passed (`bunx tsc --noEmit`)
