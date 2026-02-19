@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/Button";
@@ -321,9 +322,21 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
 
 export default function CollectionsPage() {
   const { notify } = useToast();
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
-  const [periodValue, setPeriodValue] = useState<string>("this_week");
-  const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const searchParams = useSearchParams();
+  const employeeFromUrl = searchParams.get("employee") || "all";
+  const startDateFromUrl = searchParams.get("startDate");
+  const endDateFromUrl = searchParams.get("endDate");
+  const hasCustomRangeFromUrl = Boolean(startDateFromUrl && endDateFromUrl);
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(employeeFromUrl);
+  const [periodValue, setPeriodValue] = useState<string>(hasCustomRangeFromUrl ? "custom" : "this_week");
+  const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>(() => {
+    if (!hasCustomRangeFromUrl) return {};
+    return {
+      from: new Date(startDateFromUrl as string),
+      to: new Date(endDateFromUrl as string),
+    };
+  });
   const [expandedCollectionId, setExpandedCollectionId] = useState<string | null>(null);
   
   // Fetch employees for selector
@@ -542,6 +555,7 @@ export default function CollectionsPage() {
                 />
               ) : (
                 filteredCollections.map((collection) => (
+                  <Fragment key={collection.id}>
                   <TableRow key={collection.id}>
                     <TableCell>
                       <div>
@@ -601,27 +615,22 @@ export default function CollectionsPage() {
                       </Button>
                     </TableCell>
                   </TableRow>
+                  {expandedCollectionId === collection.id && (
+                    <TableRow key={`${collection.id}-expanded`}>
+                      <TableCell colSpan={7}>
+                        <PaymentForm
+                          collection={collection}
+                          onSave={() => setExpandedCollectionId(null)}
+                          onCancel={() => setExpandedCollectionId(null)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </Fragment>
                 ))
               )}
             </TableBody>
           </Table>
-          
-          {/* Inline Payment Form */}
-          {expandedCollectionId && (
-            <div className="border-t border-[var(--border)]">
-              {(() => {
-                const collection = filteredCollections.find((c) => c.id === expandedCollectionId);
-                if (!collection) return null;
-                return (
-                  <PaymentForm
-                    collection={collection}
-                    onSave={() => setExpandedCollectionId(null)}
-                    onCancel={() => setExpandedCollectionId(null)}
-                  />
-                );
-              })()}
-            </div>
-          )}
         </CardContent>
       </Card>
       

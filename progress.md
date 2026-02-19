@@ -1010,3 +1010,38 @@ UX-2 group tasks (Workflow Gaps) — starting with employee deactivate confirmat
 - Added confirmation dialog when switching employee/run while local edits are pending
 - Confirm discards local state and switches; cancel keeps the current selection
 - TypeScript check passed (`bunx tsc --noEmit`)
+
+---
+
+## Working on: Validate/reject UI for submitted collections
+
+**Plan:**
+- Add manager actions in expanded payment form when status is `submitted`
+- Wire `Valider` to `POST /:id/validate` and `Rejeter` to `POST /:id/reject` with reason
+- Keep validated collections read-only and show rejection reason on rejected ones
+- Verify with `bunx tsc --noEmit`
+
+**Result:** Success
+
+- Added `Valider` and `Rejeter` actions in PaymentForm for submitted collections
+- Added rejection reason input and validation before reject call
+- Added rejected-state badge/section with rejection reason display
+- Added `rejectionReason` typing to collections API model
+- TypeScript check passed (`bunx tsc --noEmit`)
+
+---
+
+## Working on: PaymentForm inline accordion + collections URL params
+
+**Plan:**
+- Render expanded PaymentForm as an inline `<tr>` right under clicked row instead of below the whole table
+- Initialize employee and period state from URL search params (`employee`, `startDate`, `endDate`)
+- Switch to custom period mode when date range params are present
+- Verify with `bunx tsc --noEmit`
+
+**Result:** Success
+
+- PaymentForm now expands inline in a row immediately below the selected collection row
+- Collections page now reads URL params from reconciliations drill-down and pre-fills employee/date range
+- Custom period mode auto-activates when `startDate` and `endDate` are provided
+- TypeScript check passed (`bunx tsc --noEmit`)
