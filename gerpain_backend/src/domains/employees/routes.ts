@@ -79,7 +79,7 @@ employeesRoutes.put(
         .where(and(eq(employees.id, item.id), eq(employees.organizationId, organizationId)));
     }
 
-    return c.json({ success: true });
+    return c.json({ success: true, data: { ok: true } });
   }
 );
 
