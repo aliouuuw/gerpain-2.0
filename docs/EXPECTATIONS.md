@@ -168,6 +168,7 @@ Collections are viewed **per employee across a payroll period** — not just per
 | 38 | Submit collection for validation | ✅ Works |
 | 39 | Manager validates or rejects (with reason) | ✅ Works |
 | 40 | Mark collections as **settled** for payroll (`isSettled` flag) | ✅ Works — `isSettled` field + settle endpoint |
+| 40b | **Archive** settled collection periods to hide from default view (still accessible via toggle) | ❌ Not implemented — next P1 task |
 | 41 | Assign collections to **flexible payroll periods** (e.g., "Jan-2026", "Week-3", "01/02–15/02") — not strictly monthly | ✅ Works — `period` field + period selector |
 | 42 | Recalculate remainders if delivery data is corrected (resync) | ❌ Not implemented (P2) |
 
@@ -213,6 +214,7 @@ Changes needed in `gerpain_backend/src/shared/database/schema.ts`:
 |--------|--------|
 | Add `deliveryRunId` FK to `cashCollections` | ✅ Done (migration 0007) |
 | Add `isSettled` boolean to `cashCollections` | ✅ Done (migration 0007) |
+| Add `isArchived` boolean to `cashCollections` | ⏳ Planned (migration pending) |
 | Add `period` text to `cashCollections` | ✅ Done (migration 0007) |
 | Add `employee_products` junction table (per-product commission) | ✅ Done (migration 0006) |
 | Add `baseSalary` to employees | ✅ Done (migration 0006) |
@@ -245,7 +247,8 @@ All completed and verified:
 4. Delivery and collection history with date/employee/location filters
 5. Delivery page UX polish (Aujourd'hui button, auto-pick period, reset button)
 6. Employee page UX polish (product count badge, select all, wider dialog)
-7. Cross-cutting polish (error boundary, sidebar active state, mobile padding)
+7. **Archive settled collection periods** (hide from default, accessible via toggle)
+8. Cross-cutting polish (error boundary, sidebar active state, mobile padding)
 ```
 
 ### Deferred
