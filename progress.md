@@ -1045,3 +1045,18 @@ UX-2 group tasks (Workflow Gaps) — starting with employee deactivate confirmat
 - Collections page now reads URL params from reconciliations drill-down and pre-fills employee/date range
 - Custom period mode auto-activates when `startDate` and `endDate` are provided
 - TypeScript check passed (`bunx tsc --noEmit`)
+
+---
+
+## Working on: Hide inactive employees + fix employee products toast
+
+**Plan:**
+- Ensure deactivated employees don’t appear in deliveries / collections operational views
+- Prevent `updateEmployeeProducts` from firing (and showing success toast) when product assignments didn’t change
+- Verify with `bunx tsc --noEmit`
+
+**Result:** Success
+
+- Filtered employee selectors and API responses to exclude inactive employees
+- Employee edit form now diffs product assignments before calling update, avoiding false “Produits assignés” toast
+- TypeScript check passed (`bunx tsc --noEmit`)
