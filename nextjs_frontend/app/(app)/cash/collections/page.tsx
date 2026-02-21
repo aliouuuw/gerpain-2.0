@@ -443,9 +443,13 @@ export default function CollectionsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          
+          <div className="w-48 space-y-1.5">
+            <label className="text-xs font-medium text-[var(--muted-foreground)] block">
+              Statut
+            </label>
             <Select value={settledFilter} onValueChange={setSettledFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Tous" />
               </SelectTrigger>
               <SelectContent>
@@ -454,6 +458,12 @@ export default function CollectionsPage() {
                 <SelectItem value="true">Réglés</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="w-48 space-y-1.5">
+            <label className="text-xs font-medium text-[var(--muted-foreground)] block">
+              Période
+            </label>
             <Select
               value={periodValue}
               onValueChange={setPeriodValue}
@@ -470,6 +480,7 @@ export default function CollectionsPage() {
               </SelectContent>
             </Select>
           </div>
+
           {periodValue === "custom" && (
             <div className="w-auto space-y-1.5">
               <label className="text-xs font-medium text-[var(--muted-foreground)] block">
@@ -553,9 +564,9 @@ export default function CollectionsPage() {
               <TableRow variant="header">
                 <TableHead>Date</TableHead>
                 <TableHead>Source</TableHead>
-                <TableHead>Attendu</TableHead>
-                <TableHead>Collecté</TableHead>
-                <TableHead>Écart</TableHead>
+                <TableHead numeric>Attendu</TableHead>
+                <TableHead numeric>Collecté</TableHead>
+                <TableHead numeric>Écart</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
