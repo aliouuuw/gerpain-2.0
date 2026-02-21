@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Fragment, useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronUp, X } from "lucide-react";
 
 import { Button } from "@/components/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/Card";
@@ -321,14 +321,17 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
 }
 
 export default function CollectionsPage() {
+  const router = useRouter();
   const { notify } = useToast();
   const searchParams = useSearchParams();
   const employeeFromUrl = searchParams.get("employee") || "all";
   const startDateFromUrl = searchParams.get("startDate");
   const endDateFromUrl = searchParams.get("endDate");
+  const settledFromUrl = searchParams.get("isSettled");
   const hasCustomRangeFromUrl = Boolean(startDateFromUrl && endDateFromUrl);
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(employeeFromUrl);
+  const [settledFilter, setSettledFilter] = useState<string>(settledFromUrl || "all");
   const [periodValue, setPeriodValue] = useState<string>(hasCustomRangeFromUrl ? "custom" : "this_week");
   const [customDateRange, setCustomDateRange] = useState<{ from?: Date; to?: Date }>(() => {
     if (!hasCustomRangeFromUrl) return {};
@@ -359,11 +362,26 @@ export default function CollectionsPage() {
     return getPeriodDates(periodValue);
   }, [periodValue, customDateRange]);
   
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedEmployeeId !== "all") params.set("employee", selectedEmployeeId);
+    if (periodValue === "custom" && customDateRange.from) {
+      params.set("startDate", customDateRange.from.toISOString().slice(0, 10));
+      if (customDateRange.to) {
+        params.set("endDate", customDateRange.to.toISOString().slice(0, 10));
+      }
+    }
+    if (settledFilter !== "all") params.set("isSettled", settledFilter);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [selectedEmployeeId, settledFilter, periodValue, customDateRange, router]);
+
   // Fetch collections with date range
   const { data: collections = [], isLoading, error } = useCashCollections({ 
     startDate,
     endDate,
     employeeId: selectedEmployeeId === "all" ? undefined : selectedEmployeeId,
+    isSettled: settledFilter === "all" ? undefined : settledFilter === "true",
   });
   
   const filteredCollections = collections;
@@ -425,10 +443,17 @@ export default function CollectionsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-48 space-y-1.5">
-            <label className="text-xs font-medium text-[var(--muted-foreground)] block">
-              Période
-            </label>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select value={settledFilter} onValueChange={setSettledFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tous" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="false">Non réglés</SelectItem>
+                <SelectItem value="true">Réglés</SelectItem>
+              </SelectContent>
+            </Select>
             <Select
               value={periodValue}
               onValueChange={setPeriodValue}

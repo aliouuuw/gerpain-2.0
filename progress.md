@@ -1274,3 +1274,53 @@ Replace hardcoded dashboard stats with real API data from validated deliveries a
 - ✅ TypeScript check passed (backend + frontend)
 
 **Result:** Success
+
+---
+
+## Working on: Delivery and collection history with filters
+
+**Date:** 2026-02-21
+
+**Plan:**
+Add comprehensive filters to delivery and collection list pages with URL query param persistence.
+
+**Requirements:**
+- Delivery list: filterable by date range, employee, location, status
+- Collection list: filterable by date range, employee, settled/unsettled
+- Filters persist in URL query params
+- Clear filters button
+
+**Files to modify:**
+- `nextjs_frontend/app/(app)/sales/deliveries/page.tsx`
+- `nextjs_frontend/app/(app)/cash/collections/page.tsx`
+
+**Approach:**
+1. Read existing pages to understand current structure
+2. Add filter UI components with controlled inputs
+3. Sync filters with URL query params using Next.js router
+4. Wire filters to existing API hooks (already support these params)
+5. Add clear filters functionality
+6. Verify with TypeScript
+
+**Implementation:**
+
+1. **Deliveries page** (`nextjs_frontend/app/(app)/sales/deliveries/page.tsx`):
+   - Added employee filter (delivery role only)
+   - Added location filter
+   - Added status filter (draft/in_progress/validated)
+   - All filters sync with URL query params
+   - Clear filters button (shows when any filter is active)
+   - Filters wire to existing `useDeliveryRuns` hook
+
+2. **Collections page** (`nextjs_frontend/app/(app)/cash/collections/page.tsx`):
+   - Added settled/unsettled filter
+   - Enhanced existing employee and date range filters with URL persistence
+   - Clear filters button (shows when filters differ from defaults)
+   - Filters wire to existing `useCashCollections` hook
+
+**Verification:**
+- ✅ TypeScript check passed (frontend)
+- All filters persist in URL query params
+- Clear filters button resets to defaults
+
+**Result:** Success
