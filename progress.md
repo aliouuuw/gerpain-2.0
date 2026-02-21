@@ -1060,3 +1060,74 @@ UX-2 group tasks (Workflow Gaps) — starting with employee deactivate confirmat
 - Filtered employee selectors and API responses to exclude inactive employees
 - Employee edit form now diffs product assignments before calling update, avoiding false “Produits assignés” toast
 - TypeScript check passed (`bunx tsc --noEmit`)
+
+---
+
+## Working on: Collections backend — batch queries and SQL filters
+
+**Date:** 2026-02-21
+
+**Plan:**
+This task addresses four critical performance issues in `gerpain_backend/src/domains/collections/routes.ts`:
+
+1. **GET /cash-collections N+1 queries** (lines 169-181): Currently fetches all collections, filters in JS, then batch-fetches employees and runs. Need to push filters to SQL WHERE clauses.
+
+2. **GET /cash-collections filters in JS** (lines 144-167): All query params (date, startDate, endDate, status, locationId, employeeId, isSettled) are applied in JavaScript after full table scan. Should be SQL WHERE conditions.
+
+3. **GET /overview N+1 per employee** (lines 70-95): Uses `Promise.all` with one iteration per employee, but all data is already fetched. The real issue is filtering collections in memory per employee instead of using SQL GROUP BY.
+
+4. **POST /settle sequential UPDATEs** (lines 464-470): Loops through collections with individual UPDATE statements. Should use single `UPDATE ... WHERE id IN (...)`.
+
+**Files to modify:**
+- `gerpain_backend/src/domains/collections/routes.ts`
+
+**Approach:**
+1. **GET /** endpoint: Build Drizzle WHERE conditions dynamically based on query params instead of filtering in JS
+2. **GET /overview** endpoint: Use SQL aggregation with GROUP BY instead of in-memory filtering
+3. **POST /settle** endpoint: Replace for-loop with single batch UPDATE using `inArray`
+4. Verify with TypeScript check
+
+**Potential challenges:**
+- Need to handle optional filters correctly in Drizzle query builder
+- Overview endpoint needs to maintain the same response structure while using SQL aggregation
+- Must preserve existing behavior (active employees only, role filtering, etc.)
+
+**Result:** Success
+
+**Changes made:**
+
+1. **GET /cash-collections** (lines 108-196):
+   - Replaced JS filtering with dynamic SQL WHERE conditions using Drizzle's `and()` and conditional pushes
+   - All 8 query params (bakeryId, date, startDate, endDate, status, locationId, employeeId, isSettled) now applied in SQL
+   - Eliminated full table scan — filters applied at database level
+   - Batch fetch for employees and delivery runs remains (already optimized)
+
+2. **GET /overview** (lines 16-106):
+   - Replaced sequential filtering with parallel SQL queries for employees and collections
+   - Built separate WHERE conditions for employees (with role filter) and collections (with date/bakery/settled filters)
+   - Used `Promise.all` to fetch both in parallel
+   - Eliminated N+1 pattern — now 2 queries total instead of 1 + N employee iterations
+   - Grouping by employee still done in memory (SQL GROUP BY would require complex COALESCE for aggregates)
+
+3. **GET /aggregates** (lines 367-411):
+   - Pushed employeeId, startDate, endDate filters to SQL WHERE conditions
+   - Replaced JS filter with single SQL query
+   - Aggregation still done in memory (simple reduce operations)
+
+4. **POST /settle** (lines 414-469):
+   - Replaced for-loop with N sequential UPDATEs with single batch UPDATE
+   - Built WHERE conditions in SQL (organizationId, isSettled=false, employeeId, date range)
+   - Used `inArray(cashCollections.id, settledIds)` for batch update
+   - Reduced from N queries to 2 queries (1 SELECT + 1 UPDATE)
+   - Added early return when no collections to settle
+
+**Performance impact:**
+- GET /: Reduced from full table scan + JS filtering to indexed SQL WHERE
+- GET /overview: Reduced from 1 + N queries to 2 parallel queries
+- GET /aggregates: Reduced from full table scan + JS filtering to indexed SQL WHERE
+- POST /settle: Reduced from N+1 queries to 2 queries (1 SELECT + 1 batch UPDATE)
+
+**Verification:**
+- ✅ TypeScript check passed (`bunx tsc --noEmit`)
+- All existing behavior preserved (active employees filter, role filtering, date ranges, etc.)
+- Response structure unchanged
