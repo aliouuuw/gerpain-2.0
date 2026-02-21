@@ -9,6 +9,7 @@ import {
 import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { cache, CacheNamespace, CacheTTL } from "../../config/redis.js";
 
 const collectionsRoutes = new Hono();
 
@@ -23,6 +24,19 @@ collectionsRoutes.get("/overview", async (c) => {
 
   if (!organizationId) {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  // Build cache key from query params
+  const cacheKey = `${organizationId}:${bakeryId || 'all'}:${startDate || 'all'}:${endDate || 'all'}:${role || 'all'}:${isSettled || 'all'}`;
+  
+  // Try cache first (versioned - O(1) invalidation)
+  const cached = await cache.get<typeof finalOverview>(CacheNamespace.COLLECTIONS_OVERVIEW, cacheKey);
+  if (cached) {
+    return c.json({
+      success: true,
+      data: cached,
+      cached: true,
+    });
   }
 
   // Build WHERE conditions for collections
@@ -96,9 +110,13 @@ collectionsRoutes.get("/overview", async (c) => {
     ? overview.filter(e => e.unsettledCount > 0)
     : overview;
 
+  // Cache the result (versioned key, medium TTL)
+  await cache.set(CacheNamespace.COLLECTIONS_OVERVIEW, cacheKey, finalOverview, CacheTTL.MEDIUM);
+
   return c.json({
     success: true,
     data: finalOverview,
+    cached: false,
   });
 });
 
@@ -275,6 +293,9 @@ collectionsRoutes.patch(
       return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
     }
 
+    // Invalidate cache for this organization
+    await cache.invalidate(CacheNamespace.COLLECTIONS_OVERVIEW);
+
     return c.json({ success: true, data: updated });
   }
 );
@@ -302,6 +323,9 @@ collectionsRoutes.post("/:id/submit", async (c) => {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
   }
 
+  // Invalidate cache
+  await cache.invalidate(CacheNamespace.COLLECTIONS_OVERVIEW);
+
   return c.json({ success: true, data: updated });
 });
 
@@ -328,6 +352,9 @@ collectionsRoutes.post("/:id/validate", async (c) => {
   if (!updated) {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
   }
+
+  // Invalidate cache
+  await cache.invalidate(CacheNamespace.COLLECTIONS_OVERVIEW);
 
   return c.json({ success: true, data: updated });
 });
@@ -359,6 +386,9 @@ collectionsRoutes.post(
       return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
     }
 
+    // Invalidate cache
+    await cache.invalidate(CacheNamespace.COLLECTIONS_OVERVIEW);
+
     return c.json({ success: true, data: updated });
   }
 );
@@ -374,39 +404,53 @@ collectionsRoutes.get("/aggregates", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  // Build WHERE conditions
-  const conditions = [eq(cashCollections.organizationId, organizationId)];
-  if (employeeId) {
-    conditions.push(eq(cashCollections.employeeId, employeeId));
-  }
-  if (startDate) {
-    conditions.push(gte(cashCollections.date, startDate));
-  }
-  if (endDate) {
-    conditions.push(lte(cashCollections.date, endDate));
-  }
+  // Build cache key
+  const cacheKey = `${organizationId}:${employeeId || 'all'}:${startDate || 'all'}:${endDate || 'all'}`;
 
-  // Single query with filters in SQL
-  const collections = await db
-    .select()
-    .from(cashCollections)
-    .where(and(...conditions));
+  // Use getOrSet pattern for cleaner caching
+  const { data: aggregates, cached } = await cache.getOrSet(
+    CacheNamespace.COLLECTIONS_AGGREGATES,
+    cacheKey,
+    async () => {
+      // Build WHERE conditions
+      const conditions = [eq(cashCollections.organizationId, organizationId)];
+      if (employeeId) {
+        conditions.push(eq(cashCollections.employeeId, employeeId));
+      }
+      if (startDate) {
+        conditions.push(gte(cashCollections.date, startDate));
+      }
+      if (endDate) {
+        conditions.push(lte(cashCollections.date, endDate));
+      }
 
-  // Calculate aggregates
-  const totalExpected = collections.reduce((sum, c) => sum + c.expectedAmount, 0);
-  const totalCollected = collections.reduce((sum, c) => sum + (c.actualAmount || 0), 0);
-  const outstandingBalance = totalExpected - totalCollected;
-  const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
+      // Single query with filters in SQL
+      const collections = await db
+        .select()
+        .from(cashCollections)
+        .where(and(...conditions));
+
+      // Calculate aggregates
+      const totalExpected = collections.reduce((sum, c) => sum + c.expectedAmount, 0);
+      const totalCollected = collections.reduce((sum, c) => sum + (c.actualAmount || 0), 0);
+      const outstandingBalance = totalExpected - totalCollected;
+      const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
+
+      return {
+        totalExpected,
+        totalCollected,
+        outstandingBalance,
+        collectionRate,
+        count: collections.length,
+      };
+    },
+    CacheTTL.SHORT // 30 seconds for aggregates
+  );
 
   return c.json({
     success: true,
-    data: {
-      totalExpected,
-      totalCollected,
-      outstandingBalance,
-      collectionRate,
-      count: collections.length,
-    }
+    data: aggregates,
+    cached,
   });
 });
 
@@ -458,6 +502,9 @@ collectionsRoutes.post("/settle", async (c) => {
     .update(cashCollections)
     .set({ isSettled: true, updatedAt: new Date() })
     .where(inArray(cashCollections.id, settledIds));
+
+  // Invalidate cache
+  await cache.invalidate(CacheNamespace.COLLECTIONS_OVERVIEW);
 
   return c.json({
     success: true,

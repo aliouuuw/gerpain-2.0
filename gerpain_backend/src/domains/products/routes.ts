@@ -3,6 +3,7 @@ import { db } from "../../config/database.js";
 import { products, insertProductSchema } from "../../shared/database/schema.js";
 import { eq, and } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
+import { cache, CacheNamespace, CacheTTL } from "../../config/redis.js";
 
 const productsRoutes = new Hono();
 
@@ -76,6 +77,9 @@ productsRoutes.post(
       ...(bakeryId ? { bakeryId } : {}),
     }).returning();
 
+    // Invalidate products cache
+    await cache.invalidate(CacheNamespace.PRODUCTS);
+
     return c.json({ success: true, data: product }, 201);
   }
 );
@@ -103,6 +107,9 @@ productsRoutes.put(
       return c.json({ success: false, error: { code: "NOT_FOUND", message: "Product not found" } }, 404);
     }
 
+    // Invalidate products cache
+    await cache.invalidate(CacheNamespace.PRODUCTS);
+
     return c.json({ success: true, data: updated });
   }
 );
@@ -124,6 +131,9 @@ productsRoutes.delete("/:id", async (c) => {
   if (!deleted) {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Product not found" } }, 404);
   }
+
+  // Invalidate products cache
+  await cache.invalidate(CacheNamespace.PRODUCTS);
 
   return c.json({ success: true, data: { id } });
 });

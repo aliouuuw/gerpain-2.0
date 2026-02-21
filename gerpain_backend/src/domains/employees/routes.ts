@@ -4,6 +4,7 @@ import { employees, employeeLocations, employeeProducts, insertEmployeeSchema, i
 import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
+import { cache, CacheNamespace, CacheTTL } from "../../config/redis.js";
 
 const employeesRoutes = new Hono();
 
@@ -38,19 +39,26 @@ employeesRoutes.get("/", async (c) => {
     filtered = filtered.filter(e => e.status === status);
   }
 
-  // Get locations for each employee
-  const employeesWithLocations = await Promise.all(
-    filtered.map(async (emp) => {
-      const locs = await db
-        .select()
-        .from(employeeLocations)
-        .where(eq(employeeLocations.employeeId, emp.id));
-      return {
-        ...emp,
-        locations: locs.map(l => l.locationId),
-      };
-    })
-  );
+  // Batch fetch all locations for filtered employees (fixes N+1)
+  const employeeIds = filtered.map(e => e.id);
+  const allLocations = employeeIds.length > 0
+    ? await db.select().from(employeeLocations).where(inArray(employeeLocations.employeeId, employeeIds))
+    : [];
+  
+  // Group locations by employee ID
+  const locationsByEmployee = new Map<string, string[]>();
+  for (const loc of allLocations) {
+    if (!locationsByEmployee.has(loc.employeeId)) {
+      locationsByEmployee.set(loc.employeeId, []);
+    }
+    locationsByEmployee.get(loc.employeeId)!.push(loc.locationId);
+  }
+
+  // Combine employees with their locations
+  const employeesWithLocations = filtered.map(emp => ({
+    ...emp,
+    locations: locationsByEmployee.get(emp.id) || [],
+  }));
 
   return c.json({ success: true, data: employeesWithLocations });
 });
@@ -87,6 +95,9 @@ employeesRoutes.put(
         })
         .where(and(inArray(employees.id, ids), eq(employees.organizationId, organizationId)));
     });
+
+    // Invalidate employee cache
+    await cache.invalidate(CacheNamespace.EMPLOYEES);
 
     return c.json({ success: true, data: { ok: true } });
   }
@@ -159,6 +170,9 @@ employeesRoutes.post(
       );
     }
 
+    // Invalidate employee cache
+    await cache.invalidate(CacheNamespace.EMPLOYEES);
+
     return c.json({ 
       success: true, 
       data: { ...employee, locations: locationIds || [] } 
@@ -211,6 +225,9 @@ employeesRoutes.put(
       }
     }
 
+    // Invalidate employee cache
+    await cache.invalidate(CacheNamespace.EMPLOYEES);
+
     return c.json({ 
       success: true, 
       data: { ...updated, locations: locationIds } 
@@ -242,6 +259,9 @@ employeesRoutes.post("/:id/deactivate", async (c) => {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, 404);
   }
 
+  // Invalidate employee cache
+  await cache.invalidate(CacheNamespace.EMPLOYEES);
+
   return c.json({ success: true, data: updated });
 });
 
@@ -268,6 +288,9 @@ employeesRoutes.post("/:id/reactivate", async (c) => {
   if (!updated) {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Employee not found" } }, 404);
   }
+
+  // Invalidate employee cache
+  await cache.invalidate(CacheNamespace.EMPLOYEES);
 
   return c.json({ success: true, data: updated });
 });

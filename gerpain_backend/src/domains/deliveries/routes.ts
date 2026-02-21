@@ -67,64 +67,49 @@ deliveriesRoutes.get("/runs", async (c) => {
     const missingEmployees = eligibleEmployees.filter(e => !existingEmployeeIds.has(e.id));
 
     if (missingEmployees.length > 0) {
-      // Get all active products for this bakery (used only for details/unitPrice snapshots)
-      const activeProducts = await db
-        .select()
-        .from(products)
-        .where(
-          and(
-            eq(products.organizationId, organizationId),
-            eq(products.isActive, true)
-          )
-        );
+      const missingEmployeeIds = missingEmployees.map(e => e.id);
+
+      // Batch fetch: all active products, all assigned products, all primary locations
+      const [activeProducts, allAssignedProducts, allPrimaryLocations, fallbackLocation] = await Promise.all([
+        // Active products for this org
+        db.select().from(products).where(
+          and(eq(products.organizationId, organizationId), eq(products.isActive, true))
+        ),
+        // Assigned products for all missing employees
+        db.select({ employeeId: employeeProducts.employeeId, productId: employeeProducts.productId })
+          .from(employeeProducts)
+          .where(and(inArray(employeeProducts.employeeId, missingEmployeeIds), eq(employeeProducts.isActive, true))),
+        // Primary locations for all missing employees
+        db.select().from(employeeLocations)
+          .where(and(inArray(employeeLocations.employeeId, missingEmployeeIds), eq(employeeLocations.isPrimary, true))),
+        // Fallback: first bakery location
+        db.select().from(locationsTable)
+          .where(and(eq(locationsTable.organizationId, organizationId), eq(locationsTable.bakeryId, bakeryId)))
+          .limit(1),
+      ]);
+
+      // Build lookup maps
+      const assignedProductsByEmployee = new Map<string, string[]>();
+      for (const ap of allAssignedProducts) {
+        if (!assignedProductsByEmployee.has(ap.employeeId)) {
+          assignedProductsByEmployee.set(ap.employeeId, []);
+        }
+        assignedProductsByEmployee.get(ap.employeeId)!.push(ap.productId);
+      }
+
+      const primaryLocationByEmployee = new Map<string, string>();
+      for (const pl of allPrimaryLocations) {
+        primaryLocationByEmployee.set(pl.employeeId, pl.locationId);
+      }
+
+      const fallbackLocationId = fallbackLocation[0]?.id;
 
       // Create draft runs for each missing employee
       for (const employee of missingEmployees) {
-        // Get employee's assigned products
-        const assignedProducts = await db
-          .select({ productId: employeeProducts.productId })
-          .from(employeeProducts)
-          .where(
-            and(
-              eq(employeeProducts.employeeId, employee.id),
-              eq(employeeProducts.isActive, true)
-            )
-          );
+        const productIdsToUse = assignedProductsByEmployee.get(employee.id) || [];
+        const locationIdToUse = primaryLocationByEmployee.get(employee.id) || fallbackLocationId;
 
-        // Only use assigned products (no fallback)
-        const productIdsToUse = assignedProducts.map(p => p.productId);
-
-        // Get employee's primary location, fall back to first bakery location
-        const primaryLocation = await db
-          .select()
-          .from(employeeLocations)
-          .where(
-            and(
-              eq(employeeLocations.employeeId, employee.id),
-              eq(employeeLocations.isPrimary, true)
-            )
-          )
-          .limit(1);
-
-        let locationIdToUse: string;
-        if (primaryLocation.length > 0) {
-          locationIdToUse = primaryLocation[0].locationId;
-        } else {
-          // Fall back to first bakery location
-          const [firstLocation] = await db
-            .select()
-            .from(locationsTable)
-            .where(
-              and(
-                eq(locationsTable.organizationId, organizationId),
-                eq(locationsTable.bakeryId, bakeryId)
-              )
-            )
-            .limit(1);
-
-          if (!firstLocation) continue;
-          locationIdToUse = firstLocation.id;
-        }
+        if (!locationIdToUse) continue;
 
         // Create the run
         const [run] = await db.insert(deliveryRuns).values({
@@ -336,20 +321,22 @@ deliveriesRoutes.get("/runs/:id", async (c) => {
     ? []
     : items.filter((item) => assignedProductIds.has(item.productId));
 
-  // Get product names and compute quantitySold
-  const itemsWithProducts = await Promise.all(
-    filteredItems.map(async (item) => {
-      const [product] = await db
-        .select()
-        .from(products)
-        .where(eq(products.id, item.productId));
-      return {
-        ...item,
-        productName: product?.name || "Unknown",
-        quantitySold: item.quantityEntrusted - item.quantityReturned,
-      };
-    })
-  );
+  // Batch fetch all products for filtered items (fixes N+1)
+  const productIdsToFetch = [...new Set(filteredItems.map(i => i.productId))];
+  const allProducts = productIdsToFetch.length > 0
+    ? await db.select().from(products).where(inArray(products.id, productIdsToFetch))
+    : [];
+  const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+  // Map items with product names and computed quantitySold
+  const itemsWithProducts = filteredItems.map((item) => {
+    const product = productMap.get(item.productId);
+    return {
+      ...item,
+      productName: product?.name || "Unknown",
+      quantitySold: item.quantityEntrusted - item.quantityReturned,
+    };
+  });
 
   return c.json({
     success: true,
