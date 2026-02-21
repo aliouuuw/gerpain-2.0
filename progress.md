@@ -1324,3 +1324,37 @@ Add comprehensive filters to delivery and collection list pages with URL query p
 - Clear filters button resets to defaults
 
 **Result:** Success
+
+---
+
+## Fix: Neon SSL and Dashboard API Client
+
+**Date:** 2026-02-21
+
+**Issue:**
+1. Backend throwing `write CONNECTION_ENDED` when connecting to Neon pooler
+2. Frontend React Query error: "Query data cannot be undefined" for dashboard
+
+**Root Causes:**
+1. `postgres-js` was receiving `ssl: "require"` (string) instead of proper TLS options object
+2. `getDashboardSummary()` was double-wrapping the response type, returning `undefined`
+
+**Fixes:**
+
+1. **Database config** (`gerpain_backend/src/config/database.ts`):
+   - Changed SSL to `{ rejectUnauthorized: false }` for Neon
+   - Reduced pool size to 5 for Neon pooler (was 10)
+   - Made pool settings configurable via env vars
+
+2. **Dashboard API** (`nextjs_frontend/lib/api/dashboard.ts`):
+   - Fixed to return `apiClient<DashboardSummary>()` directly
+   - `apiClient` already unwraps `{ success, data }` envelope
+
+**Verification:**
+- ✅ TypeScript check passed (backend + frontend)
+- ✅ Backend connects to Neon without CONNECTION_ENDED
+- ✅ Dashboard loads without undefined query error
+
+**Commit:** `81f5106`
+
+**Result:** Success
