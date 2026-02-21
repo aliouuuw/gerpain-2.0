@@ -23,6 +23,7 @@ import { collectionsRoutes } from "./domains/collections/routes.js";
 import { bakeriesRoutes } from "./domains/bakeries/routes.js";
 import categoriesRoutes from "./domains/categories/routes.js";
 import { pricingRoutes } from "./domains/pricing/routes.js";
+import { dashboardRoutes } from "./domains/dashboard/routes.js";
 
 // Logger
 import { Logger } from "./shared/utils/logger.js";
@@ -85,6 +86,7 @@ api.route("/cash-collections", collectionsRoutes);
 api.route("/bakeries", bakeriesRoutes);
 api.route("/categories", categoriesRoutes);
 api.route("/pricing", pricingRoutes);
+api.route("/dashboard", dashboardRoutes);
 
 app.route("/api/v1", api);
 

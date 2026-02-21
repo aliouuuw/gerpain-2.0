@@ -6,55 +6,18 @@ import {
   TrendingUp, 
   TrendingDown, 
   Package, 
-  Users, 
   Truck, 
   Banknote,
   ArrowRight,
   AlertTriangle,
   Clock,
   CheckCircle2,
-  CircleDot
+  CircleDot,
+  Loader2,
+  Wallet
 } from "lucide-react"
 import Link from "next/link"
-
-const stats = [
-  {
-    title: "Ventes du jour",
-    value: "847 500",
-    unit: "FCFA",
-    change: "+12.3%",
-    trend: "up" as const,
-    icon: Banknote,
-    description: "vs. hier",
-  },
-  {
-    title: "Livraisons",
-    value: "24",
-    unit: "tournées",
-    change: "+3",
-    trend: "up" as const,
-    icon: Truck,
-    description: "en cours aujourd'hui",
-  },
-  {
-    title: "Stock critique",
-    value: "7",
-    unit: "articles",
-    change: "-2",
-    trend: "down" as const,
-    icon: Package,
-    description: "à réapprovisionner",
-  },
-  {
-    title: "Équipe",
-    value: "18",
-    unit: "présents",
-    change: "100%",
-    trend: "neutral" as const,
-    icon: Users,
-    description: "taux de présence",
-  },
-]
+import { useDashboardSummary } from "@/lib/hooks/useDashboard"
 
 const quickActions = [
   { label: "Nouvelle livraison", href: "/sales/deliveries", icon: Truck },
@@ -62,20 +25,91 @@ const quickActions = [
   { label: "Ajuster stock", href: "/inventory/adjustments", icon: Package },
 ]
 
-const recentActivity = [
-  { label: "Livraison validée – Ali", time: "Il y a 5 min", status: "success" },
-  { label: "Collecte en attente – Moussa", time: "Il y a 12 min", status: "pending" },
-  { label: "Stock mis à jour: Farine T65", time: "Il y a 23 min", status: "info" },
-  { label: "Pointage: Marie D.", time: "Il y a 45 min", status: "info" },
-]
+function formatCurrency(amount: number): string {
+  return amount.toLocaleString('fr-FR');
+}
 
-const alerts = [
-  { label: "Stock de levure faible", severity: "urgent" as const },
-  { label: "3 collectes en attente de validation", severity: "warning" as const },
-  { label: "Maintenance four prévue demain", severity: "info" as const },
-]
+function formatRelativeTime(isoString: string): string {
+  const date = new Date(isoString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return "À l'instant";
+  if (diffMins < 60) return `Il y a ${diffMins} min`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `Il y a ${diffHours}h`;
+  return date.toLocaleDateString('fr-FR');
+}
 
 export default function DashboardPage() {
+  const { data: summary, isLoading, error } = useDashboardSummary();
+
+  // Build stats from real data
+  const stats = summary ? [
+    {
+      title: "Ventes du jour",
+      value: formatCurrency(summary.stats.todayRevenue),
+      unit: "FCFA",
+      change: `${summary.stats.deliveries.validated}/${summary.stats.deliveries.total}`,
+      trend: summary.stats.todayRevenue > 0 ? "up" as const : "neutral" as const,
+      icon: Banknote,
+      description: "validées",
+    },
+    {
+      title: "Livraisons",
+      value: String(summary.stats.deliveries.total),
+      unit: "tournées",
+      change: `${summary.stats.deliveries.draft} en cours`,
+      trend: summary.stats.deliveries.validated > 0 ? "up" as const : "neutral" as const,
+      icon: Truck,
+      description: "aujourd'hui",
+    },
+    {
+      title: "Collectes",
+      value: formatCurrency(summary.stats.collections.totalCollected),
+      unit: "FCFA",
+      change: `${summary.stats.collections.pending} en attente`,
+      trend: summary.stats.collections.pending > 0 ? "down" as const : "up" as const,
+      icon: Wallet,
+      description: `sur ${formatCurrency(summary.stats.collections.totalExpected)} attendus`,
+    },
+    {
+      title: "Solde restant",
+      value: formatCurrency(summary.stats.outstandingBalance),
+      unit: "FCFA",
+      change: summary.stats.outstandingBalance > 0 ? "À recouvrer" : "OK",
+      trend: summary.stats.outstandingBalance > 50000 ? "down" as const : "neutral" as const,
+      icon: Package,
+      description: "impayés",
+    },
+  ] : [];
+
+  const recentActivity = summary?.recentActivity.map(a => ({
+    label: a.label,
+    time: formatRelativeTime(a.time),
+    status: a.status,
+  })) || [];
+
+  const alerts = summary?.alerts || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-[var(--muted-foreground)]" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-2">
+        <AlertTriangle className="size-8 text-[var(--error)]" />
+        <p className="text-sm text-[var(--muted-foreground)]">Erreur lors du chargement du tableau de bord</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -223,25 +257,24 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Development Notice */}
-      <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--surface)]">
-        <CardContent className="flex items-center gap-4 p-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]">
-            <Package className="size-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[var(--foreground)]">
-              Système en développement
-            </p>
-            <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
-              Ce tableau de bord sera enrichi avec des graphiques et analyses avancées.
-            </p>
-          </div>
-          <Button variant="outline" size="sm" className="shrink-0">
-            En savoir plus
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Info Notice */}
+      {summary && (
+        <Card variant="ghost" className="border border-dashed border-[var(--border)] bg-[var(--surface)]">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-[var(--primary-subtle)] text-[var(--primary)]">
+              <CheckCircle2 className="size-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[var(--foreground)]">
+                Données en temps réel
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                Les statistiques sont mises à jour automatiquement toutes les minutes.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

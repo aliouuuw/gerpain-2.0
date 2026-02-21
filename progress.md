@@ -1215,3 +1215,62 @@ Comprehensive performance improvements for production scaling and Redis caching.
 - ✅ Both UX-3 performance tasks now passing in prd.json
 
 **Result:** Success
+
+---
+
+## Working on: Dashboard with real KPIs
+
+**Date:** 2026-02-21
+
+**Plan:**
+Replace hardcoded dashboard stats with real API data from validated deliveries and collections.
+
+**Current state:**
+- Dashboard page uses mock data (lines 20-57): hardcoded stats, activity, alerts
+- No `/dashboard` backend routes exist yet
+
+**Files to create/modify:**
+- `gerpain_backend/src/domains/dashboard/routes.ts` — New endpoint
+- `gerpain_backend/src/index.ts` — Register routes
+- `nextjs_frontend/lib/api/dashboard.ts` — API client
+- `nextjs_frontend/lib/hooks/useDashboard.ts` — React Query hook
+- `nextjs_frontend/app/(app)/dashboard/page.tsx` — Wire to real data
+
+**Approach:**
+1. Create `GET /dashboard/summary` endpoint with real aggregates
+2. Add Redis caching (SHORT TTL)
+3. Create frontend API client and hook
+4. Update dashboard page to fetch and display real data
+5. Verify with TypeScript
+
+**Implementation:**
+
+1. **Backend endpoint** (`gerpain_backend/src/domains/dashboard/routes.ts`):
+   - `GET /dashboard/summary?date=` returns:
+     - `todayRevenue`: sum(sold × unitPrice) from validated deliveries
+     - `deliveries.total/validated/draft`: delivery run counts
+     - `collections.pending/submitted/validated/totalCollected/totalExpected`: collection stats
+     - `outstandingBalance`: total (expected - actual) across unsettled collections
+     - `recentActivity`: last 8 validated deliveries + collection recordings
+     - `alerts`: pending collections, outstanding balance warnings
+   - Uses Redis caching with SHORT TTL (30s)
+
+2. **Frontend API client** (`nextjs_frontend/lib/api/dashboard.ts`):
+   - `getDashboardSummary(params)` function
+
+3. **React Query hook** (`nextjs_frontend/lib/hooks/useDashboard.ts`):
+   - `useDashboardSummary()` with 30s stale time and 60s auto-refresh
+
+4. **Dashboard page** (`nextjs_frontend/app/(app)/dashboard/page.tsx`):
+   - Replaced hardcoded stats with real API data
+   - Loading state with spinner
+   - Error state with message
+   - Stats cards: Ventes du jour, Livraisons, Collectes, Solde restant
+   - Recent activity from real data
+   - Alerts from real data
+   - Info notice showing "Données en temps réel"
+
+**Verification:**
+- ✅ TypeScript check passed (backend + frontend)
+
+**Result:** Success
