@@ -172,6 +172,16 @@ Collections are viewed **per employee across a payroll period** — not just per
 | 41 | Assign collections to **flexible payroll periods** (e.g., "Jan-2026", "Week-3", "01/02–15/02") — not strictly monthly | ✅ Works — `period` field + period selector |
 | 42 | Recalculate remainders if delivery data is corrected (resync) | ❌ Not implemented (P2) |
 
+#### Archive behavior (period-level)
+
+- **Scope**: Archiving applies to the *current employee + current period selection* (i.e. the same set of collections currently displayed in the collections detail view).
+- **Precondition**: Only **settled** periods can be archived (the period must be fully marked with `isSettled = true`).
+- **Effect**: Archived collections are **hidden by default** from operational views, but are **never deleted**.
+- **Access**:
+  - In the collections detail view: a toggle **"Voir les archivés"** reveals archived periods/rows.
+  - In the collections overview (reconciliations): filters allow including archived periods when needed.
+- **Reversibility**: Periods can be **unarchived** (same action toggles archive state).
+
 ### 2.4 Collection Overview (All Employees)
 | # | Expectation | Current State |
 |---|-------------|---------------|
