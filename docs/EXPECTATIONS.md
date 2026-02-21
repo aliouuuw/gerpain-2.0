@@ -1,7 +1,8 @@
 # Gerpain MVP — Functional Expectations
 
-> Based on the real business operations documented in `BUSINESS_OPERATIONS.md` and `BUSINESS_OPERATIONS_erp.md`.
+> Based on the real business operations documented in `BUSINESS_OPERATIONS.md`.
 > Adapted to the current codebase architecture (Hono backend, Next.js frontend, Drizzle ORM).
+> Last updated: 2026-02-21
 
 ---
 
@@ -89,7 +90,7 @@ These must work before any daily operation can happen.
 |---|-------------|---------------|
 | 12 | Create employees with role: `delivery`, `cashier`, `manager`, `baker` | ✅ Works |
 | 13 | Delivery agents selectable when creating delivery runs | ✅ Works — backend auto-creates runs for active delivery employees |
-| 14 | Cashiers selectable when recording POS sales / collections | ⚠️ Collections: ✅, POS sales: ❌ not wired yet |
+| 14 | Cashiers selectable when recording POS sales / collections | ⚠️ Collections: ✅, POS sales: deferred (clients don't use POS initially) |
 | 15 | For delivery guys and cashiers (treated as agents): assign **allowed products** + commission per product; set base salary | ✅ Works — employee_products table with per-product commissionPerUnit + baseSalary on employees |
 
 ---
@@ -122,11 +123,11 @@ Products sold at the physical shop, tracked **per product type** (e.g. Pain Kilo
 
 | # | Expectation | Current State |
 |---|-------------|---------------|
-| 25 | Record POS sales: cashier + location + date + products with quantities sold | ❌ POS page exists (`/sales/transactions`) with mock data — next P0 task |
-| 26 | Outbound and returned quantities per product type (same Matin/Soir split) | ❌ Not implemented — next P0 task |
-| 27 | Revenue calculated per product type and total in FCFA | ❌ Not implemented — next P0 task |
+| 25 | Record POS sales: cashier + location + date + products with quantities sold | ⏸️ Deferred — clients don't use POS initially |
+| 26 | Outbound and returned quantities per product type (same Matin/Soir split) | ⏸️ Deferred |
+| 27 | Revenue calculated per product type and total in FCFA | ⏸️ Deferred |
 
-> **Note:** The `deliveryRuns` model is generic — it handles both agent and POS deliveries. The employee's `role` field (delivery vs cashier) distinguishes the channel. No schema change needed.
+> **Note:** POS is deferred because clients focus on delivery operations first. The `deliveryRuns` model is generic and will handle POS when needed — the employee's `role` field (delivery vs cashier) distinguishes the channel. No schema change needed.
 
 ### 1.3 Data Integrity
 | # | Expectation | Current State |
@@ -150,7 +151,7 @@ Collections are viewed **per employee across a payroll period** — not just per
 |---|-------------|---------------|
 | 31 | When a delivery run is validated, a cash collection record is **auto-created** with `expectedAmount = sum of (sold × unitPrice)` for all items in the run | ✅ Works |
 | 32 | Collection linked to its source delivery run (`deliveryRunId` FK) | ✅ Works — `deliveryRunId` FK added |
-| 33 | For POS: collection created from POS delivery validation (same mechanism, cashier role) | ❌ Blocked by POS wiring (next P0 task) |
+| 33 | For POS: collection created from POS delivery validation (same mechanism, cashier role) | ⏸️ Deferred with POS |
 
 ### 2.2 Recording Payments
 | # | Expectation | Current State |
@@ -222,71 +223,42 @@ All schema gaps have been addressed. The schema is complete for the core loop.
 
 ## Build Plan — Priority Order
 
-### P0 — Core Loop (must work for app to be usable)
+### ✅ Done — Core Loop
+
+All completed and verified:
+- Deliveries page wired to real API (pre-populated daily form, save/validate)
+- Schema patches (deliveryRunId, isSettled, period on cashCollections; employee_products; baseSalary)
+- Auto-create cash collection on delivery validation
+- Cash collection recording (employee-centric period view with inline payment)
+- Cash collection overview (all-employees birds-eye view with drill-down)
+- Employee product assignments with per-product commission
+- Employee sortOrder + hireDate ordering
+- Data integrity fixes (draft location, zero-qty guard, variance recomputation)
+- Workflow fixes (deactivate confirm, unsaved changes warning, validate/reject UI, inline accordion, URL params)
+
+### Next — Performance & Usability
 
 ```
-Step 1: Wire deliveries page to real API
-        - Backend: auto-create draft runs for active delivery employees on GET
-        - Pre-populate runs with all bakery products at qty 0
-        - Add ◀/▶ date navigation buttons + calendar fallback
-        - Replace mockEmployees/mockProducts with useEmployees/useProducts hooks
-        - Wire save/validate to API
-        - Revenue calculations on real data (sold × unitPrice in FCFA)
-        → Testable: open deliveries page, see all agents listed, fill quantities, save
-
-Step 2: Schema patch — add deliveryRunId, isSettled, period to cashCollections
-        - Generate and apply Drizzle migration
-        → Testable: run tsc --noEmit, verify migration
-
-Step 3: Auto-create collection on delivery validation
-        - Backend: when delivery run status → "validated", insert cashCollection
-          with expectedAmount = sum of (sold × unitPrice) for all items
-        → Testable: validate a delivery, check collection appears with correct amount
-
-Step 4: Cash collection recording (employee-centric period view)
-        - Employee selector (with role badge: Livreur / Caissier)
-        - Period selector (flexible: week, biweekly, month, custom range)
-        - Collections table: one row per day, with inline delivery detail
-        - Payment recording: cash + card + mobile breakdown
-        - Summary cards: total expected, collected, balance, collection rate %
-        - "Voir tournée complète →" link per collection row
-        - Validate/reject workflow
-        → Testable: select an agent, see their collections, record a payment
-
-Step 5: Cash collection overview (all employees)
-        - One row per employee with period totals
-        - Click → drills into employee detail view (Step 4)
-        - Mark period as settled for payroll
-        → Testable: see all employees with balances, click through
-
-Step 6: POS delivery flow
-        - Wire /sales/transactions to real products API
-        - Create delivery run on checkout (employee role=cashier)
-        - Auto-validate POS sales (immediate)
-        → Testable: record POS sale, validate, see collection
+1. Collections backend — batch queries and SQL filters (eliminate N+1)
+2. Deliveries + employees backend — batch queries (eliminate N+1)
+3. Dashboard with real KPIs (today's revenue, collection status, outstanding balances)
+4. Delivery and collection history with date/employee/location filters
+5. Delivery page UX polish (Aujourd'hui button, auto-pick period, reset button)
+6. Employee page UX polish (product count badge, select all, wider dialog)
+7. Cross-cutting polish (error boundary, sidebar active state, mobile padding)
 ```
 
-### P1 — Usability (needed for daily use)
+### Deferred
 
 ```
-Step 7: Dashboard with real KPIs
-        - Today's revenue (from validated deliveries, in FCFA)
-        - Pending collections count & amount
-        - Outstanding balances summary
-
-Step 8: History & filters
-        - Date range, employee, location filters on delivery and collection lists
-```
-
-### P2 — Polish (not blocking daily operations)
-
-```
-- Separation of duties (OUT_MANAGER / IN_MANAGER roles for outbound vs returns)
-- Commission calculation: for each employee, sum(sold(product) × commissionRate(employee, product)) for assigned products
-- Payroll integration: totalRemainder adjusts unadjustedCommission → netSalary
-- Recalculate remainders on delivery correction (resync)
-- CSV export of delivery and collection data
-- Stock auto-update from deliveries (outbound decrements, returns increment)
+- POS delivery flow (Vente Boutique) — clients don't use POS initially
+- Separation of duties (OUT_MANAGER / IN_MANAGER)
+- Commission calculation and payroll integration
+- Recalculate remainders on delivery correction
+- CSV export
+- Stock auto-update from deliveries
+- Database indexes for scale (partially done — 4 indexes applied)
+- Audit trail writes
 ```
 
 ---
@@ -295,11 +267,12 @@ Step 8: History & filters
 
 The MVP is **functional** when an admin can:
 
-1. ✅ Create a bakery, locations, products (Pain Kilo 1500 FCFA, Pain Moyen 250 FCFA, Croissant 400 FCFA…), and employees (livreurs + caissiers) with assigned products, commissions, and salary
+1. ✅ Create a bakery, locations, products, and employees with assigned products, commissions, and salary
 2. ✅ Open deliveries page → see all agents pre-populated → fill in quantities → save → validate
 3. ✅ Validate the delivery → collection auto-created with correct expected amount
 4. ✅ Open collections → select employee → see their period collections → record payment → variance shown
 5. ✅ See all employees' balances in the overview → click through to detail
-6. ❌ Dashboard with real KPIs (P1 — next after POS wiring)
+6. ❌ Dashboard with real KPIs (next priority)
+7. ❌ History filters on deliveries and collections (next priority)
 
-**Remaining:** POS delivery flow (#25-27), Dashboard (#50-52), History filters (#53-54), P2 polish tasks.
+**Core loop is complete.** Remaining work focuses on performance (N+1 query cleanup), visibility (dashboard + filters), and UX polish.

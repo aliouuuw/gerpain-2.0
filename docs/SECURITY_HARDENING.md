@@ -103,7 +103,7 @@ gerpain.com {
 |----------|------|--------|-------|
 | 🔴 High | Automated database backups | ~2h | `pg_dump` cron + upload to S3/R2 |
 | 🔴 High | Log aggregation — fail2ban + auditd | ~2h | Block repeated SSH/auth failures |
-| 🟡 Medium | Containerize with Docker for process isolation | ~4h | See `rebuild_gerpain/` for Docker work |
+| 🟡 Medium | Containerize with Docker for process isolation | ~4h | Docker Compose setup |
 | 🟡 Medium | Dependency scanning — Snyk or Dependabot | ~30min | Add `.github/dependabot.yml` |
 | 🟢 Low | Migrate to HashiCorp Vault for secrets | ~1d | Overkill until scale demands it |
 
