@@ -47,8 +47,7 @@ export async function getDashboardSummary(
   if (params.date) searchParams.set("date", params.date);
 
   const queryString = searchParams.toString();
-  const response = await apiClient<{ data: DashboardSummary }>(
+  return apiClient<DashboardSummary>(
     `/api/v1/dashboard/summary${queryString ? `?${queryString}` : ""}`
   );
-  return response.data;
 }
