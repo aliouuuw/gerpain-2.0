@@ -13,6 +13,7 @@ import {
   getEmployeeProducts,
   updateEmployeeProducts,
   reorderEmployees,
+  getEmployeeProductCounts,
   type EmployeesParams,
   type CreateEmployeeRequest,
   type UpdateEmployeeRequest,
@@ -27,6 +28,7 @@ export const employeeKeys = {
   performance: (id: string, params: PerformanceParams) =>
     [...employeeKeys.all, "performance", id, params] as const,
   products: (id: string) => [...employeeKeys.all, "products", id] as const,
+  productCounts: () => [...employeeKeys.all, "productCounts"] as const,
 };
 
 export function useEmployees(params: EmployeesParams = {}) {
@@ -194,5 +196,13 @@ export function useReorderEmployees() {
       queryClient.invalidateQueries({ queryKey: employeeKeys.all });
       queryClient.invalidateQueries({ queryKey: ["deliveries"] });
     },
+  });
+}
+
+export function useEmployeeProductCounts() {
+  return useQuery({
+    queryKey: employeeKeys.productCounts(),
+    queryFn: () => getEmployeeProductCounts(),
+    staleTime: 5 * 60 * 1000,
   });
 }

@@ -168,3 +168,7 @@ export async function reorderEmployees(
     body: { order },
   });
 }
+
+export async function getEmployeeProductCounts(): Promise<Record<string, number>> {
+  return apiClient<Record<string, number>>("/api/v1/employees/product-counts");
+}

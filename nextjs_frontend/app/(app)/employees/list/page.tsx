@@ -10,10 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee, useEmployeeProducts, useUpdateEmployeeProducts } from "@/lib/hooks/useEmployees";
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee, useEmployeeProducts, useUpdateEmployeeProducts, useEmployeeProductCounts } from "@/lib/hooks/useEmployees";
 import { useLocations } from "@/lib/hooks/useLocations";
 import { useProducts } from "@/lib/hooks/useProducts";
-import { getEmployeeProducts } from "@/lib/api/employees";
+import { useCategories } from "@/lib/hooks/useCategories";
 import type { Employee, EmployeeRole, EmployeeStatus } from "@/lib/api/employees";
 
 const roleLabels: Record<EmployeeRole, string> = {
@@ -60,7 +60,6 @@ export default function EmployeesListPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
-  const [employeeProductCounts, setEmployeeProductCounts] = useState<Record<string, number>>({});
   const [initialProductAssignments, setInitialProductAssignments] = useState<
     { productId: string; commissionPerUnit: number; isActive: boolean }[]
   >([]);
@@ -80,19 +79,21 @@ export default function EmployeesListPage() {
   });
   const { data: locations = [], isLoading: isLoadingLocations } = useLocations();
   const { data: products = [], isLoading: isLoadingProducts } = useProducts();
+  const { data: categories = [] } = useCategories();
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
   const deactivateEmployee = useDeactivateEmployee();
   const reactivateEmployee = useReactivateEmployee();
-  const { data: employeeProducts = [], isLoading: isLoadingEmployeeProducts } = useEmployeeProducts(editingEmployee?.id || "");
+  const { data: employeeProductsData = [], isLoading: isLoadingEmployeeProducts } = useEmployeeProducts(editingEmployee?.id || "");
   const updateEmployeeProducts = useUpdateEmployeeProducts();
+  const { data: employeeProductCounts = {} } = useEmployeeProductCounts();
 
   // Load employee products into form when editing
   useEffect(() => {
     if (!editingEmployee) return;
     if (isLoadingEmployeeProducts) return;
 
-    const normalized = employeeProducts.map((ep) => ({
+    const normalized = employeeProductsData.map((ep) => ({
       productId: ep.productId,
       commissionPerUnit: ep.commissionPerUnit ?? 0,
       isActive: ep.isActive ?? true,
@@ -103,41 +104,7 @@ export default function EmployeesListPage() {
       ...prev,
       products: normalized,
     }));
-  }, [editingEmployee, employeeProducts, isLoadingEmployeeProducts]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadCounts() {
-      if (employees.length === 0) {
-        if (!cancelled) setEmployeeProductCounts({});
-        return;
-      }
-
-      const targetEmployees = employees.filter((e) => e.role === "delivery" || e.role === "cashier");
-      const results = await Promise.all(
-        targetEmployees.map(async (e) => {
-          try {
-            const products = await getEmployeeProducts(e.id);
-            const activeCount = products.filter((p) => p.isActive !== false).length;
-            return [e.id, activeCount] as const;
-          } catch {
-            return [e.id, 0] as const;
-          }
-        })
-      );
-
-      if (cancelled) return;
-      const next: Record<string, number> = {};
-      for (const [id, count] of results) next[id] = count;
-      setEmployeeProductCounts(next);
-    }
-
-    loadCounts();
-    return () => {
-      cancelled = true;
-    };
-  }, [employees]);
+  }, [editingEmployee, employeeProductsData, isLoadingEmployeeProducts]);
 
   const normalizedInitialProducts = useMemo(() => {
     return [...initialProductAssignments]
@@ -148,6 +115,41 @@ export default function EmployeesListPage() {
       }))
       .sort((a, b) => a.productId.localeCompare(b.productId));
   }, [initialProductAssignments]);
+
+  // Group products by category for better UX
+  const productsByCategory = useMemo(() => {
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const grouped: { categoryId: string | null; categoryName: string; products: typeof products }[] = [];
+    
+    // Group products by category
+    const categoryGroups = new Map<string | null, typeof products>();
+    for (const product of products) {
+      const catId = product.categoryId || null;
+      if (!categoryGroups.has(catId)) {
+        categoryGroups.set(catId, []);
+      }
+      categoryGroups.get(catId)!.push(product);
+    }
+    
+    // Sort categories alphabetically, uncategorized last
+    const sortedCategories = [...categoryGroups.entries()].sort((a, b) => {
+      if (a[0] === null) return 1;
+      if (b[0] === null) return -1;
+      const nameA = categoryMap.get(a[0]) || "";
+      const nameB = categoryMap.get(b[0]) || "";
+      return nameA.localeCompare(nameB);
+    });
+    
+    for (const [catId, prods] of sortedCategories) {
+      grouped.push({
+        categoryId: catId,
+        categoryName: catId ? (categoryMap.get(catId) || "Sans catégorie") : "Sans catégorie",
+        products: prods.sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    }
+    
+    return grouped;
+  }, [products, categories]);
 
   const normalizedCurrentProducts = useMemo(() => {
     return [...formData.products]
@@ -697,61 +699,111 @@ export default function EmployeesListPage() {
                   </Button>
                 )}
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
                 {isLoadingProducts ? (
                   <p className="text-sm text-[var(--muted-foreground)]">Chargement des produits...</p>
                 ) : products.length === 0 ? (
                   <p className="text-sm text-[var(--muted-foreground)]">Aucun produit disponible</p>
                 ) : (
-                  products.map((product) => {
-                    const assignment = formData.products.find((p) => p.productId === product.id);
-                    const isAssigned = !!assignment;
+                  productsByCategory.map((group) => {
+                    const groupProductIds = group.products.map((p) => p.id);
+                    const selectedInGroup = formData.products.filter((p) => groupProductIds.includes(p.productId)).length;
+                    const allInGroupSelected = selectedInGroup === group.products.length;
+                    
                     return (
-                      <div key={product.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--secondary)]">
-                        <input
-                          type="checkbox"
-                          checked={isAssigned}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData((prev) => ({
-                                ...prev,
-                                products: [
-                                  ...prev.products,
-                                  { productId: product.id, commissionPerUnit: 0, isActive: true },
-                                ],
-                              }));
-                            } else {
-                              setFormData((prev) => ({
-                                ...prev,
-                                products: prev.products.filter((p) => p.productId !== product.id),
-                              }));
-                            }
-                          }}
-                          className="size-4 rounded border-[var(--border)]"
-                        />
-                        <span className="flex-1 text-sm">{product.name}</span>
-                        {isAssigned && (
+                      <div key={group.categoryId || "uncategorized"} className="border border-[var(--border)] rounded-lg overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 bg-[var(--secondary)]">
+                          <span className="text-sm font-medium">{group.categoryName}</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-[var(--muted-foreground)]">Commission:</span>
-                            <input
-                              type="number"
-                              value={assignment.commissionPerUnit}
-                              onChange={(e) => {
-                                const value = Number(e.target.value);
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  products: prev.products.map((p) =>
-                                    p.productId === product.id ? { ...p, commissionPerUnit: value } : p
-                                  ),
-                                }));
+                            <span className="text-xs text-[var(--muted-foreground)]">
+                              {selectedInGroup}/{group.products.length}
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                if (allInGroupSelected) {
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    products: prev.products.filter((p) => !groupProductIds.includes(p.productId)),
+                                  }));
+                                } else {
+                                  const existingIds = new Set(formData.products.map((p) => p.productId));
+                                  const toAdd = groupProductIds
+                                    .filter((id) => !existingIds.has(id))
+                                    .map((id) => ({ productId: id, commissionPerUnit: 0, isActive: true }));
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    products: [...prev.products, ...toAdd],
+                                  }));
+                                }
                               }}
-                              className="w-20 rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm"
-                              min={0}
-                              step={10}
-                              placeholder="FCFA"
-                            />
+                            >
+                              {allInGroupSelected ? "Aucun" : "Tous"}
+                            </Button>
                           </div>
-                        )}
+                        </div>
+                        <div className="divide-y divide-[var(--border)]">
+                          {group.products.map((product) => {
+                            const assignment = formData.products.find((p) => p.productId === product.id);
+                            const isAssigned = !!assignment;
+                            return (
+                              <div key={product.id} className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--secondary)]/50">
+                                <input
+                                  type="checkbox"
+                                  checked={isAssigned}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        products: [
+                                          ...prev.products,
+                                          { productId: product.id, commissionPerUnit: 0, isActive: true },
+                                        ],
+                                      }));
+                                    } else {
+                                      setFormData((prev) => ({
+                                        ...prev,
+                                        products: prev.products.filter((p) => p.productId !== product.id),
+                                      }));
+                                    }
+                                  }}
+                                  className="size-4 rounded border-[var(--border)]"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <span className="text-sm truncate block">{product.name}</span>
+                                  <span className="text-xs text-[var(--muted-foreground)]">
+                                    {product.unitPrice.toLocaleString("fr-FR")} FCFA
+                                  </span>
+                                </div>
+                                {isAssigned && (
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <input
+                                      type="number"
+                                      value={assignment.commissionPerUnit}
+                                      onChange={(e) => {
+                                        const value = Number(e.target.value);
+                                        setFormData((prev) => ({
+                                          ...prev,
+                                          products: prev.products.map((p) =>
+                                            p.productId === product.id ? { ...p, commissionPerUnit: value } : p
+                                          ),
+                                        }));
+                                      }}
+                                      className="w-16 rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm text-right"
+                                      min={0}
+                                      step={10}
+                                      placeholder="0"
+                                    />
+                                    <span className="text-xs text-[var(--muted-foreground)]">FCFA</span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     );
                   })

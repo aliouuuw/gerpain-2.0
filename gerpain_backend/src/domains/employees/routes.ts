@@ -294,6 +294,58 @@ employeesRoutes.post("/:id/reactivate", async (c) => {
   return c.json({ success: true, data: updated });
 });
 
+// Get batch product counts for multiple employees
+employeesRoutes.get("/product-counts", async (c) => {
+  const organizationId = c.req.header("X-Organization-ID");
+  const bakeryId = c.req.header("X-Bakery-ID");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  // Get all delivery/cashier employees for this bakery
+  const conditions = [
+    eq(employees.organizationId, organizationId),
+    sql`${employees.role} IN ('delivery', 'cashier')`,
+  ];
+  if (bakeryId) {
+    conditions.push(eq(employees.bakeryId, bakeryId));
+  }
+
+  const targetEmployees = await db
+    .select({ id: employees.id })
+    .from(employees)
+    .where(and(...conditions));
+
+  if (targetEmployees.length === 0) {
+    return c.json({ success: true, data: {} });
+  }
+
+  const employeeIds = targetEmployees.map(e => e.id);
+
+  // Batch fetch all product assignments and count active ones per employee
+  const allAssignments = await db
+    .select({
+      employeeId: employeeProducts.employeeId,
+      isActive: employeeProducts.isActive,
+    })
+    .from(employeeProducts)
+    .where(inArray(employeeProducts.employeeId, employeeIds));
+
+  // Group and count active assignments per employee
+  const counts: Record<string, number> = {};
+  for (const emp of targetEmployees) {
+    counts[emp.id] = 0;
+  }
+  for (const assignment of allAssignments) {
+    if (assignment.isActive !== false) {
+      counts[assignment.employeeId] = (counts[assignment.employeeId] || 0) + 1;
+    }
+  }
+
+  return c.json({ success: true, data: counts });
+});
+
 // Get employee product assignments
 employeesRoutes.get("/:id/products", async (c) => {
   const id = c.req.param("id");
