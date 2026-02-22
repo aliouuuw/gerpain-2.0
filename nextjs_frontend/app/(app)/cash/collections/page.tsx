@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select-radix";
 import { useToast } from "@/components/ui/toast";
-import { useCashCollections, useUpdateCashCollection, useSubmitCashCollection, useValidateCashCollection, useRejectCashCollection } from "@/lib/hooks/useCollections";
+import { useCashCollections, useUpdateCashCollection, useSubmitCashCollection, useValidateCashCollection, useRejectCashCollection, useReopenCashCollection } from "@/lib/hooks/useCollections";
 import { useEmployees } from "@/lib/hooks/useEmployees";
 import type { CashCollection } from "@/lib/api/collections";
 
@@ -114,6 +114,7 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
   const submitCollection = useSubmitCashCollection();
   const validateCollection = useValidateCashCollection();
   const rejectCollection = useRejectCashCollection();
+  const reopenCollection = useReopenCashCollection();
   
   const [cashAmount, setCashAmount] = useState<number>(collection.cashAmount || 0);
   const [cardAmount, setCardAmount] = useState<number>(collection.cardAmount || 0);
@@ -183,6 +184,15 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
         id: collection.id,
         reason: rejectReason.trim(),
       });
+      onSave();
+    } catch {
+      // handled by hook toast
+    }
+  };
+
+  const handleReopen = async () => {
+    try {
+      await reopenCollection.mutateAsync(collection.id);
       onSave();
     } catch {
       // handled by hook toast
@@ -294,6 +304,17 @@ function PaymentForm({ collection, onSave, onCancel }: PaymentFormProps) {
               disabled={rejectCollection.isPending || validateCollection.isPending}
             >
               Valider
+            </Button>
+          </>
+        ) : isRejected ? (
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleReopen}
+              disabled={reopenCollection.isPending}
+            >
+              Rouvrir pour modification
             </Button>
           </>
         ) : (

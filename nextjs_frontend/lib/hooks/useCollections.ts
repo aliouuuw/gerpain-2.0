@@ -12,6 +12,7 @@ import {
   submitCashCollection,
   validateCashCollection,
   rejectCashCollection,
+  reopenCashCollection,
   settleCollectionsPeriod,
   type CollectionsParams,
   type CreateCashCollectionRequest,
@@ -159,6 +160,30 @@ export function useRejectCashCollection() {
         variant: "error",
         title: "Erreur",
         description: "Impossible de rejeter la collecte.",
+      });
+    },
+  });
+}
+
+export function useReopenCashCollection() {
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => reopenCashCollection(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: collectionKeys.all });
+      notify({
+        variant: "success",
+        title: "Collecte rouverte",
+        description: "La collecte peut être modifiée à nouveau.",
+      });
+    },
+    onError: () => {
+      notify({
+        variant: "error",
+        title: "Erreur",
+        description: "Impossible de rouvrir la collecte.",
       });
     },
   });

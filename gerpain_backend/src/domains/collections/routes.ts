@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { db } from "../../config/database.js";
 import { 
   cashCollections, 
@@ -10,8 +10,24 @@ import { eq, and, gte, lte, sql, inArray } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { cache, CacheNamespace, CacheTTL } from "../../config/redis.js";
+import { requireAuthOrApiKey } from "../../middleware/auth.js";
 
 const collectionsRoutes = new Hono();
+
+function invalidState(c: Context, currentStatus: string | null) {
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: "INVALID_STATE",
+        message: currentStatus
+          ? `Invalid state transition from '${currentStatus}'`
+          : "Collection not found",
+      },
+    },
+    currentStatus ? 409 : 404
+  );
+}
 
 // Get overview - per-employee aggregates for a period
 collectionsRoutes.get("/overview", async (c) => {
@@ -238,6 +254,7 @@ collectionsRoutes.get("/:id", async (c) => {
 // Create cash collection
 collectionsRoutes.post(
   "/",
+  requireAuthOrApiKey,
   zValidator("json", insertCashCollectionSchema),
   async (c) => {
     const body = c.req.valid("json");
@@ -248,9 +265,48 @@ collectionsRoutes.post(
   }
 );
 
+collectionsRoutes.post("/:id/reopen", requireAuthOrApiKey, async (c) => {
+  const id = c.req.param("id");
+  const organizationId = c.req.header("X-Organization-ID");
+
+  if (!organizationId) {
+    return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
+  }
+
+  const [updated] = await db
+    .update(cashCollections)
+    .set({
+      status: "pending",
+      submittedAt: null,
+      rejectionReason: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(cashCollections.id, id),
+        eq(cashCollections.organizationId, organizationId),
+        eq(cashCollections.status, "rejected")
+      )
+    )
+    .returning();
+
+  if (!updated) {
+    const [existing] = await db
+      .select({ status: cashCollections.status })
+      .from(cashCollections)
+      .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
+    return invalidState(c, existing?.status ?? null);
+  }
+
+  await cache.invalidate(CacheNamespace.COLLECTIONS_OVERVIEW);
+
+  return c.json({ success: true, data: updated });
+});
+
 // Update cash collection
 collectionsRoutes.patch(
   "/:id",
+  requireAuthOrApiKey,
   zValidator("json", insertCashCollectionSchema.partial()),
   async (c) => {
     const id = c.req.param("id");
@@ -265,10 +321,14 @@ collectionsRoutes.patch(
     const [current] = await db
       .select()
       .from(cashCollections)
-      .where(eq(cashCollections.id, id));
+      .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
     
     if (!current) {
       return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
+    }
+
+    if (current.status !== "pending" && current.status !== "rejected") {
+      return invalidState(c, current.status);
     }
 
     // Recalculate variance if any payment field is being updated
@@ -286,11 +346,21 @@ collectionsRoutes.patch(
     const [updated] = await db
       .update(cashCollections)
       .set(updateData)
-      .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)))
+      .where(
+        and(
+          eq(cashCollections.id, id),
+          eq(cashCollections.organizationId, organizationId),
+          inArray(cashCollections.status, ["pending", "rejected"])
+        )
+      )
       .returning();
 
     if (!updated) {
-      return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
+      const [existing] = await db
+        .select({ status: cashCollections.status })
+        .from(cashCollections)
+        .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
+      return invalidState(c, existing?.status ?? null);
     }
 
     // Invalidate cache for this organization
@@ -301,7 +371,7 @@ collectionsRoutes.patch(
 );
 
 // Submit collection for validation
-collectionsRoutes.post("/:id/submit", async (c) => {
+collectionsRoutes.post("/:id/submit", requireAuthOrApiKey, async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
 
@@ -314,13 +384,24 @@ collectionsRoutes.post("/:id/submit", async (c) => {
     .set({ 
       status: "submitted", 
       submittedAt: new Date(),
+      rejectionReason: null,
       updatedAt: new Date() 
     })
-    .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)))
+    .where(
+      and(
+        eq(cashCollections.id, id),
+        eq(cashCollections.organizationId, organizationId),
+        inArray(cashCollections.status, ["pending", "rejected"])
+      )
+    )
     .returning();
 
   if (!updated) {
-    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
+    const [existing] = await db
+      .select({ status: cashCollections.status })
+      .from(cashCollections)
+      .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
+    return invalidState(c, existing?.status ?? null);
   }
 
   // Invalidate cache
@@ -330,7 +411,7 @@ collectionsRoutes.post("/:id/submit", async (c) => {
 });
 
 // Validate collection
-collectionsRoutes.post("/:id/validate", async (c) => {
+collectionsRoutes.post("/:id/validate", requireAuthOrApiKey, async (c) => {
   const id = c.req.param("id");
   const organizationId = c.req.header("X-Organization-ID");
   // Note: validatedBy would come from auth middleware in production
@@ -339,18 +420,32 @@ collectionsRoutes.post("/:id/validate", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
+  const user = ((c as unknown as { get: (key: string) => unknown }).get("user") as { id: string } | null) ?? null;
+
   const [updated] = await db
     .update(cashCollections)
     .set({ 
       status: "validated", 
       validatedAt: new Date(),
+      validatedBy: user?.id ?? null,
+      rejectionReason: null,
       updatedAt: new Date() 
     })
-    .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)))
+    .where(
+      and(
+        eq(cashCollections.id, id),
+        eq(cashCollections.organizationId, organizationId),
+        eq(cashCollections.status, "submitted")
+      )
+    )
     .returning();
 
   if (!updated) {
-    return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
+    const [existing] = await db
+      .select({ status: cashCollections.status })
+      .from(cashCollections)
+      .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
+    return invalidState(c, existing?.status ?? null);
   }
 
   // Invalidate cache
@@ -362,6 +457,7 @@ collectionsRoutes.post("/:id/validate", async (c) => {
 // Reject collection
 collectionsRoutes.post(
   "/:id/reject",
+  requireAuthOrApiKey,
   zValidator("json", z.object({ reason: z.string().min(1) })),
   async (c) => {
     const id = c.req.param("id");
@@ -377,13 +473,25 @@ collectionsRoutes.post(
       .set({ 
         status: "rejected", 
         rejectionReason: reason,
+        validatedAt: null,
+        validatedBy: null,
         updatedAt: new Date() 
       })
-      .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)))
+      .where(
+        and(
+          eq(cashCollections.id, id),
+          eq(cashCollections.organizationId, organizationId),
+          eq(cashCollections.status, "submitted")
+        )
+      )
       .returning();
 
     if (!updated) {
-      return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
+      const [existing] = await db
+        .select({ status: cashCollections.status })
+        .from(cashCollections)
+        .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
+      return invalidState(c, existing?.status ?? null);
     }
 
     // Invalidate cache
@@ -455,7 +563,7 @@ collectionsRoutes.get("/aggregates", async (c) => {
 });
 
 // Settle all collections for a period
-collectionsRoutes.post("/settle", async (c) => {
+collectionsRoutes.post("/settle", requireAuthOrApiKey, async (c) => {
   const organizationId = c.req.header("X-Organization-ID");
   const employeeId = c.req.query("employeeId");
   const startDate = c.req.query("startDate");
@@ -468,7 +576,8 @@ collectionsRoutes.post("/settle", async (c) => {
   // Build WHERE conditions for collections to settle
   const conditions = [
     eq(cashCollections.organizationId, organizationId),
-    eq(cashCollections.isSettled, false)
+    eq(cashCollections.isSettled, false),
+    eq(cashCollections.status, "validated")
   ];
   if (employeeId) {
     conditions.push(eq(cashCollections.employeeId, employeeId));

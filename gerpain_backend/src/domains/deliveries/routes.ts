@@ -434,65 +434,87 @@ deliveriesRoutes.post("/runs/:id/validate", async (c) => {
     return sum + (sold * item.unitPrice);
   }, 0);
 
-  // Update run status to validated
-  const [updated] = await db
-    .update(deliveryRuns)
-    .set({ 
-      status: "validated", 
-      validatedAt: new Date(),
-      updatedAt: new Date() 
-    })
-    .where(and(eq(deliveryRuns.id, id), eq(deliveryRuns.organizationId, organizationId)))
-    .returning();
-
-  // Check if cash collection already exists for this delivery run
-  const [existingCollection] = await db
-    .select()
-    .from(cashCollections)
-    .where(eq(cashCollections.deliveryRunId, id));
-
-  let collection;
-  if (existingCollection) {
-    // Update existing collection's expectedAmount
-    [collection] = await db
-      .update(cashCollections)
+  const result = await db.transaction(async (tx) => {
+    // Update run status to validated
+    const [updated] = await tx
+      .update(deliveryRuns)
       .set({
-        expectedAmount,
+        status: "validated",
+        validatedAt: new Date(),
         updatedAt: new Date(),
       })
-      .where(eq(cashCollections.id, existingCollection.id))
+      .where(and(eq(deliveryRuns.id, id), eq(deliveryRuns.organizationId, organizationId)))
       .returning();
-  } else {
-    // Create new cash collection
-    [collection] = await db
-      .insert(cashCollections)
-      .values({
-        organizationId,
-        bakeryId: bakeryId || run.bakeryId,
-        employeeId: run.employeeId,
-        locationId: run.locationId,
-        deliveryRunId: id,
-        date: run.date,
-        expectedAmount,
-        actualAmount: 0,
-        cashAmount: 0,
-        cardAmount: 0,
-        mobileAmount: 0,
-        status: "pending",
-        isSettled: false,
-      })
-      .returning();
-  }
 
-  return c.json({ 
-    success: true, 
-    data: {
-      ...updated,
+    // Check if cash collection already exists for this delivery run
+    const [existingCollection] = await tx
+      .select()
+      .from(cashCollections)
+      .where(
+        and(
+          eq(cashCollections.organizationId, organizationId),
+          eq(cashCollections.deliveryRunId, id)
+        )
+      );
+
+    let collection;
+    if (existingCollection) {
+      if (existingCollection.status !== "pending") {
+        return {
+          updated,
+          collection: {
+            id: existingCollection.id,
+            expectedAmount: existingCollection.expectedAmount,
+          },
+        };
+      }
+
+      // Update expectedAmount only while pending
+      [collection] = await tx
+        .update(cashCollections)
+        .set({
+          expectedAmount,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(cashCollections.id, existingCollection.id), eq(cashCollections.status, "pending")))
+        .returning();
+    } else {
+      // Create new cash collection
+      [collection] = await tx
+        .insert(cashCollections)
+        .values({
+          organizationId,
+          bakeryId: bakeryId || run.bakeryId,
+          employeeId: run.employeeId,
+          locationId: run.locationId,
+          deliveryRunId: id,
+          date: run.date,
+          expectedAmount,
+          actualAmount: 0,
+          cashAmount: 0,
+          cardAmount: 0,
+          mobileAmount: 0,
+          status: "pending",
+          isSettled: false,
+        })
+        .returning();
+    }
+
+    return {
+      updated,
       collection: {
         id: collection.id,
         expectedAmount: collection.expectedAmount,
-      }
-    }
+      },
+    };
+  });
+
+  return c.json({
+    success: true,
+    data: {
+      ...result.updated,
+      collection: result.collection,
+    },
   });
 });
 

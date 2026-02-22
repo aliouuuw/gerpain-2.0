@@ -146,6 +146,12 @@ export async function rejectCashCollection(
   });
 }
 
+export async function reopenCashCollection(id: string): Promise<CashCollection> {
+  return apiClient<CashCollection>(`/api/v1/cash-collections/${id}/reopen`, {
+    method: "POST",
+  });
+}
+
 export async function getCollectionAggregates(
   params: Omit<CollectionsParams, "status" | "locationId" | "isSettled"> = {}
 ): Promise<CollectionAggregates> {
