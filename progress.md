@@ -819,6 +819,60 @@ Comprehensive audit of all three core loop modules (Employees, Deliveries, Cash 
 - DC-6: Unsaved delivery changes silently discarded when switching employee rows
 
 **🟡 Workflow Friction (12 issues)**
+
+---
+
+## Cash Collections State Machine Enforcement — Complete ✅
+
+**Date:** 2026-02-22
+
+### Problem Statement
+Cash collections had no backend state transition guards. Any status could transition to any other status, and critical fields like `validatedBy`, `rejectionReason`, and `submittedAt` were not consistently managed. This created accounting inconsistencies and allowed invalid workflows.
+
+### Implementation
+
+**Backend (gerpain_backend/src/domains/collections/routes.ts):**
+- **Strict state machine enforcement:**
+  - `PATCH /:id` (edit): only allowed when `status = pending | rejected`
+  - `POST /:id/submit`: only from `pending | rejected` → `submitted`
+  - `POST /:id/validate`: only from `submitted` → `validated`
+  - `POST /:id/reject`: only from `submitted` → `rejected`
+  - `POST /:id/reopen`: new endpoint for `rejected` → `pending`
+- **Consistent field management:**
+  - Submit: clears `rejectionReason`, sets `submittedAt`
+  - Validate: sets `validatedAt`, `validatedBy` (from auth context), clears `rejectionReason`
+  - Reject: sets `rejectionReason`, clears `validatedAt`/`validatedBy`
+  - Reopen: clears `rejectionReason`, `submittedAt`, resets to `pending`
+- **Settlement restricted:** only settles `status=validated AND isSettled=false`
+- **Auth required:** added `requireAuthOrApiKey` middleware to mutation routes
+- **Returns 409 INVALID_STATE** when transition is not allowed
+
+**Backend (gerpain_backend/src/domains/deliveries/routes.ts):**
+- **Atomic validation:** wrapped delivery-run validation + cash-collection create/update in `db.transaction()`
+- **Safe expectedAmount updates:** only updates `expectedAmount` when collection `status=pending`
+- **Proper scoping:** collection lookup now scoped by `organizationId` + `deliveryRunId`
+
+**Frontend (nextjs_frontend):**
+- Added `reopenCashCollection(id)` API function
+- Added `useReopenCashCollection()` mutation hook
+- Added "Rouvrir pour modification" button for rejected collections
+- Button triggers `rejected → pending` transition, allowing edits again
+
+### Verification
+- ✅ Backend typecheck: `bunx tsc --noEmit` (gerpain_backend)
+- ✅ Frontend typecheck: `bunx tsc --noEmit` (nextjs_frontend)
+- ✅ Git status clean
+
+### Commit
+```
+e51c9a6 - fix(collections): enforce cash collection state machine and add reopen workflow
+```
+
+**Result:** Success — Cash collections now have proper state machine enforcement, preventing invalid transitions and ensuring data consistency.
+
+---
+
+**🟡 Workflow Friction (12 issues)**
 - WF-1: No employee sort order in deliveries (random UUID order)
 - WF-2: Employee list not sorted by hireDate
 - WF-3: No "Aujourd'hui" shortcut on deliveries
