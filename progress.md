@@ -872,6 +872,50 @@ e51c9a6 - fix(collections): enforce cash collection state machine and add reopen
 
 ---
 
+## Backend Performance Optimizations — Complete ✅
+
+**Date:** 2026-02-22
+
+### Problem Statement
+Multiple backend routes had performance issues: N+1 queries (already mostly fixed), in-memory filtering instead of SQL WHERE clauses, missing caching on hot endpoints, and in-memory aggregation instead of SQL GROUP BY.
+
+### Implementation
+
+**Collections routes (`gerpain_backend/src/domains/collections/routes.ts`):**
+- **GET /overview:** Rewrote to use single SQL aggregate query with `LEFT JOIN + GROUP BY` instead of loading all collections and grouping in memory
+- **GET /aggregates:** Rewrote to use SQL `SUM/COUNT` instead of fetching all rows and reducing in JS
+- **GET /:id:** Added join to fetch employee in same query (no extra query)
+- **GET / (list):** Added caching with SHORT TTL (30s) using versioned cache pattern
+
+**Deliveries routes (`gerpain_backend/src/domains/deliveries/routes.ts`):**
+- **GET /runs:** Pushed `date`, `employeeId`, `locationId` filters into SQL WHERE clause instead of filtering in JS after fetching all runs
+- **GET /runs/:id:** Already had batch product lookups (no changes needed)
+
+**Employees routes (`gerpain_backend/src/domains/employees/routes.ts`):**
+- **GET /:** Pushed `role` and `status` filters into SQL WHERE clause instead of filtering in JS
+- Already had batch location lookups (no changes needed)
+
+### Performance Impact
+- **Reduced data transfer:** Filters applied at DB level, not after fetching full result sets
+- **Faster aggregations:** SQL GROUP BY/SUM/COUNT instead of in-memory reduce operations
+- **Better cache hit rates:** Collections list endpoint now cached with versioned keys
+- **Fewer queries:** Joins eliminate extra round-trips for single-record fetches
+
+### Verification
+- ✅ Backend typecheck: `bunx tsc --noEmit` (gerpain_backend)
+- ✅ All existing batch query optimizations preserved
+- ✅ Response shapes unchanged (backward compatible)
+
+### Commits
+```
+6c77ec6 - perf(collections): aggregate overview and aggregates in SQL
+e609a68 - perf(backend): push filters to SQL and add caching to collections list
+```
+
+**Result:** Success — All UX-3 Performance backlog tasks completed. Backend routes now use SQL-first approach for filtering and aggregation.
+
+---
+
 **🟡 Workflow Friction (12 issues)**
 - WF-1: No employee sort order in deliveries (random UUID order)
 - WF-2: Employee list not sorted by hireDate
