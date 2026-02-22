@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDeactivateEmployee, useReactivateEmployee, useEmployeeProducts, useUpdateEmployeeProducts } from "@/lib/hooks/useEmployees";
 import { useLocations } from "@/lib/hooks/useLocations";
 import { useProducts } from "@/lib/hooks/useProducts";
+import { getEmployeeProducts } from "@/lib/api/employees";
 import type { Employee, EmployeeRole, EmployeeStatus } from "@/lib/api/employees";
 
 const roleLabels: Record<EmployeeRole, string> = {
@@ -59,6 +60,7 @@ export default function EmployeesListPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
+  const [employeeProductCounts, setEmployeeProductCounts] = useState<Record<string, number>>({});
   const [initialProductAssignments, setInitialProductAssignments] = useState<
     { productId: string; commissionPerUnit: number; isActive: boolean }[]
   >([]);
@@ -87,19 +89,55 @@ export default function EmployeesListPage() {
 
   // Load employee products into form when editing
   useEffect(() => {
-    if (editingEmployee && employeeProducts.length > 0) {
-      const normalized = employeeProducts.map((ep) => ({
-        productId: ep.productId,
-        commissionPerUnit: ep.commissionPerUnit ?? 0,
-        isActive: ep.isActive ?? true,
-      }));
-      setInitialProductAssignments(normalized);
-      setFormData((prev) => ({
-        ...prev,
-        products: normalized,
-      }));
+    if (!editingEmployee) return;
+    if (isLoadingEmployeeProducts) return;
+
+    const normalized = employeeProducts.map((ep) => ({
+      productId: ep.productId,
+      commissionPerUnit: ep.commissionPerUnit ?? 0,
+      isActive: ep.isActive ?? true,
+    }));
+
+    setInitialProductAssignments(normalized);
+    setFormData((prev) => ({
+      ...prev,
+      products: normalized,
+    }));
+  }, [editingEmployee, employeeProducts, isLoadingEmployeeProducts]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCounts() {
+      if (employees.length === 0) {
+        if (!cancelled) setEmployeeProductCounts({});
+        return;
+      }
+
+      const targetEmployees = employees.filter((e) => e.role === "delivery" || e.role === "cashier");
+      const results = await Promise.all(
+        targetEmployees.map(async (e) => {
+          try {
+            const products = await getEmployeeProducts(e.id);
+            const activeCount = products.filter((p) => p.isActive !== false).length;
+            return [e.id, activeCount] as const;
+          } catch {
+            return [e.id, 0] as const;
+          }
+        })
+      );
+
+      if (cancelled) return;
+      const next: Record<string, number> = {};
+      for (const [id, count] of results) next[id] = count;
+      setEmployeeProductCounts(next);
     }
-  }, [editingEmployee, employeeProducts]);
+
+    loadCounts();
+    return () => {
+      cancelled = true;
+    };
+  }, [employees]);
 
   const normalizedInitialProducts = useMemo(() => {
     return [...initialProductAssignments]
@@ -303,7 +341,7 @@ export default function EmployeesListPage() {
                 <TableHead>Rôle</TableHead>
                 <TableHead>Statut</TableHead>
                 <TableHead>Localisations</TableHead>
-                <TableHead numeric>Commission</TableHead>
+                <TableHead numeric>Produits</TableHead>
                 <TableHead>Date d&apos;embauche</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -346,16 +384,22 @@ export default function EmployeesListPage() {
                           <p className="font-medium text-[var(--foreground)]">
                             {emp.firstName} {emp.lastName}
                           </p>
-                          <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
-                            <span className="flex items-center gap-1">
-                              <Mail className="size-3" />
-                              {emp.email}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Phone className="size-3" />
-                              {emp.phone}
-                            </span>
-                          </div>
+                          {(emp.email || emp.phone) && (
+                            <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+                              {emp.email && (
+                                <span className="flex items-center gap-1">
+                                  <Mail className="size-3" />
+                                  {emp.email}
+                                </span>
+                              )}
+                              {emp.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="size-3" />
+                                  {emp.phone}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </TableCell>
@@ -383,7 +427,11 @@ export default function EmployeesListPage() {
                         })}
                       </div>
                     </TableCell>
-                    <TableCell numeric>{emp.commissionRate}%</TableCell>
+                    <TableCell numeric>
+                      <Badge variant="default">
+                        {employeeProductCounts[emp.id] ?? 0} produits
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       {emp.hireDate
                         ? new Date(emp.hireDate).toLocaleDateString("fr-FR", {
@@ -433,7 +481,7 @@ export default function EmployeesListPage() {
       </Card>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {editingEmployee ? "Modifier l'employé" : "Ajouter un employé"}
@@ -616,7 +664,40 @@ export default function EmployeesListPage() {
               <label className="block text-sm font-medium text-[var(--foreground)] mb-3">
                 Produits assignés
               </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  {formData.products.length} / {products.length} sélectionnés
+                </p>
+                {products.length > 0 && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      const allProductIds = products.map((p) => p.id);
+                      const currentSelectedIds = new Set(formData.products.map((p) => p.productId));
+                      const allSelected = allProductIds.length > 0 && allProductIds.every((id) => currentSelectedIds.has(id));
+
+                      if (allSelected) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          products: [],
+                        }));
+                        return;
+                      }
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        products: allProductIds.map((id) => ({ productId: id, commissionPerUnit: 0, isActive: true })),
+                      }));
+                    }}
+                    disabled={isLoadingProducts}
+                  >
+                    {formData.products.length === products.length ? "Tout désélectionner" : "Tout sélectionner"}
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
                 {isLoadingProducts ? (
                   <p className="text-sm text-[var(--muted-foreground)]">Chargement des produits...</p>
                 ) : products.length === 0 ? (
