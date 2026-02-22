@@ -55,76 +55,79 @@ collectionsRoutes.get("/overview", async (c) => {
     });
   }
 
-  // Build WHERE conditions for collections
-  const collectionConditions = [eq(cashCollections.organizationId, organizationId)];
-  if (bakeryId) {
-    collectionConditions.push(eq(cashCollections.bakeryId, bakeryId));
-  }
-  if (startDate) {
-    collectionConditions.push(gte(cashCollections.date, startDate));
-  }
-  if (endDate) {
-    collectionConditions.push(lte(cashCollections.date, endDate));
-  }
-  if (isSettled !== undefined) {
-    const settledFlag = isSettled === "true";
-    collectionConditions.push(eq(cashCollections.isSettled, settledFlag));
-  }
-
   // Build WHERE conditions for employees
   const employeeConditions = [
     eq(employees.organizationId, organizationId),
-    eq(employees.status, "active")
+    eq(employees.status, "active"),
   ];
   if (role) {
     employeeConditions.push(eq(employees.role, role));
   }
 
-  // Fetch active employees and their collections in parallel
-  const [activeEmployees, filteredCollections] = await Promise.all([
-    db.select().from(employees).where(and(...employeeConditions)),
-    db.select().from(cashCollections).where(and(...collectionConditions))
-  ]);
-
-  // Group collections by employee in memory (SQL GROUP BY would require complex aggregation)
-  const collectionsByEmployee = new Map<string, typeof filteredCollections>();
-  for (const col of filteredCollections) {
-    if (!collectionsByEmployee.has(col.employeeId)) {
-      collectionsByEmployee.set(col.employeeId, []);
-    }
-    collectionsByEmployee.get(col.employeeId)!.push(col);
+  // Build WHERE conditions for collections (applied on the LEFT JOIN)
+  const collectionJoinConditions = [
+    eq(cashCollections.organizationId, organizationId),
+    eq(cashCollections.employeeId, employees.id),
+  ];
+  if (bakeryId) {
+    collectionJoinConditions.push(eq(cashCollections.bakeryId, bakeryId));
+  }
+  if (startDate) {
+    collectionJoinConditions.push(gte(cashCollections.date, startDate));
+  }
+  if (endDate) {
+    collectionJoinConditions.push(lte(cashCollections.date, endDate));
+  }
+  if (isSettled !== undefined) {
+    const settledFlag = isSettled === "true";
+    collectionJoinConditions.push(eq(cashCollections.isSettled, settledFlag));
   }
 
-  // Calculate aggregates per employee
-  const overview = activeEmployees.map((employee) => {
-    const employeeCollections = collectionsByEmployee.get(employee.id) || [];
-    
-    const tournées = employeeCollections.length;
-    const totalExpected = employeeCollections.reduce((sum, c) => sum + c.expectedAmount, 0);
-    const totalCollected = employeeCollections.reduce((sum, c) => sum + (c.actualAmount || 0), 0);
-    const solde = totalCollected - totalExpected; // negative = owes money
-    const unsettledCount = employeeCollections.filter(c => !c.isSettled).length;
+  // Single aggregate query (no N+1, no in-memory grouping)
+  const rows = await db
+    .select({
+      employeeId: employees.id,
+      firstName: employees.firstName,
+      lastName: employees.lastName,
+      role: employees.role,
+      tournees: sql<number>`COALESCE(COUNT(${cashCollections.id}), 0)`,
+      totalExpected: sql<number>`COALESCE(SUM(${cashCollections.expectedAmount}), 0)`,
+      totalCollected: sql<number>`COALESCE(SUM(COALESCE(${cashCollections.actualAmount}, 0)), 0)`,
+      unsettledCount: sql<number>`COALESCE(SUM(CASE WHEN ${cashCollections.isSettled} = false THEN 1 ELSE 0 END), 0)`,
+    })
+    .from(employees)
+    .leftJoin(cashCollections, and(...collectionJoinConditions))
+    .where(and(...employeeConditions))
+    .groupBy(employees.id);
+
+  // Preserve prior behavior: when isSettled=false, hide employees without unsettled collections
+  const filteredRows = isSettled === "false" ? rows.filter((r) => r.unsettledCount > 0) : rows;
+
+  const finalOverview = filteredRows.map((r) => {
+    const totalExpected = r.totalExpected || 0;
+    const totalCollected = r.totalCollected || 0;
 
     return {
-      employeeId: employee.id,
-      employeeName: `${employee.firstName} ${employee.lastName}`,
-      role: employee.role,
-      roleLabel: employee.role === "delivery" ? "Livreur" : 
-                 employee.role === "cashier" ? "Caissier" : 
-                 employee.role === "manager" ? "Manager" : 
-                 employee.role === "baker" ? "Boulanger" : employee.role,
-      tournées,
+      employeeId: r.employeeId,
+      employeeName: `${r.firstName} ${r.lastName}`,
+      role: r.role,
+      roleLabel:
+        r.role === "delivery"
+          ? "Livreur"
+          : r.role === "cashier"
+            ? "Caissier"
+            : r.role === "manager"
+              ? "Manager"
+              : r.role === "baker"
+                ? "Boulanger"
+                : r.role,
+      tournées: r.tournees || 0,
       totalExpected,
       totalCollected,
-      solde,
-      unsettledCount,
+      solde: totalCollected - totalExpected,
+      unsettledCount: r.unsettledCount || 0,
     };
   });
-
-  // Filter out employees with no collections if showing unsettled only
-  const finalOverview = isSettled === "false" 
-    ? overview.filter(e => e.unsettledCount > 0)
-    : overview;
 
   // Cache the result (versioned key, medium TTL)
   await cache.set(CacheNamespace.COLLECTIONS_OVERVIEW, cacheKey, finalOverview, CacheTTL.MEDIUM);
@@ -226,20 +229,21 @@ collectionsRoutes.get("/:id", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  const [collection] = await db
-    .select()
+  const [row] = await db
+    .select({
+      collection: cashCollections,
+      employee: employees,
+    })
     .from(cashCollections)
+    .leftJoin(employees, eq(employees.id, cashCollections.employeeId))
     .where(and(eq(cashCollections.id, id), eq(cashCollections.organizationId, organizationId)));
 
-  if (!collection) {
+  if (!row?.collection) {
     return c.json({ success: false, error: { code: "NOT_FOUND", message: "Collection not found" } }, 404);
   }
 
-  // Get employee
-  const [employee] = await db
-    .select()
-    .from(employees)
-    .where(eq(employees.id, collection.employeeId));
+  const collection = row.collection;
+  const employee = row.employee;
 
   return c.json({
     success: true,
@@ -532,15 +536,18 @@ collectionsRoutes.get("/aggregates", async (c) => {
         conditions.push(lte(cashCollections.date, endDate));
       }
 
-      // Single query with filters in SQL
-      const collections = await db
-        .select()
+      // Aggregate in SQL (avoid fetching full row set)
+      const [row] = await db
+        .select({
+          totalExpected: sql<number>`COALESCE(SUM(${cashCollections.expectedAmount}), 0)`,
+          totalCollected: sql<number>`COALESCE(SUM(COALESCE(${cashCollections.actualAmount}, 0)), 0)`,
+          count: sql<number>`COALESCE(COUNT(${cashCollections.id}), 0)`,
+        })
         .from(cashCollections)
         .where(and(...conditions));
 
-      // Calculate aggregates
-      const totalExpected = collections.reduce((sum, c) => sum + c.expectedAmount, 0);
-      const totalCollected = collections.reduce((sum, c) => sum + (c.actualAmount || 0), 0);
+      const totalExpected = row?.totalExpected ?? 0;
+      const totalCollected = row?.totalCollected ?? 0;
       const outstandingBalance = totalExpected - totalCollected;
       const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
 
@@ -549,7 +556,7 @@ collectionsRoutes.get("/aggregates", async (c) => {
         totalCollected,
         outstandingBalance,
         collectionRate,
-        count: collections.length,
+        count: row?.count ?? 0,
       };
     },
     CacheTTL.SHORT // 30 seconds for aggregates
