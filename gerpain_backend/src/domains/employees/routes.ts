@@ -19,25 +19,24 @@ employeesRoutes.get("/", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
-  // Filter by org and optionally bakery, sorted by sortOrder and hireDate
-  const result = await db
-    .select()
-    .from(employees)
-    .where(
-      bakeryId
-        ? and(eq(employees.organizationId, organizationId), eq(employees.bakeryId, bakeryId))!
-        : eq(employees.organizationId, organizationId)
-    )
-    .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
-
-  // Filter by role and status if provided
-  let filtered = result;
+  // Build WHERE conditions dynamically to push filters to SQL
+  const conditions = [eq(employees.organizationId, organizationId)];
+  
+  if (bakeryId) {
+    conditions.push(eq(employees.bakeryId, bakeryId));
+  }
   if (role) {
-    filtered = filtered.filter(e => e.role === role);
+    conditions.push(eq(employees.role, role));
   }
   if (status) {
-    filtered = filtered.filter(e => e.status === status);
+    conditions.push(eq(employees.status, status));
   }
+
+  const filtered = await db
+    .select()
+    .from(employees)
+    .where(and(...conditions))
+    .orderBy(asc(employees.sortOrder), asc(employees.hireDate));
 
   // Batch fetch all locations for filtered employees (fixes N+1)
   const employeeIds = filtered.map(e => e.id);

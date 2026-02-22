@@ -155,6 +155,19 @@ collectionsRoutes.get("/", async (c) => {
     return c.json({ success: false, error: { code: "MISSING_ORG", message: "Organization ID required" } }, 400);
   }
 
+  // Build cache key from query params
+  const cacheKey = `${organizationId}:${bakeryId || 'all'}:${date || 'none'}:${status || 'all'}:${locationId || 'all'}:${employeeId || 'all'}:${startDate || 'none'}:${endDate || 'none'}:${isSettled || 'all'}`;
+  
+  // Try cache first
+  const cached = await cache.get<typeof collectionsWithDetails>(CacheNamespace.COLLECTIONS_OVERVIEW, cacheKey);
+  if (cached) {
+    return c.json({
+      success: true,
+      data: cached,
+      cached: true,
+    });
+  }
+
   // Build WHERE conditions dynamically
   const conditions = [eq(cashCollections.organizationId, organizationId)];
   
@@ -217,7 +230,10 @@ collectionsRoutes.get("/", async (c) => {
     };
   });
 
-  return c.json({ success: true, data: collectionsWithDetails });
+  // Cache the result (SHORT TTL since this data changes frequently)
+  await cache.set(CacheNamespace.COLLECTIONS_OVERVIEW, cacheKey, collectionsWithDetails, CacheTTL.SHORT);
+
+  return c.json({ success: true, data: collectionsWithDetails, cached: false });
 });
 
 // Get single collection

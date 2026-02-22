@@ -141,37 +141,26 @@ deliveriesRoutes.get("/runs", async (c) => {
   }
 
   // Now fetch and return the runs (including any newly created ones)
-  let query = db
-    .select()
-    .from(deliveryRuns)
-    .where(eq(deliveryRuns.organizationId, organizationId));
-
-  // Filter by bakery if provided
+  // Build WHERE conditions dynamically to push filters to SQL
+  const conditions = [eq(deliveryRuns.organizationId, organizationId)];
+  
   if (bakeryId) {
-    query = db
-      .select()
-      .from(deliveryRuns)
-      .where(
-        and(
-          eq(deliveryRuns.organizationId, organizationId),
-          eq(deliveryRuns.bakeryId, bakeryId)
-        )
-      );
+    conditions.push(eq(deliveryRuns.bakeryId, bakeryId));
   }
-
-  const runs = await query;
-
-  // Filter by query params
-  let filtered = runs;
   if (date) {
-    filtered = filtered.filter(r => r.date === date);
+    conditions.push(eq(deliveryRuns.date, date));
   }
   if (employeeId) {
-    filtered = filtered.filter(r => r.employeeId === employeeId);
+    conditions.push(eq(deliveryRuns.employeeId, employeeId));
   }
   if (locationId) {
-    filtered = filtered.filter(r => r.locationId === locationId);
+    conditions.push(eq(deliveryRuns.locationId, locationId));
   }
+
+  const filtered = await db
+    .select()
+    .from(deliveryRuns)
+    .where(and(...conditions));
 
   // Batch lookups to avoid N+1 queries
   if (filtered.length === 0) {
