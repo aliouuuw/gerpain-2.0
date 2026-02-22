@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/Button";
 import {
@@ -26,15 +26,14 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select-radix";
-import { useDeliveryRuns, useUpdateDeliveryRun, useValidateDeliveryRun, useUpdateDeliveryItem, useCreateDeliveryItem, useDeleteDeliveryItem } from "@/lib/hooks/useDeliveries";
-import { useEmployeeProducts, useReorderEmployees, useEmployees } from "@/lib/hooks/useEmployees";
-import { useLocations } from "@/lib/hooks/useLocations";
+  useDeliveryRuns,
+  useUpdateDeliveryRun,
+  useValidateDeliveryRun,
+  useUpdateDeliveryItem,
+  useCreateDeliveryItem,
+  useDeleteDeliveryItem,
+} from "@/lib/hooks/useDeliveries";
+import { useEmployeeProducts, useReorderEmployees } from "@/lib/hooks/useEmployees";
 import type { DeliveryRun, DeliveryItem, DeliveryStatus } from "@/lib/api/deliveries";
 
 type EditedItemState = {
@@ -134,15 +133,6 @@ export default function DeliveriesBoardPage() {
   const [date, setDate] = useState<string>(() =>
     searchParams.get("date") || new Date().toISOString().slice(0, 10)
   );
-  const [employeeFilter, setEmployeeFilter] = useState<string>(
-    searchParams.get("employeeId") || "all"
-  );
-  const [locationFilter, setLocationFilter] = useState<string>(
-    searchParams.get("locationId") || "all"
-  );
-  const [statusFilter, setStatusFilter] = useState<string>(
-    searchParams.get("status") || "all"
-  );
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [pendingRunSwitch, setPendingRunSwitch] = useState<{ nextRunId: string | null } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
@@ -152,12 +142,8 @@ export default function DeliveriesBoardPage() {
   } | null>(null);
 
   // Real API hooks
-  const { data: employees = [] } = useEmployees({ status: "active" });
-  const { data: locations = [] } = useLocations();
   const { data: runs = [], isLoading, refetch } = useDeliveryRuns({
     date,
-    employeeId: employeeFilter !== "all" ? employeeFilter : undefined,
-    locationId: locationFilter !== "all" ? locationFilter : undefined,
   });
   const updateDeliveryRun = useUpdateDeliveryRun();
   const validateDeliveryRun = useValidateDeliveryRun();
@@ -171,22 +157,13 @@ export default function DeliveriesBoardPage() {
   useEffect(() => {
     const params = new URLSearchParams();
     params.set("date", date);
-    if (employeeFilter !== "all") params.set("employeeId", employeeFilter);
-    if (locationFilter !== "all") params.set("locationId", locationFilter);
-    if (statusFilter !== "all") params.set("status", statusFilter);
     router.replace(`?${params.toString()}`, { scroll: false });
-  }, [date, employeeFilter, locationFilter, statusFilter, router]);
+  }, [date, router]);
 
   const visibleRuns = useMemo(() => {
     let filtered = runs.filter((run) => !run.employeeHireDate || run.employeeHireDate <= date);
-    
-    // Apply status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((run) => run.status === statusFilter);
-    }
-    
     return filtered;
-  }, [runs, date, statusFilter]);
+  }, [runs, date]);
 
   const displayRuns = optimisticRuns ?? visibleRuns;
 
@@ -496,65 +473,6 @@ export default function DeliveriesBoardPage() {
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Tous les livreurs" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les livreurs</SelectItem>
-              {employees.filter(e => e.role === "delivery").map((emp) => (
-                <SelectItem key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={locationFilter} onValueChange={setLocationFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Toutes les localités" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes les localités</SelectItem>
-              {locations.map((loc) => (
-                <SelectItem key={loc.id} value={loc.id}>
-                  {loc.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Tous les statuts" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="draft">Brouillon</SelectItem>
-              <SelectItem value="in_progress">En cours</SelectItem>
-              <SelectItem value="validated">Validé</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {(employeeFilter !== "all" || locationFilter !== "all" || statusFilter !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setEmployeeFilter("all");
-                setLocationFilter("all");
-                setStatusFilter("all");
-              }}
-              className="gap-1.5"
-            >
-              <X className="h-4 w-4" />
-              Effacer les filtres
-            </Button>
-          )}
         </div>
       </div>
 
