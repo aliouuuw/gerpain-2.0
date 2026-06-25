@@ -1,1 +1,2 @@
+export { closeDatabase, db, type Database } from './client'
 export * from './schema/index'
