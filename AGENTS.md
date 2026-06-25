@@ -18,7 +18,7 @@ before editing. For *why* decisions were made, see `docs/adr/`.
 | Auth | **Better Auth** (sessions + org/multi-tenant) |
 | Ledger | **`packages/bocal`** — append-only financial movements |
 | Tests | **Vitest** |
-| Monorepo | **pnpm workspaces** |
+| Monorepo | **Bun workspaces** |
 
 The current repo is a **split** Hono+Bun backend (`gerpain_backend/`) + Next.js
 frontend (`nextjs_frontend/`) with Lucia auth. We are migrating to the unified
@@ -59,10 +59,10 @@ KPIs about money read from **derived ledger balances**, not workflow rows.
 After changes, the build and tests must be green:
 
 ```bash
-pnpm install
-pnpm -w build
-pnpm -w test        # Bocal has unit tests; run them on any ledger change
-pnpm -w typecheck
+bun install
+bun run build
+bun run test        # Bocal has unit tests; run them on any ledger change
+bun run typecheck
 ```
 
 ## What NOT to do

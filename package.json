@@ -2,17 +2,11 @@
   "name": "gerpain-monorepo",
   "private": true,
   "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "pnpm --filter gerpain dev",
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
-  },
-  "packageManager": "pnpm@10.33.2",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ]
+    "dev": "bun run --filter gerpain dev",
+    "build": "bun run --filter gerpain build",
+    "test": "bun run --filter '@gerpain/*' test && bun run --filter gerpain test",
+    "typecheck": "bun run --filter '@gerpain/*' typecheck && bun run --filter gerpain typecheck"
   }
 }

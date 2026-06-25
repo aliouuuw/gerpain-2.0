@@ -1,0 +1,4 @@
+# Nitro nightly needs hoisted resolution in Bun workspaces.
+# https://nitro.build/docs/nightly
+[install]
+publicHoistPattern = ["nitro*"]

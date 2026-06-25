@@ -11,7 +11,7 @@ Build Gerpain 2.0 as a **single full-stack app** on:
 ```
 TanStack Start + oRPC + Drizzle + Neon Postgres
 Better Auth + TanStack Query + packages/bocal + Vitest
-pnpm workspaces monorepo
+Bun workspaces monorepo
 ```
 
 ## Context

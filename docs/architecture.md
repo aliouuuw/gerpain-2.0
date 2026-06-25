@@ -28,7 +28,7 @@ gerpain-2.0/
 │   ├── bocal/                    # ledger: Drizzle-only, framework-free
 │   ├── db/                       # Drizzle schema + client (shared)
 │   └── auth/                     # Better Auth config (shared)
-├── pnpm-workspace.yaml
+├── package.json                  # Bun workspaces root
 ├── AGENTS.md
 └── docs/
 ```
@@ -71,7 +71,7 @@ Most of the current project survives; this is a re-housing, not a rewrite.
 
 Steps:
 
-1. Scaffold TanStack Start app + `pnpm-workspace.yaml`.
+1. Scaffold TanStack Start app + Bun workspace root.
 2. Move schema → `packages/db`. Stand up `packages/bocal` **tests-first**.
 3. Wire Better Auth + org context (`packages/auth`).
 4. Port domains as **vertical slices**, one at a time:
