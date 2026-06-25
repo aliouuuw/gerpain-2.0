@@ -1,0 +1,21 @@
+{
+  "name": "@gerpain/bocal",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gerpain/db": "workspace:*",
+    "drizzle-orm": "^0.45.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.5"
+  }
+}

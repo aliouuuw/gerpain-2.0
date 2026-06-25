@@ -25,6 +25,10 @@ out/
 # build
 build/
 dist/
+.output/
+
+# pnpm
+.pnpm-store/
 
 # misc
 *.pem
