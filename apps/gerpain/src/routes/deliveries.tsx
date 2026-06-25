@@ -126,8 +126,14 @@ function DeliveriesPage() {
                 <tbody className="divide-y divide-neutral-100 bg-white">
                   {runs.data.map((run) => (
                     <tr key={run.id}>
-                      <td className="px-4 py-3 text-neutral-900">
-                        {run.employeeName}
+                      <td className="px-4 py-3">
+                        <Link
+                          to="/deliveries/$runId"
+                          params={{ runId: run.id }}
+                          className="font-medium text-neutral-900 underline"
+                        >
+                          {run.employeeName}
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-neutral-600">
                         {run.locationName}

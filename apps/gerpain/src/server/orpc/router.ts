@@ -15,5 +15,8 @@ export default {
   },
   deliveries: {
     listRuns: deliveries.listRuns,
+    getRun: deliveries.getRun,
+    updateItem: deliveries.updateItem,
+    validateRun: deliveries.validateRun,
   },
 }

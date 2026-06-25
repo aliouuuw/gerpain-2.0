@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DeliveriesRunIdRouteImport } from './routes/deliveries.$runId'
 import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeliveriesRunIdRoute = DeliveriesRunIdRouteImport.update({
+  id: '/$runId',
+  path: '/$runId',
+  getParentRoute: () => DeliveriesRoute,
+} as any)
 const ApiRpcSplatRoute = ApiRpcSplatRouteImport.update({
   id: '/api/rpc/$',
   path: '/api/rpc/$',
@@ -43,37 +49,59 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/deliveries': typeof DeliveriesRoute
+  '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/deliveries': typeof DeliveriesRoute
+  '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/deliveries': typeof DeliveriesRoute
+  '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/deliveries' | '/login' | '/api/auth/$' | '/api/rpc/$'
+  fullPaths:
+    | '/'
+    | '/deliveries'
+    | '/login'
+    | '/deliveries/$runId'
+    | '/api/auth/$'
+    | '/api/rpc/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/deliveries' | '/login' | '/api/auth/$' | '/api/rpc/$'
-  id: '__root__' | '/' | '/deliveries' | '/login' | '/api/auth/$' | '/api/rpc/$'
+  to:
+    | '/'
+    | '/deliveries'
+    | '/login'
+    | '/deliveries/$runId'
+    | '/api/auth/$'
+    | '/api/rpc/$'
+  id:
+    | '__root__'
+    | '/'
+    | '/deliveries'
+    | '/login'
+    | '/deliveries/$runId'
+    | '/api/auth/$'
+    | '/api/rpc/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DeliveriesRoute: typeof DeliveriesRoute
+  DeliveriesRoute: typeof DeliveriesRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiRpcSplatRoute: typeof ApiRpcSplatRoute
@@ -102,6 +130,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/deliveries/$runId': {
+      id: '/deliveries/$runId'
+      path: '/$runId'
+      fullPath: '/deliveries/$runId'
+      preLoaderRoute: typeof DeliveriesRunIdRouteImport
+      parentRoute: typeof DeliveriesRoute
+    }
     '/api/rpc/$': {
       id: '/api/rpc/$'
       path: '/api/rpc/$'
@@ -119,9 +154,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DeliveriesRouteChildren {
+  DeliveriesRunIdRoute: typeof DeliveriesRunIdRoute
+}
+
+const DeliveriesRouteChildren: DeliveriesRouteChildren = {
+  DeliveriesRunIdRoute: DeliveriesRunIdRoute,
+}
+
+const DeliveriesRouteWithChildren = DeliveriesRoute._addFileChildren(
+  DeliveriesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DeliveriesRoute: DeliveriesRoute,
+  DeliveriesRoute: DeliveriesRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiRpcSplatRoute: ApiRpcSplatRoute,

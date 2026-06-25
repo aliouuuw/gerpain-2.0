@@ -2,6 +2,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import {
   type Database,
+  cashCollections,
   deliveryItems,
   deliveryRuns,
   employeeLocations,
@@ -10,6 +11,20 @@ import {
   locations,
   products,
 } from '@gerpain/db'
+
+export class DeliveryServiceError extends Error {
+  constructor(
+    readonly code:
+      | 'NOT_FOUND'
+      | 'ZERO_QUANTITY'
+      | 'ALREADY_VALIDATED'
+      | 'NOT_EDITABLE',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'DeliveryServiceError'
+  }
+}
 
 export type DeliveryItemDetail = {
   id: string
@@ -335,4 +350,285 @@ export async function listDeliveryRuns(
   })
 
   return runsWithDetails
+}
+
+export type ValidateDeliveryRunResult = DeliveryRunDetail & {
+  collection: { id: string; expectedAmount: number }
+}
+
+export async function getDeliveryRun(
+  db: Database,
+  organizationId: string,
+  runId: string,
+): Promise<DeliveryRunDetail> {
+  const [run] = await db
+    .select()
+    .from(deliveryRuns)
+    .where(
+      and(
+        eq(deliveryRuns.id, runId),
+        eq(deliveryRuns.organizationId, organizationId),
+      ),
+    )
+
+  if (!run) {
+    throw new DeliveryServiceError('NOT_FOUND', 'Tournée introuvable')
+  }
+
+  const [items, employee, location, assignedProducts] = await Promise.all([
+    db.select().from(deliveryItems).where(eq(deliveryItems.runId, runId)),
+    db.query.employees.findFirst({ where: eq(employees.id, run.employeeId) }),
+    db.query.locations.findFirst({ where: eq(locations.id, run.locationId) }),
+    db
+      .select({ productId: employeeProducts.productId })
+      .from(employeeProducts)
+      .where(
+        and(
+          eq(employeeProducts.employeeId, run.employeeId),
+          eq(employeeProducts.isActive, true),
+        ),
+      ),
+  ])
+
+  const assignedProductIds = new Set(assignedProducts.map((p) => p.productId))
+  const filteredItems =
+    assignedProductIds.size === 0
+      ? []
+      : items.filter((item) => assignedProductIds.has(item.productId))
+
+  const productIds = [...new Set(filteredItems.map((i) => i.productId))]
+  const productRows =
+    productIds.length > 0
+      ? await db.select().from(products).where(inArray(products.id, productIds))
+      : []
+  const productMap = new Map(productRows.map((p) => [p.id, p]))
+
+  const itemsWithProducts: DeliveryItemDetail[] = filteredItems.map((item) => {
+    const product = productMap.get(item.productId)
+    return {
+      ...item,
+      productName: product?.name ?? 'Inconnu',
+      quantitySold: item.quantityEntrusted - item.quantityReturned,
+    }
+  })
+
+  return {
+    ...run,
+    notes: run.notes ?? '',
+    employeeName: employee
+      ? `${employee.firstName} ${employee.lastName}`
+      : 'Inconnu',
+    employeeSortOrder: employee?.sortOrder ?? 0,
+    employeeHireDate: employee?.hireDate ?? null,
+    locationName: location?.name ?? 'Inconnu',
+    items: itemsWithProducts,
+  }
+}
+
+export type UpdateDeliveryItemInput = {
+  organizationId: string
+  itemId: string
+  quantityEntrusted?: number
+  quantityReturned?: number
+}
+
+export async function updateDeliveryItem(
+  db: Database,
+  input: UpdateDeliveryItemInput,
+): Promise<DeliveryItemDetail> {
+  const [row] = await db
+    .select({
+      item: deliveryItems,
+      run: deliveryRuns,
+    })
+    .from(deliveryItems)
+    .innerJoin(deliveryRuns, eq(deliveryItems.runId, deliveryRuns.id))
+    .where(
+      and(
+        eq(deliveryItems.id, input.itemId),
+        eq(deliveryRuns.organizationId, input.organizationId),
+      ),
+    )
+
+  if (!row) {
+    throw new DeliveryServiceError('NOT_FOUND', 'Ligne produit introuvable')
+  }
+
+  if (row.run.status !== 'draft') {
+    throw new DeliveryServiceError(
+      'NOT_EDITABLE',
+      'Seules les tournées en brouillon sont modifiables',
+    )
+  }
+
+  const quantityEntrusted =
+    input.quantityEntrusted ?? row.item.quantityEntrusted
+  const quantityReturned = input.quantityReturned ?? row.item.quantityReturned
+
+  if (quantityReturned > quantityEntrusted) {
+    throw new DeliveryServiceError(
+      'NOT_EDITABLE',
+      'Les retours ne peuvent pas dépasser les quantités confiées',
+    )
+  }
+
+  const [updated] = await db
+    .update(deliveryItems)
+    .set({
+      ...(input.quantityEntrusted !== undefined
+        ? { quantityEntrusted: input.quantityEntrusted }
+        : {}),
+      ...(input.quantityReturned !== undefined
+        ? { quantityReturned: input.quantityReturned }
+        : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(deliveryItems.id, input.itemId))
+    .returning()
+
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(eq(products.id, updated!.productId))
+
+  return {
+    ...updated!,
+    productName: product?.name ?? 'Inconnu',
+    quantitySold: updated!.quantityEntrusted - updated!.quantityReturned,
+  }
+}
+
+export async function validateDeliveryRun(
+  db: Database,
+  organizationId: string,
+  runId: string,
+): Promise<ValidateDeliveryRunResult> {
+  const [run] = await db
+    .select()
+    .from(deliveryRuns)
+    .where(
+      and(
+        eq(deliveryRuns.id, runId),
+        eq(deliveryRuns.organizationId, organizationId),
+      ),
+    )
+
+  if (!run) {
+    throw new DeliveryServiceError('NOT_FOUND', 'Tournée introuvable')
+  }
+
+  if (run.status === 'validated') {
+    throw new DeliveryServiceError(
+      'ALREADY_VALIDATED',
+      'Cette tournée est déjà validée',
+    )
+  }
+
+  const items = await db
+    .select()
+    .from(deliveryItems)
+    .where(eq(deliveryItems.runId, runId))
+
+  const totalEntrusted = items.reduce(
+    (sum, item) => sum + item.quantityEntrusted,
+    0,
+  )
+  if (totalEntrusted === 0) {
+    throw new DeliveryServiceError(
+      'ZERO_QUANTITY',
+      'Impossible de valider une tournée sans quantité confiée',
+    )
+  }
+
+  const expectedAmount = items.reduce((sum, item) => {
+    const sold = item.quantityEntrusted - item.quantityReturned
+    return sum + sold * item.unitPrice
+  }, 0)
+
+  const result = await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(deliveryRuns)
+      .set({
+        status: 'validated',
+        validatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(deliveryRuns.id, runId),
+          eq(deliveryRuns.organizationId, organizationId),
+        ),
+      )
+      .returning()
+
+    const [existingCollection] = await tx
+      .select()
+      .from(cashCollections)
+      .where(
+        and(
+          eq(cashCollections.organizationId, organizationId),
+          eq(cashCollections.deliveryRunId, runId),
+        ),
+      )
+
+    let collection: { id: string; expectedAmount: number }
+
+    if (existingCollection) {
+      if (existingCollection.status !== 'pending') {
+        collection = {
+          id: existingCollection.id,
+          expectedAmount: existingCollection.expectedAmount,
+        }
+      } else {
+        const [updatedCollection] = await tx
+          .update(cashCollections)
+          .set({ expectedAmount, updatedAt: new Date() })
+          .where(
+            and(
+              eq(cashCollections.id, existingCollection.id),
+              eq(cashCollections.status, 'pending'),
+            ),
+          )
+          .returning()
+        collection = {
+          id: updatedCollection!.id,
+          expectedAmount: updatedCollection!.expectedAmount,
+        }
+      }
+    } else {
+      const [created] = await tx
+        .insert(cashCollections)
+        .values({
+          organizationId,
+          bakeryId: run.bakeryId,
+          employeeId: run.employeeId,
+          locationId: run.locationId,
+          deliveryRunId: runId,
+          date: run.date,
+          expectedAmount,
+          actualAmount: 0,
+          cashAmount: 0,
+          cardAmount: 0,
+          mobileAmount: 0,
+          status: 'pending',
+          isSettled: false,
+        })
+        .returning()
+      collection = {
+        id: created!.id,
+        expectedAmount: created!.expectedAmount,
+      }
+    }
+
+    return { updated: updated!, collection }
+  })
+
+  const detail = await getDeliveryRun(db, organizationId, runId)
+
+  return {
+    ...detail,
+    status: result.updated.status,
+    validatedAt: result.updated.validatedAt,
+    collection: result.collection,
+  }
 }
