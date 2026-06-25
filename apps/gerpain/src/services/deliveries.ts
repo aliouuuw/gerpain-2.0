@@ -1,0 +1,338 @@
+import { and, asc, eq, inArray } from 'drizzle-orm'
+
+import {
+  type Database,
+  deliveryItems,
+  deliveryRuns,
+  employeeLocations,
+  employeeProducts,
+  employees,
+  locations,
+  products,
+} from '@gerpain/db'
+
+export type DeliveryItemDetail = {
+  id: string
+  runId: string
+  productId: string
+  period: string
+  quantityEntrusted: number
+  quantityReturned: number
+  unitPrice: number
+  createdAt: Date
+  updatedAt: Date
+  productName: string
+  quantitySold: number
+}
+
+export type DeliveryRunDetail = {
+  id: string
+  organizationId: string
+  bakeryId: string
+  employeeId: string
+  locationId: string
+  date: string
+  status: string
+  notes: string
+  validatedAt: Date | null
+  validatedBy: string | null
+  createdAt: Date
+  updatedAt: Date
+  employeeName: string
+  employeeSortOrder: number
+  employeeHireDate: string | null
+  locationName: string
+  items: DeliveryItemDetail[]
+}
+
+export type ListDeliveryRunsInput = {
+  organizationId: string
+  bakeryId: string
+  date?: string
+  employeeId?: string
+  locationId?: string
+}
+
+async function ensureDraftRunsForDate(
+  db: Database,
+  input: { organizationId: string; bakeryId: string; date: string },
+) {
+  const { organizationId, bakeryId, date } = input
+
+  const existingRuns = await db
+    .select()
+    .from(deliveryRuns)
+    .where(
+      and(
+        eq(deliveryRuns.organizationId, organizationId),
+        eq(deliveryRuns.bakeryId, bakeryId),
+        eq(deliveryRuns.date, date),
+      ),
+    )
+
+  const deliveryEmployees = await db
+    .select()
+    .from(employees)
+    .where(
+      and(
+        eq(employees.organizationId, organizationId),
+        eq(employees.bakeryId, bakeryId),
+        eq(employees.role, 'delivery'),
+        eq(employees.status, 'active'),
+      ),
+    )
+    .orderBy(asc(employees.sortOrder), asc(employees.hireDate))
+
+  const eligibleEmployees = deliveryEmployees.filter(
+    (employee) => !employee.hireDate || employee.hireDate <= date,
+  )
+
+  const existingEmployeeIds = new Set(existingRuns.map((r) => r.employeeId))
+  const missingEmployees = eligibleEmployees.filter(
+    (e) => !existingEmployeeIds.has(e.id),
+  )
+
+  if (missingEmployees.length === 0) return
+
+  const missingEmployeeIds = missingEmployees.map((e) => e.id)
+
+  const [activeProducts, allAssignedProducts, allPrimaryLocations, fallbackLocation] =
+    await Promise.all([
+      db
+        .select()
+        .from(products)
+        .where(
+          and(
+            eq(products.organizationId, organizationId),
+            eq(products.isActive, true),
+          ),
+        ),
+      db
+        .select({
+          employeeId: employeeProducts.employeeId,
+          productId: employeeProducts.productId,
+        })
+        .from(employeeProducts)
+        .where(
+          and(
+            inArray(employeeProducts.employeeId, missingEmployeeIds),
+            eq(employeeProducts.isActive, true),
+          ),
+        ),
+      db
+        .select()
+        .from(employeeLocations)
+        .where(
+          and(
+            inArray(employeeLocations.employeeId, missingEmployeeIds),
+            eq(employeeLocations.isPrimary, true),
+          ),
+        ),
+      db
+        .select()
+        .from(locations)
+        .where(
+          and(
+            eq(locations.organizationId, organizationId),
+            eq(locations.bakeryId, bakeryId),
+          ),
+        )
+        .limit(1),
+    ])
+
+  const assignedProductsByEmployee = new Map<string, string[]>()
+  for (const ap of allAssignedProducts) {
+    const list = assignedProductsByEmployee.get(ap.employeeId) ?? []
+    list.push(ap.productId)
+    assignedProductsByEmployee.set(ap.employeeId, list)
+  }
+
+  const primaryLocationByEmployee = new Map<string, string>()
+  for (const pl of allPrimaryLocations) {
+    primaryLocationByEmployee.set(pl.employeeId, pl.locationId)
+  }
+
+  const fallbackLocationId = fallbackLocation[0]?.id
+
+  for (const employee of missingEmployees) {
+    const productIdsToUse = assignedProductsByEmployee.get(employee.id) ?? []
+    const locationIdToUse =
+      primaryLocationByEmployee.get(employee.id) ?? fallbackLocationId
+
+    if (!locationIdToUse) continue
+
+    const [run] = await db
+      .insert(deliveryRuns)
+      .values({
+        organizationId,
+        bakeryId,
+        employeeId: employee.id,
+        locationId: locationIdToUse,
+        date,
+        status: 'draft',
+        notes: '',
+      })
+      .returning()
+
+    const productsToUse = activeProducts.filter((p) =>
+      productIdsToUse.includes(p.id),
+    )
+
+    if (productsToUse.length > 0) {
+      await db.insert(deliveryItems).values(
+        productsToUse.map((product) => ({
+          runId: run!.id,
+          productId: product.id,
+          period: 'Matin' as const,
+          quantityEntrusted: 0,
+          quantityReturned: 0,
+          unitPrice: product.unitPrice,
+        })),
+      )
+    }
+  }
+}
+
+export async function listDeliveryRuns(
+  db: Database,
+  input: ListDeliveryRunsInput,
+): Promise<DeliveryRunDetail[]> {
+  const { organizationId, bakeryId, date, employeeId, locationId } = input
+
+  if (date) {
+    await ensureDraftRunsForDate(db, { organizationId, bakeryId, date })
+  }
+
+  const conditions = [eq(deliveryRuns.organizationId, organizationId)]
+
+  if (bakeryId) {
+    conditions.push(eq(deliveryRuns.bakeryId, bakeryId))
+  }
+  if (date) {
+    conditions.push(eq(deliveryRuns.date, date))
+  }
+  if (employeeId) {
+    conditions.push(eq(deliveryRuns.employeeId, employeeId))
+  }
+  if (locationId) {
+    conditions.push(eq(deliveryRuns.locationId, locationId))
+  }
+
+  const filtered = await db
+    .select()
+    .from(deliveryRuns)
+    .where(and(...conditions))
+
+  if (filtered.length === 0) return []
+
+  const runIds = filtered.map((r) => r.id)
+  const employeeIds = [...new Set(filtered.map((r) => r.employeeId))]
+  const locationIds = [...new Set(filtered.map((r) => r.locationId))]
+
+  const [allItems, allEmployees, allLocations, allAssignments] = await Promise.all([
+    db
+      .select()
+      .from(deliveryItems)
+      .where(inArray(deliveryItems.runId, runIds)),
+    db.select().from(employees).where(inArray(employees.id, employeeIds)),
+    db.select().from(locations).where(inArray(locations.id, locationIds)),
+    db
+      .select({
+        employeeId: employeeProducts.employeeId,
+        productId: employeeProducts.productId,
+      })
+      .from(employeeProducts)
+      .where(
+        and(
+          inArray(employeeProducts.employeeId, employeeIds),
+          eq(employeeProducts.isActive, true),
+        ),
+      ),
+  ])
+
+  const allProductIds = [...new Set(allItems.map((i) => i.productId))]
+  const allProducts =
+    allProductIds.length > 0
+      ? await db
+          .select()
+          .from(products)
+          .where(inArray(products.id, allProductIds))
+      : []
+
+  const employeeMap = new Map(allEmployees.map((e) => [e.id, e]))
+  const locationMap = new Map(allLocations.map((l) => [l.id, l]))
+  const productMap = new Map(allProducts.map((p) => [p.id, p]))
+
+  const itemsByRun = new Map<string, typeof allItems>()
+  for (const item of allItems) {
+    const list = itemsByRun.get(item.runId) ?? []
+    list.push(item)
+    itemsByRun.set(item.runId, list)
+  }
+
+  const assignmentsByEmployee = new Map<string, Set<string>>()
+  for (const a of allAssignments) {
+    const set = assignmentsByEmployee.get(a.employeeId) ?? new Set()
+    set.add(a.productId)
+    assignmentsByEmployee.set(a.employeeId, set)
+  }
+
+  const filteredByEmployeeStatus = filtered.filter((run) => {
+    const employee = employeeMap.get(run.employeeId)
+    return employee?.status === 'active'
+  })
+
+  const filteredByHireDate = date
+    ? filteredByEmployeeStatus.filter((run) => {
+        const employee = employeeMap.get(run.employeeId)
+        return !employee?.hireDate || employee.hireDate <= date
+      })
+    : filteredByEmployeeStatus
+
+  const runsWithDetails: DeliveryRunDetail[] = filteredByHireDate.map((run) => {
+    const employee = employeeMap.get(run.employeeId)
+    const location = locationMap.get(run.locationId)
+    const assignedProductIds = assignmentsByEmployee.get(run.employeeId)
+    const items = itemsByRun.get(run.id) ?? []
+
+    const filteredItems =
+      !assignedProductIds || assignedProductIds.size === 0
+        ? []
+        : items.filter((item) => assignedProductIds.has(item.productId))
+
+    const itemsWithProducts: DeliveryItemDetail[] = filteredItems.map((item) => {
+      const product = productMap.get(item.productId)
+      return {
+        ...item,
+        productName: product?.name ?? 'Inconnu',
+        quantitySold: item.quantityEntrusted - item.quantityReturned,
+      }
+    })
+
+    return {
+      ...run,
+      notes: run.notes ?? '',
+      employeeName: employee
+        ? `${employee.firstName} ${employee.lastName}`
+        : 'Inconnu',
+      employeeSortOrder: employee?.sortOrder ?? 0,
+      employeeHireDate: employee?.hireDate ?? null,
+      locationName: location?.name ?? 'Inconnu',
+      items: itemsWithProducts,
+    }
+  })
+
+  runsWithDetails.sort((a, b) => {
+    if (a.employeeSortOrder !== b.employeeSortOrder) {
+      return a.employeeSortOrder - b.employeeSortOrder
+    }
+    if (a.employeeHireDate && b.employeeHireDate) {
+      return a.employeeHireDate.localeCompare(b.employeeHireDate)
+    }
+    if (a.employeeHireDate) return -1
+    if (b.employeeHireDate) return 1
+    return 0
+  })
+
+  return runsWithDetails
+}

@@ -56,6 +56,25 @@ function Home() {
             </p>
           ) : null}
         </div>
+
+        {session.data ? (
+          <div className="rounded-lg border border-neutral-200 bg-white p-4">
+            <p className="text-sm font-medium text-neutral-700">Modules</p>
+            <ul className="mt-3 space-y-2">
+              <li>
+                <Link
+                  to="/deliveries"
+                  className="text-sm font-medium text-neutral-900 underline"
+                >
+                  Livraisons
+                </Link>
+                <span className="ml-2 text-sm text-neutral-500">
+                  — tournées du jour
+                </span>
+              </li>
+            </ul>
+          </div>
+        ) : null}
       </div>
     </div>
   )

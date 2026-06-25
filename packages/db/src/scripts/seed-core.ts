@@ -6,6 +6,7 @@ import {
   bakeries,
   categories,
   employeeLocations,
+  employeeProducts,
   employees,
   locations,
   organization as baOrganization,
@@ -328,6 +329,20 @@ async function seedLegacyDomain(legacyOrgId: string, truncate: boolean) {
       isPrimary: true,
     })),
   )
+
+  const deliveryEmployees = insertedEmployees.filter((e) => e.role === 'delivery')
+  if (deliveryEmployees.length > 0 && insertedProducts.length > 0) {
+    await db.insert(employeeProducts).values(
+      deliveryEmployees.flatMap((emp) =>
+        insertedProducts.map((product) => ({
+          employeeId: emp.id,
+          productId: product.id,
+          commissionPerUnit: 0,
+          isActive: true,
+        })),
+      ),
+    )
+  }
 
   return {
     bakery: bakery!,

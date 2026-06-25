@@ -1,3 +1,5 @@
+import * as bakeries from './bakeries'
+import * as deliveries from './deliveries'
 import * as health from './health'
 import * as me from './me'
 
@@ -7,5 +9,11 @@ export default {
   },
   me: {
     session: me.sessionInfo,
+  },
+  bakeries: {
+    list: bakeries.list,
+  },
+  deliveries: {
+    listRuns: deliveries.listRuns,
   },
 }
