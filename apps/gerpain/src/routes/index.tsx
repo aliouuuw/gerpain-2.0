@@ -72,6 +72,17 @@ function Home() {
                   — tournées du jour
                 </span>
               </li>
+              <li>
+                <Link
+                  to="/collections"
+                  className="text-sm font-medium text-neutral-900 underline"
+                >
+                  Encaissements
+                </Link>
+                <span className="ml-2 text-sm text-neutral-500">
+                  — collecte caisse
+                </span>
+              </li>
             </ul>
           </div>
         ) : null}

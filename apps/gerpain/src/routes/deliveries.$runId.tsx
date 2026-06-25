@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { formatRpcError } from '#/lib/rpc-error'
 
@@ -10,10 +11,6 @@ export const Route = createFileRoute('/deliveries/$runId')({
 })
 
 type ItemDraft = { entrusted: number; returned: number }
-
-function formatXof(amount: number): string {
-  return `${new Intl.NumberFormat('fr-FR').format(amount)} XOF`
-}
 
 function formatStatus(status: string): string {
   const labels: Record<string, string> = {

@@ -1,4 +1,5 @@
 import * as bakeries from './bakeries'
+import * as collections from './collections'
 import * as deliveries from './deliveries'
 import * as health from './health'
 import * as me from './me'
@@ -12,6 +13,12 @@ export default {
   },
   bakeries: {
     list: bakeries.list,
+  },
+  collections: {
+    list: collections.list,
+    get: collections.get,
+    update: collections.update,
+    submit: collections.submit,
   },
   deliveries: {
     listRuns: deliveries.listRuns,
