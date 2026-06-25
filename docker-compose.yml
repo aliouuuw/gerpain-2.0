@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gerpain-postgres
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: gerpain
+      POSTGRES_PASSWORD: gerpain
+      POSTGRES_DB: gerpain_dev
+    volumes:
+      - gerpain_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gerpain -d gerpain_dev']
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  gerpain_pg_data:

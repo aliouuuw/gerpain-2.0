@@ -4,7 +4,7 @@ import postgres from 'postgres'
 import * as schema from './schema/index'
 
 const connectionString =
-  process.env.DATABASE_URL ?? 'postgresql://localhost:5432/gerpain_dev'
+  process.env.DATABASE_URL ?? 'postgresql://gerpain:gerpain@localhost:5432/gerpain_dev'
 
 const isProduction = process.env.NODE_ENV === 'production'
 const isNeon = connectionString.includes('neon.tech')

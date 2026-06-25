@@ -9,12 +9,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
+    "db:seed": "bun ./src/scripts/seed.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts"
   },
   "dependencies": {
+    "@gerpain/auth": "workspace:*",
     "drizzle-orm": "^0.45.1",
     "postgres": "^3.4.7",
     "zod": "^4.3.6"

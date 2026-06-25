@@ -5,6 +5,6 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? 'postgresql://localhost:5432/gerpain_dev',
+    url: process.env.DATABASE_URL ?? 'postgresql://gerpain:gerpain@localhost:5432/gerpain_dev',
   },
 })

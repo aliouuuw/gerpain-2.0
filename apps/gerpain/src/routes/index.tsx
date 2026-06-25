@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { orpc } from '#/lib/orpc-client'
 
@@ -7,6 +7,7 @@ export const Route = createFileRoute('/')({ component: Home })
 
 function Home() {
   const health = useQuery(orpc.health.ping.queryOptions({}))
+  const session = useQuery(orpc.me.session.queryOptions({}))
 
   return (
     <div className="mx-auto max-w-2xl p-8">
@@ -21,17 +22,40 @@ function Home() {
         Hono / Next.js.
       </p>
 
-      <div className="mt-8 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-sm font-medium text-neutral-700">API oRPC</p>
-        {health.isLoading ? (
-          <p className="mt-2 text-sm text-neutral-500">Vérification…</p>
-        ) : health.isError ? (
-          <p className="mt-2 text-sm text-red-600">Service indisponible</p>
-        ) : (
-          <p className="mt-2 font-mono text-sm text-emerald-700">
-            health.ping → {JSON.stringify(health.data)}
-          </p>
-        )}
+      <div className="mt-8 space-y-4">
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <p className="text-sm font-medium text-neutral-700">API oRPC</p>
+          {health.isLoading ? (
+            <p className="mt-2 text-sm text-neutral-500">Vérification…</p>
+          ) : health.isError ? (
+            <p className="mt-2 text-sm text-red-600">Service indisponible</p>
+          ) : (
+            <p className="mt-2 font-mono text-sm text-emerald-700">
+              health.ping → {JSON.stringify(health.data)}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <p className="text-sm font-medium text-neutral-700">Session</p>
+          {session.isLoading ? (
+            <p className="mt-2 text-sm text-neutral-500">Chargement…</p>
+          ) : session.isError ? (
+            <p className="mt-2 text-sm text-neutral-600">
+              Non connecté.{' '}
+              <Link to="/login" className="font-medium text-neutral-900 underline">
+                Se connecter
+              </Link>
+            </p>
+          ) : session.data ? (
+            <p className="mt-2 text-sm text-neutral-700">
+              Connecté : {session.data.user.email}
+              {session.data.activeOrganizationId
+                ? ` · org ${session.data.activeOrganizationId}`
+                : ' · aucune organisation active'}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   )

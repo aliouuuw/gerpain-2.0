@@ -1,7 +1,5 @@
-import { os } from '@orpc/server'
+import { publicContext } from './context'
 import { z } from 'zod'
-
-export const publicContext = os.$context<{ headers: Headers }>()
 
 export const health = publicContext
   .input(z.object({}).optional())
