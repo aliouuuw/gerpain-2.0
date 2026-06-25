@@ -43,6 +43,10 @@ function CollectionDetailPage() {
     collection.data?.status === 'pending' ||
     collection.data?.status === 'rejected'
 
+  const reviewable = collection.data?.status === 'submitted'
+
+  const [rejectReason, setRejectReason] = useState('')
+
   useEffect(() => {
     if (!collection.data) return
     setDraft({
@@ -72,6 +76,37 @@ function CollectionDetailPage() {
     orpc.collections.submit.mutationOptions({
       onSuccess: async () => {
         setSuccess('Encaissement soumis pour validation.')
+        await queryClient.invalidateQueries({
+          queryKey: orpc.collections.get.key({ input: { collectionId } }),
+        })
+      },
+      onError: (err) => {
+        setError(formatRpcError(err))
+      },
+    }),
+  )
+
+  const validate = useMutation(
+    orpc.collections.validate.mutationOptions({
+      onSuccess: async (data) => {
+        setSuccess(
+          `Encaissement validé et comptabilisé (mouvement ${data.movementId.slice(0, 8)}…).`,
+        )
+        await queryClient.invalidateQueries({
+          queryKey: orpc.collections.get.key({ input: { collectionId } }),
+        })
+      },
+      onError: (err) => {
+        setError(formatRpcError(err))
+      },
+    }),
+  )
+
+  const reject = useMutation(
+    orpc.collections.reject.mutationOptions({
+      onSuccess: async () => {
+        setSuccess('Encaissement rejeté — le livreur peut corriger et resoumettre.')
+        setRejectReason('')
         await queryClient.invalidateQueries({
           queryKey: orpc.collections.get.key({ input: { collectionId } }),
         })
@@ -282,6 +317,61 @@ function CollectionDetailPage() {
               >
                 {submit.isPending ? 'Soumission…' : 'Soumettre'}
               </button>
+            </div>
+          ) : null}
+
+          {reviewable ? (
+            <div className="mt-6 space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-medium text-amber-900">
+                Validation superviseur
+              </p>
+              <p className="text-sm text-amber-800">
+                Vérifiez les montants puis validez pour comptabiliser dans le
+                ledger Bocal.
+              </p>
+              <div className="space-y-2">
+                <label
+                  htmlFor="reject-reason"
+                  className="text-sm font-medium text-neutral-700"
+                >
+                  Motif de rejet (optionnel)
+                </label>
+                <input
+                  id="reject-reason"
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Ex. montants incohérents"
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={
+                    reject.isPending ||
+                    validate.isPending ||
+                    rejectReason.trim().length === 0
+                  }
+                  onClick={() =>
+                    reject.mutate({
+                      collectionId,
+                      reason: rejectReason.trim(),
+                    })
+                  }
+                  className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-800 disabled:opacity-50"
+                >
+                  {reject.isPending ? 'Rejet…' : 'Rejeter'}
+                </button>
+                <button
+                  type="button"
+                  disabled={validate.isPending || reject.isPending}
+                  onClick={() => validate.mutate({ collectionId })}
+                  className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {validate.isPending ? 'Validation…' : 'Valider et comptabiliser'}
+                </button>
+              </div>
             </div>
           ) : null}
 

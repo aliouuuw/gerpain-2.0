@@ -1,15 +1,28 @@
 import { and, eq, gte, inArray, lte } from 'drizzle-orm'
 
+import { post } from '@gerpain/bocal'
 import {
   type Database,
   cashCollections,
   deliveryRuns,
   employees,
+  ledgerMovements,
 } from '@gerpain/db'
+
+import { buildCollectionValidateLines } from './collection-posting'
+import {
+  getLedgerAccountMap,
+  LedgerAccountsError,
+} from './ledger-accounts'
 
 export class CollectionServiceError extends Error {
   constructor(
-    readonly code: 'NOT_FOUND' | 'INVALID_STATE' | 'NOT_EDITABLE',
+    readonly code:
+      | 'NOT_FOUND'
+      | 'INVALID_STATE'
+      | 'NOT_EDITABLE'
+      | 'ALREADY_POSTED'
+      | 'LEDGER_NOT_CONFIGURED',
     message: string,
   ) {
     super(message)
@@ -319,6 +332,174 @@ export async function submitCashCollection(
     throw new CollectionServiceError(
       'INVALID_STATE',
       `Soumission impossible depuis le statut « ${existing.status} »`,
+    )
+  }
+
+  return getCashCollection(db, organizationId, collectionId)
+}
+
+export type ValidateCashCollectionResult = CashCollectionDetail & {
+  movementId: string
+}
+
+export async function validateCashCollection(
+  db: Database,
+  organizationId: string,
+  collectionId: string,
+): Promise<ValidateCashCollectionResult> {
+  const movementId = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(cashCollections)
+      .where(
+        and(
+          eq(cashCollections.id, collectionId),
+          eq(cashCollections.organizationId, organizationId),
+        ),
+      )
+
+    if (!current) {
+      throw new CollectionServiceError('NOT_FOUND', 'Encaissement introuvable')
+    }
+
+    if (current.status !== 'submitted') {
+      throw new CollectionServiceError(
+        'INVALID_STATE',
+        `Validation impossible depuis le statut « ${current.status} »`,
+      )
+    }
+
+    const actualAmount =
+      (current.cashAmount ?? 0) +
+      (current.cardAmount ?? 0) +
+      (current.mobileAmount ?? 0)
+
+    if (actualAmount <= 0) {
+      throw new CollectionServiceError(
+        'INVALID_STATE',
+        'Impossible de valider sans montant collecté',
+      )
+    }
+
+    const [existingMovement] = await tx
+      .select({ id: ledgerMovements.id })
+      .from(ledgerMovements)
+      .where(
+        and(
+          eq(ledgerMovements.organizationId, organizationId),
+          eq(ledgerMovements.sourceType, 'cash_collection'),
+          eq(ledgerMovements.sourceId, collectionId),
+        ),
+      )
+
+    if (existingMovement) {
+      throw new CollectionServiceError(
+        'ALREADY_POSTED',
+        'Cet encaissement est déjà comptabilisé',
+      )
+    }
+
+    let accounts
+    try {
+      accounts = await getLedgerAccountMap(tx, organizationId)
+    } catch (error) {
+      if (error instanceof LedgerAccountsError) {
+        throw new CollectionServiceError('LEDGER_NOT_CONFIGURED', error.message)
+      }
+      throw error
+    }
+
+    const now = new Date()
+    const lines = buildCollectionValidateLines(
+      accounts,
+      current.expectedAmount,
+      actualAmount,
+    )
+
+    const createdMovementId = await post(tx, {
+      organizationId,
+      occurredAt: now,
+      memo: 'Encaissement validé',
+      sourceType: 'cash_collection',
+      sourceId: collectionId,
+      lines,
+    })
+
+    const [updated] = await tx
+      .update(cashCollections)
+      .set({
+        status: 'validated',
+        validatedAt: now,
+        rejectionReason: null,
+        actualAmount,
+        variance: actualAmount - current.expectedAmount,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(cashCollections.id, collectionId),
+          eq(cashCollections.organizationId, organizationId),
+          eq(cashCollections.status, 'submitted'),
+        ),
+      )
+      .returning()
+
+    if (!updated) {
+      throw new CollectionServiceError(
+        'INVALID_STATE',
+        'Encaissement non validable',
+      )
+    }
+
+    return createdMovementId
+  })
+
+  const detail = await getCashCollection(db, organizationId, collectionId)
+  return { ...detail, movementId }
+}
+
+export async function rejectCashCollection(
+  db: Database,
+  organizationId: string,
+  collectionId: string,
+  reason: string,
+): Promise<CashCollectionDetail> {
+  const [updated] = await db
+    .update(cashCollections)
+    .set({
+      status: 'rejected',
+      rejectionReason: reason,
+      validatedAt: null,
+      validatedBy: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(cashCollections.id, collectionId),
+        eq(cashCollections.organizationId, organizationId),
+        eq(cashCollections.status, 'submitted'),
+      ),
+    )
+    .returning()
+
+  if (!updated) {
+    const [existing] = await db
+      .select({ status: cashCollections.status })
+      .from(cashCollections)
+      .where(
+        and(
+          eq(cashCollections.id, collectionId),
+          eq(cashCollections.organizationId, organizationId),
+        ),
+      )
+
+    if (!existing) {
+      throw new CollectionServiceError('NOT_FOUND', 'Encaissement introuvable')
+    }
+
+    throw new CollectionServiceError(
+      'INVALID_STATE',
+      `Rejet impossible depuis le statut « ${existing.status} »`,
     )
   }
 

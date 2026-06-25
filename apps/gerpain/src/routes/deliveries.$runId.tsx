@@ -26,6 +26,9 @@ function DeliveryRunPage() {
   const { runId } = Route.useParams()
   const queryClient = useQueryClient()
   const [validateMessage, setValidateMessage] = useState<string | null>(null)
+  const [validatedCollectionId, setValidatedCollectionId] = useState<
+    string | null
+  >(null)
   const [itemError, setItemError] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, ItemDraft>>({})
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
@@ -71,6 +74,7 @@ function DeliveryRunPage() {
   const validate = useMutation(
     orpc.deliveries.validateRun.mutationOptions({
       onSuccess: async (data) => {
+        setValidatedCollectionId(data.collection.id)
         setValidateMessage(
           `Tournée validée — encaissement attendu : ${formatXof(data.collection.expectedAmount)}`,
         )
@@ -230,6 +234,18 @@ function DeliveryRunPage() {
           {validateMessage ? (
             <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               {validateMessage}
+              {validatedCollectionId ? (
+                <>
+                  {' '}
+                  <Link
+                    to="/collections/$collectionId"
+                    params={{ collectionId: validatedCollectionId }}
+                    className="font-medium underline"
+                  >
+                    Ouvrir l&apos;encaissement
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : null}
 

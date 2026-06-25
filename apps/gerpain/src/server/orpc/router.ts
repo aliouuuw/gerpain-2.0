@@ -19,6 +19,8 @@ export default {
     get: collections.get,
     update: collections.update,
     submit: collections.submit,
+    validate: collections.validate,
+    reject: collections.reject,
   },
   deliveries: {
     listRuns: deliveries.listRuns,

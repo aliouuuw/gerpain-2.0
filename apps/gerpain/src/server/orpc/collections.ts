@@ -8,8 +8,10 @@ import {
   CollectionServiceError,
   getCashCollection,
   listCashCollections,
+  rejectCashCollection,
   submitCashCollection,
   updateCashCollection,
+  validateCashCollection,
 } from '#/services/collections'
 import { orgContext } from './context'
 
@@ -20,9 +22,11 @@ function mapCollectionError(error: unknown): never {
     const status =
       error.code === 'NOT_FOUND'
         ? 'NOT_FOUND'
-        : error.code === 'INVALID_STATE'
+        : error.code === 'INVALID_STATE' || error.code === 'ALREADY_POSTED'
           ? 'CONFLICT'
-          : 'BAD_REQUEST'
+          : error.code === 'LEDGER_NOT_CONFIGURED'
+            ? 'INTERNAL_SERVER_ERROR'
+            : 'BAD_REQUEST'
     throw new ORPCError(status, { message: error.message })
   }
   throw error
@@ -112,6 +116,40 @@ export const submit = orgContext
         db,
         context.legacyOrganizationId,
         input.collectionId,
+      )
+    } catch (error) {
+      mapCollectionError(error)
+    }
+  })
+
+export const validate = orgContext
+  .input(z.object({ collectionId: z.string().uuid() }))
+  .handler(async ({ context, input }) => {
+    try {
+      return await validateCashCollection(
+        db,
+        context.legacyOrganizationId,
+        input.collectionId,
+      )
+    } catch (error) {
+      mapCollectionError(error)
+    }
+  })
+
+export const reject = orgContext
+  .input(
+    z.object({
+      collectionId: z.string().uuid(),
+      reason: z.string().min(1),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    try {
+      return await rejectCashCollection(
+        db,
+        context.legacyOrganizationId,
+        input.collectionId,
+        input.reason,
       )
     } catch (error) {
       mapCollectionError(error)

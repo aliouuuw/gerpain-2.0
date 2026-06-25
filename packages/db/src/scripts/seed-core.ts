@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, and } from 'drizzle-orm'
 import { parseSetCookieHeader } from 'better-auth/cookies'
 
 import { db } from '../client'
@@ -8,6 +8,7 @@ import {
   employeeLocations,
   employeeProducts,
   employees,
+  ledgerAccounts,
   locations,
   organization as baOrganization,
   organizations,
@@ -382,6 +383,27 @@ async function ensureLegacyOrganization(baOrgId: string) {
   return legacyOrg
 }
 
+const LEDGER_SEED_ACCOUNTS = [
+  { code: 'CASH', name: 'Caisse', type: 'asset' as const },
+  { code: 'DRIVER_RECEIVABLE', name: 'Créances livreurs', type: 'asset' as const },
+  { code: 'CASH_SHORTAGE', name: 'Écarts caisse (manque)', type: 'expense' as const },
+  { code: 'CASH_OVERAGE', name: 'Écarts caisse (excédent)', type: 'revenue' as const },
+]
+
+async function ensureLedgerAccounts(legacyOrgId: string) {
+  for (const account of LEDGER_SEED_ACCOUNTS) {
+    await db
+      .insert(ledgerAccounts)
+      .values({
+        organizationId: legacyOrgId,
+        ...account,
+      })
+      .onConflictDoNothing({
+        target: [ledgerAccounts.organizationId, ledgerAccounts.code],
+      })
+  }
+}
+
 export type SeedResult = {
   adminEmail: string
   baOrgSlug: string
@@ -396,6 +418,7 @@ export async function runSeed(): Promise<SeedResult> {
   const sessionHeaders = await signInAdmin()
   const baOrg = await ensureBaOrganization(sessionHeaders)
   const legacyOrg = await ensureLegacyOrganization(baOrg.id)
+  await ensureLedgerAccounts(legacyOrg.id)
   const domain = await seedLegacyDomain(legacyOrg.id, truncate)
 
   return {
