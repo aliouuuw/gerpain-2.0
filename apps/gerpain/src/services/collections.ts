@@ -505,3 +505,63 @@ export async function rejectCashCollection(
 
   return getCashCollection(db, organizationId, collectionId)
 }
+
+export type SettleCashCollectionsInput = {
+  organizationId: string
+  bakeryId?: string
+  employeeId?: string
+  date?: string
+  startDate?: string
+  endDate?: string
+}
+
+export type SettleCashCollectionsResult = {
+  settledCount: number
+  settledIds: string[]
+}
+
+export async function settleCashCollectionsPeriod(
+  db: Database,
+  input: SettleCashCollectionsInput,
+): Promise<SettleCashCollectionsResult> {
+  const conditions = [
+    eq(cashCollections.organizationId, input.organizationId),
+    eq(cashCollections.isSettled, false),
+    eq(cashCollections.status, 'validated'),
+  ]
+
+  if (input.bakeryId) {
+    conditions.push(eq(cashCollections.bakeryId, input.bakeryId))
+  }
+  if (input.employeeId) {
+    conditions.push(eq(cashCollections.employeeId, input.employeeId))
+  }
+  if (input.date) {
+    conditions.push(eq(cashCollections.date, input.date))
+  }
+  if (input.startDate) {
+    conditions.push(gte(cashCollections.date, input.startDate))
+  }
+  if (input.endDate) {
+    conditions.push(lte(cashCollections.date, input.endDate))
+  }
+
+  const toSettle = await db
+    .select({ id: cashCollections.id })
+    .from(cashCollections)
+    .where(and(...conditions))
+
+  if (toSettle.length === 0) {
+    return { settledCount: 0, settledIds: [] }
+  }
+
+  const settledIds = toSettle.map((row) => row.id)
+  const now = new Date()
+
+  await db
+    .update(cashCollections)
+    .set({ isSettled: true, updatedAt: now })
+    .where(inArray(cashCollections.id, settledIds))
+
+  return { settledCount: settledIds.length, settledIds }
+}

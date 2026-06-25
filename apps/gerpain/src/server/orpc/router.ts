@@ -21,6 +21,7 @@ export default {
     submit: collections.submit,
     validate: collections.validate,
     reject: collections.reject,
+    settle: collections.settle,
   },
   deliveries: {
     listRuns: deliveries.listRuns,

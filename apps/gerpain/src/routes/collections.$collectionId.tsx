@@ -191,6 +191,11 @@ function CollectionDetailPage() {
             <p className="mt-2 text-sm text-neutral-600">
               {collection.data.date} · {collection.data.source} ·{' '}
               {formatStatus(collection.data.status)}
+              {collection.data.status === 'validated'
+                ? collection.data.isSettled
+                  ? ' · Clôturé paie'
+                  : ' · À clôturer'
+                : ''}
             </p>
           ) : null}
         </div>

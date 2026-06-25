@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
+import { formatRpcError } from '#/lib/rpc-error'
 
 export const Route = createFileRoute('/collections/')({
   component: CollectionsPage,
@@ -25,6 +26,9 @@ function formatStatus(status: string): string {
 
 function CollectionsPage() {
   const [date, setDate] = useState(todayIso)
+  const [message, setMessage] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
   const bakeries = useQuery(orpc.bakeries.list.queryOptions({}))
   const bakeryId = bakeries.data?.[0]?.id ?? ''
@@ -35,6 +39,34 @@ function CollectionsPage() {
     }),
     enabled: Boolean(bakeryId),
   })
+
+  const unsettledValidatedCount = useMemo(
+    () =>
+      collections.data?.filter(
+        (col) => col.status === 'validated' && !col.isSettled,
+      ).length ?? 0,
+    [collections.data],
+  )
+
+  const settle = useMutation(
+    orpc.collections.settle.mutationOptions({
+      onSuccess: async (data) => {
+        setError(null)
+        setMessage(
+          data.settledCount > 0
+            ? `${data.settledCount} encaissement(s) clôturé(s) pour la paie.`
+            : 'Aucun encaissement validé à clôturer pour cette date.',
+        )
+        await queryClient.invalidateQueries({
+          queryKey: orpc.collections.list.key({ input: { bakeryId, date } }),
+        })
+      },
+      onError: (err) => {
+        setMessage(null)
+        setError(formatRpcError(err))
+      },
+    }),
+  )
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -76,7 +108,30 @@ function CollectionsPage() {
             </p>
           </div>
         ) : null}
+        {unsettledValidatedCount > 0 ? (
+          <button
+            type="button"
+            disabled={settle.isPending || !bakeryId}
+            onClick={() => settle.mutate({ bakeryId, date })}
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {settle.isPending
+              ? 'Clôture…'
+              : `Clôturer ${unsettledValidatedCount} validé(s)`}
+          </button>
+        ) : null}
       </div>
+
+      {message ? (
+        <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      ) : null}
 
       {collections.isLoading ? (
         <p className="mt-8 text-sm text-neutral-500">Chargement…</p>
@@ -101,6 +156,9 @@ function CollectionsPage() {
                 <th className="px-4 py-3 font-medium text-neutral-700">
                   Statut
                 </th>
+                <th className="px-4 py-3 font-medium text-neutral-700">
+                  Paie
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100 bg-white">
@@ -124,6 +182,13 @@ function CollectionsPage() {
                   </td>
                   <td className="px-4 py-3 text-neutral-700">
                     {formatStatus(col.status)}
+                  </td>
+                  <td className="px-4 py-3 text-neutral-600">
+                    {col.status === 'validated'
+                      ? col.isSettled
+                        ? 'Clôturé'
+                        : 'À clôturer'
+                      : '—'}
                   </td>
                 </tr>
               ))}

@@ -9,6 +9,7 @@ import {
   getCashCollection,
   listCashCollections,
   rejectCashCollection,
+  settleCashCollectionsPeriod,
   submitCashCollection,
   updateCashCollection,
   validateCashCollection,
@@ -154,4 +155,35 @@ export const reject = orgContext
     } catch (error) {
       mapCollectionError(error)
     }
+  })
+
+export const settle = orgContext
+  .input(
+    z.object({
+      bakeryId: z.string().uuid(),
+      date: dateSchema.optional(),
+      startDate: dateSchema.optional(),
+      endDate: dateSchema.optional(),
+      employeeId: z.string().uuid().optional(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    const bakery = await getBakeryForOrg(
+      db,
+      context.legacyOrganizationId,
+      input.bakeryId,
+    )
+
+    if (!bakery) {
+      throw new ORPCError('NOT_FOUND', { message: 'Boulangerie introuvable' })
+    }
+
+    return settleCashCollectionsPeriod(db, {
+      organizationId: context.legacyOrganizationId,
+      bakeryId: input.bakeryId,
+      date: input.date,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      employeeId: input.employeeId,
+    })
   })
