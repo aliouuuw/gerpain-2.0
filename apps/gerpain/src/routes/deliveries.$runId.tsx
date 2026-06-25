@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { orpc } from '#/lib/orpc-client'
+import { formatRpcError } from '#/lib/rpc-error'
 
 export const Route = createFileRoute('/deliveries/$runId')({
   component: DeliveryRunPage,
 })
+
+type ItemDraft = { entrusted: number; returned: number }
 
 function formatXof(amount: number): string {
   return `${new Intl.NumberFormat('fr-FR').format(amount)} XOF`
@@ -27,10 +30,31 @@ function DeliveryRunPage() {
   const queryClient = useQueryClient()
   const [validateMessage, setValidateMessage] = useState<string | null>(null)
   const [itemError, setItemError] = useState<string | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, ItemDraft>>({})
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const run = useQuery(
     orpc.deliveries.getRun.queryOptions({ input: { runId } }),
   )
+
+  const editable = run.data?.status === 'draft'
+
+  useEffect(() => {
+    if (!run.data) return
+    setDrafts(
+      Object.fromEntries(
+        run.data.items.map((item) => [
+          item.id,
+          {
+            entrusted: item.quantityEntrusted,
+            returned: item.quantityReturned,
+          },
+        ]),
+      ),
+    )
+    setSaveState('idle')
+  }, [run.data])
 
   const updateItem = useMutation(
     orpc.deliveries.updateItem.mutationOptions({
@@ -41,9 +65,8 @@ function DeliveryRunPage() {
         })
       },
       onError: (error) => {
-        setItemError(
-          error instanceof Error ? error.message : 'Échec de la mise à jour',
-        )
+        setSaveState('idle')
+        setItemError(formatRpcError(error))
       },
     }),
   )
@@ -60,20 +83,96 @@ function DeliveryRunPage() {
       },
       onError: (error) => {
         setValidateMessage(null)
-        setItemError(
-          error instanceof Error ? error.message : 'Échec de la validation',
-        )
+        setItemError(formatRpcError(error))
       },
     }),
   )
 
-  const editable = run.data?.status === 'draft'
+  const dirtyItems = useMemo(() => {
+    if (!run.data) return []
+    return run.data.items.filter((item) => {
+      const draft = drafts[item.id]
+      if (!draft) return false
+      return (
+        draft.entrusted !== item.quantityEntrusted ||
+        draft.returned !== item.quantityReturned
+      )
+    })
+  }, [run.data, drafts])
 
-  const totalExpected =
-    run.data?.items.reduce(
-      (sum, item) => sum + item.quantitySold * item.unitPrice,
-      0,
-    ) ?? 0
+  const flushDirtyItems = useCallback(async () => {
+    if (!run.data || dirtyItems.length === 0) return
+    setSaveState('saving')
+    try {
+      for (const item of dirtyItems) {
+        const draft = drafts[item.id]
+        if (!draft) continue
+        await updateItem.mutateAsync({
+          itemId: item.id,
+          quantityEntrusted: draft.entrusted,
+          quantityReturned: draft.returned,
+        })
+      }
+      setSaveState('saved')
+      window.setTimeout(() => setSaveState('idle'), 1500)
+    } catch {
+      // onError on mutation handles message
+    }
+  }, [dirtyItems, drafts, run.data, updateItem])
+
+  useEffect(() => {
+    if (!editable || dirtyItems.length === 0) return
+
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      void flushDirtyItems()
+    }, 500)
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current)
+    }
+  }, [dirtyItems, editable, flushDirtyItems])
+
+  const totalExpected = useMemo(() => {
+    if (!run.data) return 0
+    return run.data.items.reduce((sum, item) => {
+      const draft = drafts[item.id] ?? {
+        entrusted: item.quantityEntrusted,
+        returned: item.quantityReturned,
+      }
+      const sold = Math.max(0, draft.entrusted - draft.returned)
+      return sum + sold * item.unitPrice
+    }, 0)
+  }, [run.data, drafts])
+
+  async function handleValidate() {
+    setItemError(null)
+    setValidateMessage(null)
+    try {
+      if (dirtyItems.length > 0) {
+        await flushDirtyItems()
+      }
+      await validate.mutateAsync({ runId })
+    } catch (error) {
+      setItemError(formatRpcError(error))
+    }
+  }
+
+  function updateDraft(
+    itemId: string,
+    patch: Partial<ItemDraft>,
+  ) {
+    setDrafts((current) => {
+      const previous = current[itemId]
+      if (!previous) return current
+      const next = { ...previous, ...patch }
+      if (next.returned > next.entrusted) {
+        next.returned = next.entrusted
+      }
+      return { ...current, [itemId]: next }
+    })
+    setSaveState('idle')
+  }
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -114,13 +213,25 @@ function DeliveryRunPage() {
         <p className="mt-8 text-sm text-red-600">Tournée introuvable.</p>
       ) : run.data ? (
         <>
+          {editable ? (
+            <p className="mt-4 text-sm text-neutral-500">
+              {saveState === 'saving'
+                ? 'Enregistrement…'
+                : saveState === 'saved'
+                  ? 'Modifications enregistrées'
+                  : dirtyItems.length > 0
+                    ? 'Modifications en attente…'
+                    : 'Saisissez les quantités confiées et retournées'}
+            </p>
+          ) : null}
+
           {itemError ? (
-            <p className="mt-6 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {itemError}
             </p>
           ) : null}
           {validateMessage ? (
-            <p className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
               {validateMessage}
             </p>
           ) : null}
@@ -147,17 +258,65 @@ function DeliveryRunPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-100 bg-white">
-                {run.data.items.map((item) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    editable={editable}
-                    saving={updateItem.isPending}
-                    onSave={(values) =>
-                      updateItem.mutate({ itemId: item.id, ...values })
-                    }
-                  />
-                ))}
+                {run.data.items.map((item) => {
+                  const draft = drafts[item.id] ?? {
+                    entrusted: item.quantityEntrusted,
+                    returned: item.quantityReturned,
+                  }
+                  const sold = Math.max(0, draft.entrusted - draft.returned)
+                  const lineTotal = sold * item.unitPrice
+
+                  return (
+                    <tr key={item.id}>
+                      <td className="px-4 py-3 text-neutral-900">
+                        {item.productName}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editable ? (
+                          <input
+                            type="number"
+                            min={0}
+                            value={draft.entrusted}
+                            onChange={(e) =>
+                              updateDraft(item.id, {
+                                entrusted: Number(e.target.value) || 0,
+                              })
+                            }
+                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
+                          />
+                        ) : (
+                          <span className="text-neutral-600">
+                            {item.quantityEntrusted}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {editable ? (
+                          <input
+                            type="number"
+                            min={0}
+                            max={draft.entrusted}
+                            value={draft.returned}
+                            onChange={(e) =>
+                              updateDraft(item.id, {
+                                returned: Number(e.target.value) || 0,
+                              })
+                            }
+                            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
+                          />
+                        ) : (
+                          <span className="text-neutral-600">
+                            {item.quantityReturned}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-600">{sold}</td>
+                      <td className="px-4 py-3 text-neutral-600">
+                        {formatXof(lineTotal)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
               <tfoot className="border-t border-neutral-200 bg-neutral-50">
                 <tr>
@@ -176,11 +335,25 @@ function DeliveryRunPage() {
           </div>
 
           {editable ? (
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+              {dirtyItems.length > 0 ? (
+                <button
+                  type="button"
+                  disabled={updateItem.isPending}
+                  onClick={() => void flushDirtyItems()}
+                  className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 disabled:opacity-50"
+                >
+                  {updateItem.isPending ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              ) : null}
               <button
                 type="button"
-                disabled={validate.isPending || totalExpected === 0}
-                onClick={() => validate.mutate({ runId })}
+                disabled={
+                  validate.isPending ||
+                  updateItem.isPending ||
+                  totalExpected === 0
+                }
+                onClick={() => void handleValidate()}
                 className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
                 {validate.isPending ? 'Validation…' : 'Valider la tournée'}
@@ -190,86 +363,5 @@ function DeliveryRunPage() {
         </>
       ) : null}
     </div>
-  )
-}
-
-function ItemRow({
-  item,
-  editable,
-  saving,
-  onSave,
-}: {
-  item: {
-    id: string
-    productName: string
-    quantityEntrusted: number
-    quantityReturned: number
-    quantitySold: number
-    unitPrice: number
-  }
-  editable: boolean
-  saving: boolean
-  onSave: (values: {
-    quantityEntrusted: number
-    quantityReturned: number
-  }) => void
-}) {
-  const [entrusted, setEntrusted] = useState(item.quantityEntrusted)
-  const [returned, setReturned] = useState(item.quantityReturned)
-
-  useEffect(() => {
-    setEntrusted(item.quantityEntrusted)
-    setReturned(item.quantityReturned)
-  }, [item.quantityEntrusted, item.quantityReturned])
-
-  const sold = Math.max(0, entrusted - returned)
-  const lineTotal = sold * item.unitPrice
-
-  function commit() {
-    if (!editable || saving) return
-    if (
-      entrusted === item.quantityEntrusted &&
-      returned === item.quantityReturned
-    ) {
-      return
-    }
-    onSave({ quantityEntrusted: entrusted, quantityReturned: returned })
-  }
-
-  return (
-    <tr>
-      <td className="px-4 py-3 text-neutral-900">{item.productName}</td>
-      <td className="px-4 py-3">
-        {editable ? (
-          <input
-            type="number"
-            min={0}
-            value={entrusted}
-            onChange={(e) => setEntrusted(Number(e.target.value) || 0)}
-            onBlur={commit}
-            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
-          />
-        ) : (
-          <span className="text-neutral-600">{item.quantityEntrusted}</span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        {editable ? (
-          <input
-            type="number"
-            min={0}
-            max={entrusted}
-            value={returned}
-            onChange={(e) => setReturned(Number(e.target.value) || 0)}
-            onBlur={commit}
-            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
-          />
-        ) : (
-          <span className="text-neutral-600">{item.quantityReturned}</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-neutral-600">{sold}</td>
-      <td className="px-4 py-3 text-neutral-600">{formatXof(lineTotal)}</td>
-    </tr>
   )
 }

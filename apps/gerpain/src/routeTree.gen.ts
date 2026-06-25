@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DeliveriesIndexRouteImport } from './routes/deliveries.index'
 import { Route as DeliveriesRunIdRouteImport } from './routes/deliveries.$runId'
 import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
@@ -30,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DeliveriesIndexRoute = DeliveriesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DeliveriesRoute,
 } as any)
 const DeliveriesRunIdRoute = DeliveriesRunIdRouteImport.update({
   id: '/$runId',
@@ -52,14 +58,15 @@ export interface FileRoutesByFullPath {
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
+  '/deliveries/': typeof DeliveriesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
+  '/deliveries': typeof DeliveriesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
@@ -69,6 +76,7 @@ export interface FileRoutesById {
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
+  '/deliveries/': typeof DeliveriesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
@@ -79,14 +87,15 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/login'
     | '/deliveries/$runId'
+    | '/deliveries/'
     | '/api/auth/$'
     | '/api/rpc/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/deliveries'
     | '/login'
     | '/deliveries/$runId'
+    | '/deliveries'
     | '/api/auth/$'
     | '/api/rpc/$'
   id:
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
     | '/deliveries'
     | '/login'
     | '/deliveries/$runId'
+    | '/deliveries/'
     | '/api/auth/$'
     | '/api/rpc/$'
   fileRoutesById: FileRoutesById
@@ -130,6 +140,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/deliveries/': {
+      id: '/deliveries/'
+      path: '/'
+      fullPath: '/deliveries/'
+      preLoaderRoute: typeof DeliveriesIndexRouteImport
+      parentRoute: typeof DeliveriesRoute
+    }
     '/deliveries/$runId': {
       id: '/deliveries/$runId'
       path: '/$runId'
@@ -156,10 +173,12 @@ declare module '@tanstack/react-router' {
 
 interface DeliveriesRouteChildren {
   DeliveriesRunIdRoute: typeof DeliveriesRunIdRoute
+  DeliveriesIndexRoute: typeof DeliveriesIndexRoute
 }
 
 const DeliveriesRouteChildren: DeliveriesRouteChildren = {
   DeliveriesRunIdRoute: DeliveriesRunIdRoute,
+  DeliveriesIndexRoute: DeliveriesIndexRoute,
 }
 
 const DeliveriesRouteWithChildren = DeliveriesRoute._addFileChildren(
