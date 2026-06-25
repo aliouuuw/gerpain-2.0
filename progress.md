@@ -1,4 +1,151 @@
-# Ralph Progress Log
+# Gerpain 2.0 — Progress Log
+
+**Last updated:** 2026-06-25  
+**Branch:** `main` (13 commits ahead of `origin/main`)  
+**Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
+**Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`
+
+See also: `prd.json`, `docs/architecture.md`, `docs/EXPECTATIONS.md`, `AGENTS.md`
+
+---
+
+## Migration status
+
+Architecture steps (`docs/architecture.md`):
+
+| Step | Description | Status |
+|------|-------------|--------|
+| 1 | Scaffold TanStack Start + Bun workspace | Done |
+| 2 | Move schema → `packages/db`; `packages/bocal` tests-first | Done |
+| 3 | Wire Better Auth + org context | Done |
+| 4 | Port domains as vertical slices | In progress |
+| 5 | Delete old Hono app once parity reached | Pending |
+
+**Current focus:** thin vertical slices in `apps/gerpain` — core money loop works E2E; parity with legacy operator UI still ahead.
+
+---
+
+## Completed in `apps/gerpain`
+
+### Foundation
+
+- Monorepo (Bun workspaces), TanStack Start app, oRPC `health` + `me.session`
+- `packages/db`: full Drizzle schema split by domain, seed, tenant bridge
+- `packages/bocal` v0: `post`, `reverse`, `balanceOf`, integration tests
+- `packages/auth`: Better Auth factory; login; org-scoped oRPC context
+- Seed: `admin@gerpain.com` / `admin123`, ledger accounts (`CASH`, `DRIVER_RECEIVABLE`, …)
+
+### Deliveries (thin slice)
+
+- `listRuns`, `getRun`, `updateItem`, `validateRun`
+- Auto-create draft runs for date (`ensureDraftRunsForDate`)
+- Validate → pending `cash_collection` (no Bocal on delivery validate yet)
+- UI: list by date, detail with draft qty, auto-save, validate
+- Link to encaissement after validation
+
+### Collections (thin slice)
+
+- List (by single date), get, update, submit
+- Validate + Bocal posting (atomic workflow + ledger)
+- Reject (submitted → rejected)
+- Settle (validated → `isSettled` for payroll)
+- UI: list, detail, supervisor validate/reject, clôturer validés
+
+### Recent commits (new app)
+
+```
+43268cc feat(collections): payroll settlement
+83671ea feat(collections): validate with bocal posting
+a541b68 feat(collections): list, detail, submit
+be46c26 fix(deliveries): nested routing + detail UX
+dbbaf8f feat(deliveries): run detail, edits, validation
+cb61048 feat(deliveries): listRuns slice
+e0d8c7a fix(auth): tenant bridge + seed active org
+c9d7230 feat(auth): Better Auth + org context
+261958e feat(bocal): v0 ledger API
+24af648 feat(db): schema in packages/db
+3535a45 chore(monorepo): Bun workspaces
+1e067b5 feat(monorepo): TanStack Start scaffold
+24b06fc docs: ADRs + architecture
+```
+
+---
+
+## E2E flows verified (operator)
+
+- [x] Delivery: edit quantities → validate → encaissement created
+- [x] Collection: record payment → submit → supervisor validate (Bocal) → clôturer
+
+**Dev commands:**
+
+```bash
+bun run dev
+bun run db:seed          # ledger accounts + demo data
+bun run typecheck && bun run test && bun run build
+```
+
+---
+
+## Gap vs legacy app
+
+Still only in legacy (not ported to `apps/gerpain`):
+
+- Bakery selector (new app uses first bakery silently)
+- App shell / sidebar navigation
+- Master data CRUD: locations, products, categories, employees + commissions
+- Deliveries: full daily board (all agents on one screen, Matin/Soir)
+- Collections: employee-centric period view, reconciliations overview
+- Dashboard KPIs (legacy uses workflow tables; target = Bocal balances)
+- Archive settled periods (`isArchived`)
+- Role-based auth gates (manager vs livreur)
+- Inventory, POS boutique, commissions/payroll
+
+---
+
+## Sprint roadmap
+
+| Sprint | Focus | Size |
+|--------|-------|------|
+| **A** | Platform shell — bakery selector, layout, roles, `validatedBy` | Small |
+| **B** | Master data — bakeries, locations, products, employees | Medium |
+| **C** | Deliveries parity — daily board, date nav, Matin/Soir | Medium |
+| **D** | Collections parity — period view, reconciliations, archive | Medium |
+| **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | Small–medium |
+| **F** | Commissions & payroll | Large |
+| **G** | Inventory & POS (deferred) | Large |
+| **H** | Cutover — parity, deploy, delete legacy | Small |
+
+**Recommended next 3:** A → D → E (B can wait if living on `db:seed`)
+
+---
+
+## Next session
+
+**Sprint A — Platform shell**
+
+- Bakery selector in UI + pass `bakeryId` everywhere (not hardcoded `[0]`)
+- Sidebar layout + module links
+- Role gates on validate / reject / settle
+
+---
+
+## Notes for agents
+
+- Money mutations → Bocal only; KPIs from ledger balances, not workflow rows
+- oRPC procedures thin; logic in `apps/gerpain/src/services/`
+- Nested TanStack routes need layout + `<Outlet />` + `.index.tsx`
+- Re-seed after ledger account changes: `bun run db:seed`
+- Backlog items and `passes` flags live in `prd.json`
+
+---
+
+# Legacy v1 progress archive
+
+> Historical Ralph log from the split Hono + Next.js app (`gerpain_backend/` +
+> `nextjs_frontend/`). Kept for reference during migration. **Do not append new
+> entries below this line** — update the Gerpain 2.0 section above instead.
+
+---
 
 ## Initialization Complete
 
@@ -23,7 +170,6 @@
 Ready to start: **Wire up Employees list page to API** (Task #1)
 
 ---
-
 ## Working on: Wire up Employees list page to API
 
 **Plan:**

@@ -1,667 +1,537 @@
 {
-    "project_meta": {
-        "name": "Gerpain ERP",
-        "version": "2.0.0",
-        "description": "Bakery chain ERP — core loop: Deliveries → Cash Collections → Dashboard. Currency: XOF/FCFA. Core loop complete. Next: performance, dashboard, UX polish. POS deferred. See docs/EXPECTATIONS.md.",
-        "ralph_type": "opencode"
+  "project_meta": {
+    "name": "Gerpain 2.0",
+    "version": "2.0.0",
+    "description": "Bakery chain ERP migration to unified TanStack Start + oRPC + Drizzle + Neon + Better Auth + Bocal. Currency: XOF/FCFA. Core money loop (deliveries → collections → Bocal validate → settle) works as thin slice in apps/gerpain. Legacy nextjs_frontend + gerpain_backend remain reference until cutover.",
+    "stack": "TanStack Start, oRPC, TanStack Query, Drizzle, Neon Postgres, Better Auth, packages/bocal, Vitest, Bun workspaces",
+    "ralph_type": "opencode",
+    "docs": [
+      "AGENTS.md",
+      "docs/architecture.md",
+      "docs/adr/0001-unified-base-stack.md",
+      "docs/EXPECTATIONS.md",
+      "docs/bocal-spec.md",
+      "progress.md"
+    ],
+    "legacy_reference": {
+      "backend": "gerpain_backend/",
+      "frontend": "nextjs_frontend/",
+      "note": "Most Phase 0–2 features pass in legacy; prd backlog below tracks apps/gerpain migration."
+    }
+  },
+  "migration": {
+    "sequence_ref": "docs/architecture.md",
+    "steps": [
+      { "id": 1, "name": "Scaffold TanStack Start + Bun workspace", "status": "done" },
+      { "id": 2, "name": "Move schema → packages/db; packages/bocal tests-first", "status": "done" },
+      { "id": 3, "name": "Wire Better Auth + org context", "status": "done" },
+      { "id": 4, "name": "Port domains as vertical slices", "status": "in_progress" },
+      { "id": 5, "name": "Delete old Hono app once parity reached", "status": "pending" }
+    ],
+    "current_app": "apps/gerpain",
+    "deployable_target": "single TanStack Start app"
+  },
+  "sprints": [
+    {
+      "id": "A",
+      "name": "Platform shell",
+      "size": "small",
+      "goal": "Bakery selector, app layout/sidebar, role gates, validatedBy audit",
+      "status": "next",
+      "blocks_daily_ops": true
     },
-    "backlog": [
-        {
-            "group": "Setup (Done)",
-            "feature": "Auth & Organization",
-            "description": "Admin signup/login, token-based API auth, organization auto-created on first login.",
-            "acceptance_criteria": [
-                "Auth works end-to-end",
-                "Organization created on first login"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Setup (Done)",
-            "feature": "Bakery schema, API, selector, and management page",
-            "description": "Bakeries table, CRUD API with tier limits, BakerySelector in sidebar, bakeries management page, API clients send X-Bakery-ID header.",
-            "acceptance_criteria": [
-                "Bakeries CRUD works",
-                "BakerySelector switches context",
-                "API clients scoped to bakery"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Setup (Done)",
-            "feature": "Locations management (bakery-scoped)",
-            "description": "Locations (shop/warehouse) CRUD under selected bakery. Backend filters by X-Bakery-ID.",
-            "acceptance_criteria": [
-                "Locations CRUD works within bakery context"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Setup (Done)",
-            "feature": "Employees list and CRUD",
-            "description": "Employees list wired to API with create/edit/activate/deactivate. Roles: delivery, cashier, manager, baker.",
-            "acceptance_criteria": [
-                "Employee CRUD works",
-                "Loading/error/empty states"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Setup (Done)",
-            "feature": "Product categories, products catalog, pricing rules",
-            "description": "Categories CRUD, products CRUD with category filtering, location-specific pricing overrides.",
-            "acceptance_criteria": [
-                "Categories CRUD",
-                "Products CRUD with price in FCFA",
-                "Pricing rules per location"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Setup (Done)",
-            "feature": "Stock levels dashboard",
-            "description": "Inventory items per product per location with status indicators, adjustments, and filtering.",
-            "acceptance_criteria": [
-                "Stock levels display",
-                "Adjustments work",
-                "Low stock indicators"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Setup (Done)",
-            "feature": "Organization settings page",
-            "description": "View/edit organization name, description, address, currency. Slug read-only.",
-            "acceptance_criteria": [
-                "Settings page works"
-            ],
-            "files": [],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P0 — Core Loop",
-            "feature": "Employee product assignments and per-product commission",
-            "description": "Add employee_products junction table: each delivery/cashier employee gets assigned products with a per-product commission rate (FCFA/unit). This drives which products appear in their daily delivery form and how commission is computed. Add baseSalary field to employees. Update employee create/edit UI with product assignment panel (checkbox + commission input per product). See EXPECTATIONS.md #15.",
-            "acceptance_criteria": [
-                "Create employee_products table: employeeId, productId, commissionPerUnit (integer FCFA), isActive",
-                "Add baseSalary (integer FCFA) to employees table",
-                "Generate and apply Drizzle migration",
-                "Backend: GET /employees/:id/products, PUT /employees/:id/products (bulk upsert)",
-                "Frontend: employee create/edit drawer shows product assignment panel with checkboxes + commission input",
-                "Products list comes from useProducts() for the bakery",
-                "Saving employee also saves product assignments"
-            ],
-            "files": [
-                "gerpain_backend/src/shared/database/schema.ts",
-                "gerpain_backend/src/domains/employees/routes.ts",
-                "nextjs_frontend/app/(app)/employees/list/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Create employee with product assignments and verify in DB"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P0 — Core Loop",
-            "feature": "Wire deliveries page to real API (pre-populated daily form)",
-            "description": "Rewrite /sales/deliveries data layer. Keep existing UI layout but swap mock data for real API. Backend auto-creates draft delivery runs for all active delivery employees when a date is first accessed (GET /delivery-runs?date=YYYY-MM-DD). Each run pre-populated with the employee's assigned products (fallback: all active bakery products) at qty 0. Frontend: replace mockEmployees/mockProducts with useEmployees/useProducts hooks. Add ◀/▶ date navigation + calendar. Wire save (PATCH) and validate (POST /runs/:id/validate) to API. Revenue = sold × unitPrice in FCFA. See EXPECTATIONS.md #16-24.",
-            "acceptance_criteria": [
-                "GET /delivery-runs?date= returns runs for all active delivery employees (auto-creates drafts if none exist)",
-                "Each draft run has deliveryItems for the employee's assigned products at qty 0",
-                "Frontend loads real employees and products from API (no mock data)",
-                "◀/▶ date navigation buttons + calendar picker",
-                "Summary table shows all agents with totals (even unfilled drafts at 0)",
-                "Detail view shows all products with Matin/Soir quantity inputs",
-                "Save persists quantities to DB via PATCH",
-                "Validate locks the run (status=validated, validatedAt set)",
-                "Revenue calculations: sold = entrusted - returned, revenue = sold × unitPrice",
-                "Validated runs are read-only in UI"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/deliveries/routes.ts",
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx",
-                "nextjs_frontend/lib/hooks/useDeliveries.ts",
-                "nextjs_frontend/lib/api/deliveryRuns.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Open deliveries page, see all agents listed, fill quantities, save, validate"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P0 — Core Loop",
-            "feature": "Schema patch — add deliveryRunId, isSettled, period to cashCollections",
-            "description": "Add three fields to cashCollections table: deliveryRunId (FK to deliveryRuns, nullable — links collection to source delivery), isSettled (boolean, default false — payroll settlement flag), period (text, nullable — flexible payroll period label like 'Jan-2026', 'Week-3', '01/02-15/02'). Update relations and Zod schema. Generate and apply Drizzle migration. See EXPECTATIONS.md Schema Gaps.",
-            "acceptance_criteria": [
-                "cashCollections.deliveryRunId FK added (nullable, references deliveryRuns.id)",
-                "cashCollections.isSettled boolean added (default false)",
-                "cashCollections.period text added (nullable)",
-                "cashCollectionsRelations updated with deliveryRun relation",
-                "deliveryRunsRelations updated with cashCollection relation",
-                "insertCashCollectionSchema updated",
-                "Drizzle migration generated and applied"
-            ],
-            "files": [
-                "gerpain_backend/src/shared/database/schema.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "bun run drizzle-kit generate"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P0 — Core Loop",
-            "feature": "Auto-create cash collection on delivery validation",
-            "description": "When a delivery run is validated (POST /runs/:id/validate), the backend automatically creates a cashCollection record with: expectedAmount = sum of (sold × unitPrice) for all items in the run, employeeId/locationId/date from the run, deliveryRunId = run.id, status = 'pending'. If delivery is re-validated after correction, update the existing collection's expectedAmount. See EXPECTATIONS.md #31-33, #46-48.",
-            "acceptance_criteria": [
-                "Validating a delivery run creates a cashCollection with correct expectedAmount",
-                "Collection linked to delivery via deliveryRunId FK",
-                "expectedAmount = sum of ((quantityEntrusted - quantityReturned) × unitPrice) for all items",
-                "If collection already exists for this run, update expectedAmount instead of creating duplicate",
-                "Frontend shows toast: 'Tournée validée — collecte de X FCFA créée automatiquement' with link to collections"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/deliveries/routes.ts",
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Validate a delivery, check collection appears with correct amount in DB"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P0 — Core Loop",
-            "feature": "Cash collection recording — employee-centric period view",
-            "description": "Rewrite /cash/collections as an employee-centric period view. Top bar: employee selector (with role badge: Livreur/Caissier) + period selector (Cette semaine, Ce mois, Derniers 15 jours, Personnalisée). Summary cards: total expected, total collected, outstanding balance, collection rate %. Collections table: one row per day for selected employee in period, showing date, source (Livraison/Boutique), expected, collected, écart, status, actions. Inline expand for recording payment (cash + card + mobile breakdown). Delivery detail summary in each row. Validate/reject workflow. 'Marquer la période comme réglée' button sets isSettled=true. See EXPECTATIONS.md #34-42.",
-            "acceptance_criteria": [
-                "Employee selector shows all delivery agents + cashiers with role badge",
-                "Period selector with presets + custom date range",
-                "Summary cards: Attendu, Collecté, Solde restant, Performance %",
-                "Collections table: one row per day, source column, écart highlighted",
-                "Inline payment recording: cash + card + mobile inputs with auto-total",
-                "Delivery detail summary shown inline per collection row",
-                "'Voir tournée complète →' link navigates to delivery page for that date",
-                "Submit collection for validation",
-                "Manager validates or rejects (with reason)",
-                "'Marquer la période comme réglée' sets isSettled=true for all collections in period",
-                "Backend: GET /cash-collections?employeeId=&startDate=&endDate= with aggregates"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx",
-                "nextjs_frontend/lib/api/cashCollections.ts",
-                "nextjs_frontend/lib/hooks/useCashCollections.ts",
-                "gerpain_backend/src/domains/cash-collections/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Select an agent, see their collections for a period, record a payment, validate"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P0 — Core Loop",
-            "feature": "Cash collection overview — all employees",
-            "description": "Build /cash/reconciliations as birds-eye view across all employees. Period selector + filters (role, settled/unsettled). Table: one row per employee with period totals (tournées, attendu, collecté, solde). Solde highlighted red if negative, green if zero. Click row → navigates to /cash/collections?employee=X&period=Y. See EXPECTATIONS.md #43-45.",
-            "acceptance_criteria": [
-                "Period selector with presets + custom range",
-                "Filter by role (Livreur/Caissier) and settled/unsettled status",
-                "Table: one row per employee with columns: Employé, Rôle, Tournées, Attendu, Collecté, Solde",
-                "Solde column: red if negative, green if zero, warning icon if negative",
-                "Total row at bottom",
-                "Click row → navigates to /cash/collections with employee + period pre-selected",
-                "Backend: GET /cash-collections/overview?startDate=&endDate= returns per-employee aggregates"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/cash/reconciliations/page.tsx",
-                "gerpain_backend/src/domains/cash-collections/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "See all employees with balances, click through to detail"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Deferred",
-            "feature": "POS delivery flow (Vente Boutique)",
-            "description": "Wire /sales/transactions to real API. Replace mockProducts with useProducts(). Keep existing quick-entry UI (product cards with +/- buttons). On 'Enregistrer la vente': create deliveryRun with employee role=cashier + deliveryItems for selected products, auto-validate immediately (POS sales are instant), which triggers cash collection creation in backend. Add cashier/location selector or auto-detect from context. See EXPECTATIONS.md #25-27. [DEFERRED: clients focus on delivery operations, not POS]",
-            "acceptance_criteria": [
-                "Products loaded from useProducts() (Pain Kilo 1500, Pain Moyen 250, etc.)",
-                "Cashier selector (or auto-detect current user as cashier)",
-                "Location selector (or auto-detect current boutique)",
-                "Quick-entry UI with +/- buttons preserved",
-                "Payment mode selection (Espèces/Carte/Mobile Money) preserved",
-                "'Enregistrer la vente' creates deliveryRun + items + auto-validates",
-                "Auto-validation triggers cash collection creation",
-                "Success toast with link to collection"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/sales/transactions/page.tsx",
-                "nextjs_frontend/lib/api/deliveryRuns.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Record POS sale, validate, see collection created"
-            ],
-            "passes": false
-        },
-        {
-            "group": "P1 — Daily Usability",
-            "feature": "Dashboard with real KPIs",
-            "description": "Replace hardcoded stats on /dashboard with real API data. New backend endpoint GET /api/v1/dashboard/summary?date=. Stats cards: today's revenue (sum of sold × unitPrice from validated deliveries, in FCFA), delivery count (total + validated), collection status (settled vs pending + total collected), outstanding balance (total remainder across unsettled collections). Wire recent activity and alerts to real data. See EXPECTATIONS.md #50-52.",
-            "acceptance_criteria": [
-                "Stats cards show real data: Ventes du jour, Livraisons, Collectes, Solde restant",
-                "Backend: GET /dashboard/summary returns todayRevenue, deliveryCount, collectionStatus, outstandingBalance",
-                "Quick action buttons link to correct pages",
-                "Recent activity from last N delivery validations + collection recordings",
-                "Alerts: pending collections, high return rates, outstanding balances"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/dashboard/page.tsx",
-                "gerpain_backend/src/domains/dashboard/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Dashboard loads with real data from validated deliveries and collections"
-            ],
-            "passes": true
-        },
-        {
-            "group": "P1 — Daily Usability",
-            "feature": "Delivery and collection history with filters",
-            "description": "Add date range, employee, and location filters to delivery list and collection list. Delivery history: filterable by date range, employee, location, status. Collection history: filterable by date range, employee, settled/unsettled. See EXPECTATIONS.md #53-54.",
-            "acceptance_criteria": [
-                "Delivery list filterable by date range, employee, location, status",
-                "Collection list filterable by date range, employee, settled/unsettled",
-                "Filters persist in URL query params",
-                "Clear filters button"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx",
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Apply filters and verify results update"
-            ],
-            "passes": true
-        },
-        {
-            "group": "Deferred",
-            "feature": "Separation of duties (OUT_MANAGER / IN_MANAGER)",
-            "description": "Outbound quantities recorded by OUT_MANAGER role, returned quantities by IN_MANAGER role. Different users handle outbound vs returns for accountability. See EXPECTATIONS.md Separation of Duties.",
-            "acceptance_criteria": [
-                "OUT_MANAGER can edit entrusted quantities but not returned",
-                "IN_MANAGER can edit returned quantities but not entrusted",
-                "Role-based field locking in delivery detail view"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx",
-                "gerpain_backend/src/domains/deliveries/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "Deferred",
-            "feature": "Commission calculation and payroll integration",
-            "description": "For each employee: commission = sum(sold(product) × commissionPerUnit(employee, product)) for assigned products across a payroll period. Outstanding balances (remainders) adjust the final net salary: netSalary = baseSalary + totalCommission - totalRemainder. Display in employee detail or payroll view.",
-            "acceptance_criteria": [
-                "Commission computed from per-product rates and sold quantities",
-                "Payroll summary: baseSalary + commission - outstanding balance = net",
-                "Visible in employee detail or dedicated payroll page"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/employees/routes.ts",
-                "nextjs_frontend/app/(app)/employees/list/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "Deferred",
-            "feature": "Recalculate remainders on delivery correction",
-            "description": "If delivery data is corrected after validation (admin re-opens and re-validates), the linked cash collection's expectedAmount is recalculated and all downstream balances updated. See EXPECTATIONS.md #42, #48.",
-            "acceptance_criteria": [
-                "Re-validating a corrected delivery updates the linked collection's expectedAmount",
-                "Variance recalculated",
-                "Period totals updated"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/deliveries/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "Deferred",
-            "feature": "CSV export for deliveries and collections",
-            "description": "Export delivery history and collection history to CSV for audit and accounting.",
-            "acceptance_criteria": [
-                "Export button on delivery list page",
-                "Export button on collection list page",
-                "CSV includes all relevant columns with FCFA amounts"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx",
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "UX-1 — Data Integrity",
-            "feature": "Fix draft delivery run location assignment",
-            "description": "Auto-created draft runs use LIMIT 1 from all bakery locations instead of the employee's primary assigned location. This assigns every run to the same arbitrary location. Fix: query employee_locations WHERE isPrimary=true for each employee. Fall back to first bakery location only if no primary is set.",
-            "acceptance_criteria": [
-                "Draft runs use employee's primary location from employee_locations",
-                "Falls back to first bakery location if no primary location assigned",
-                "Existing runs are not affected (only new drafts)"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/deliveries/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Open deliveries for a date with no runs, verify each employee gets their correct location"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-1 — Data Integrity",
-            "feature": "Block zero-quantity delivery run validation",
-            "description": "No guard on /runs/:id/validate — a run where every quantityEntrusted=0 creates a cashCollection with expectedAmount=0, polluting collections. Add backend guard: reject validation if sum(quantityEntrusted)=0.",
-            "acceptance_criteria": [
-                "POST /runs/:id/validate returns 400 if sum of quantityEntrusted across all items is 0",
-                "Error message: 'Impossible de valider une tournée sans quantité confiée'",
-                "Frontend shows toast with the error message"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/deliveries/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Try to validate an all-zero run, verify it is rejected"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-1 — Data Integrity",
-            "feature": "Fix variance computation on collection PATCH",
-            "description": "variance is stored in DB and only recalculated when actualAmount is in the PATCH body. If someone patches only cashAmount, the stored variance goes stale. Fix: always recompute variance = (cashAmount + cardAmount + mobileAmount) - expectedAmount on any PATCH that touches payment fields.",
-            "acceptance_criteria": [
-                "PATCH /cash-collections/:id with any payment field recalculates variance",
-                "variance = sum of payment fields - expectedAmount",
-                "Works even if actualAmount is not explicitly sent"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/collections/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-1 — Data Integrity",
-            "feature": "Employee sortOrder field + hireDate ordering",
-            "description": "Add sortOrder integer default 0 to employees table. Backend sorts employees by sortOrder ASC, hireDate ASC NULLS LAST. Delivery runs list also respects this order. This ensures the admin sees employees in a predictable, customizable order matching their daily workflow.",
-            "acceptance_criteria": [
-                "employees table has sortOrder column (integer, default 0)",
-                "Drizzle migration generated and applied",
-                "GET /employees returns sorted by sortOrder ASC, hireDate ASC NULLS LAST",
-                "GET /delivery-runs returns runs in same employee order",
-                "Employee form allows editing sortOrder (simple number input)"
-            ],
-            "files": [
-                "gerpain_backend/src/shared/database/schema.ts",
-                "gerpain_backend/src/domains/employees/routes.ts",
-                "gerpain_backend/src/domains/deliveries/routes.ts",
-                "nextjs_frontend/app/(app)/employees/list/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "bun run drizzle-kit generate",
-                "Verify employee list and delivery board show consistent order"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-2 — Workflow Gaps",
-            "feature": "Employee deactivate confirmation dialog",
-            "description": "Deactivate fires immediately on icon click with no confirmation. Wrap in ConfirmDialog like delivery item delete already uses. Include employee name in the confirmation message.",
-            "acceptance_criteria": [
-                "Clicking deactivate icon shows ConfirmDialog",
-                "Dialog shows employee name and warns about consequences",
-                "Cancel dismisses, Confirm deactivates",
-                "Same pattern for reactivate (optional)"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/employees/list/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-2 — Workflow Gaps",
-            "feature": "Unsaved delivery changes warning",
-            "description": "isDirty is computed but never surfaced. Clicking another employee row while edits are pending discards all changes silently. Show ConfirmDialog when switching runs while isDirty: 'Vous avez des modifications non enregistrées. Continuer sans sauvegarder ?'",
-            "acceptance_criteria": [
-                "Clicking a different employee row when isDirty shows confirmation dialog",
-                "User can choose to discard or cancel",
-                "If user confirms, switches to new run and resets local state",
-                "If user cancels, stays on current run"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Edit quantities, click another employee, verify dialog appears"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-2 — Workflow Gaps",
-            "feature": "Validate/reject UI for submitted collections",
-            "description": "Backend has POST /:id/validate and /:id/reject endpoints but frontend has no buttons. When status=submitted, show Valider (green) and Rejeter (red, with reason input) buttons in the expanded PaymentForm area.",
-            "acceptance_criteria": [
-                "Submitted collections show Valider and Rejeter buttons",
-                "Valider calls POST /:id/validate and refreshes",
-                "Rejeter shows reason input, calls POST /:id/reject with reason",
-                "Validated collections show read-only view",
-                "Rejected collections show rejection reason badge"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx",
-                "nextjs_frontend/lib/hooks/useCollections.ts",
-                "nextjs_frontend/lib/api/collections.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-2 — Workflow Gaps",
-            "feature": "PaymentForm inline accordion + collections URL params",
-            "description": "Two fixes: (1) PaymentForm renders below entire table instead of inline with the row — move it into a <tr> after the clicked row. (2) Collections page doesn't read URL search params from reconciliations drill-down — initialize selectedEmployeeId and period from useSearchParams().",
-            "acceptance_criteria": [
-                "PaymentForm expands as a table row immediately below the clicked collection",
-                "Navigating from reconciliations pre-fills employee and date range",
-                "Custom period mode activated when startDate/endDate params present"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Click Saisir on middle row, verify form appears inline",
-                "Navigate from reconciliations, verify employee pre-selected"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-3 — Performance",
-            "feature": "Collections backend — batch queries and SQL filters",
-            "description": "Three performance fixes: (1) GET /cash-collections does N+1 per row for employee/run lookup — batch fetch. (2) All filters (startDate, endDate, employeeId, etc.) applied in JS after full table scan — push to SQL WHERE. (3) Overview endpoint does N+1 per employee — use SQL GROUP BY. (4) Settle endpoint does sequential UPDATE per row — batch with WHERE id IN.",
-            "acceptance_criteria": [
-                "GET /cash-collections uses batch employee/run lookup (like deliveries list)",
-                "Date range and employeeId filters pushed to Drizzle WHERE clauses",
-                "GET /overview uses SQL aggregation or single-pass computation",
-                "POST /settle uses single UPDATE ... WHERE id IN (...)",
-                "No N+1 queries in collections routes"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/collections/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "Load collections page, verify response time improved"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-3 — Performance",
-            "feature": "Deliveries + employees backend — batch queries",
-            "description": "Two fixes: (1) GET /runs/:id single run detail does Promise.all with one DB query per item for product names — batch fetch product IDs. (2) GET /employees does N+1 for locations per employee — batch fetch with inArray.",
-            "acceptance_criteria": [
-                "GET /runs/:id fetches all products in one query",
-                "GET /employees fetches all locations in one query using inArray",
-                "No N+1 patterns remain in deliveries or employees routes"
-            ],
-            "files": [
-                "gerpain_backend/src/domains/deliveries/routes.ts",
-                "gerpain_backend/src/domains/employees/routes.ts"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": true
-        },
-        {
-            "group": "UX-4 — Polish",
-            "feature": "Delivery page — Aujourd'hui button, period auto-pick, misc",
-            "description": "Bundle of small UX fixes: (1) Add Aujourd'hui button between date arrows. (2) +Période auto-picks next unused period instead of hardcoding Après-midi. (3) Rename Réinitialiser to Remettre à zéro with RotateCcw icon, only show when values > 0. (4) Summary stats in detail panel get visual cards instead of plain text.",
-            "acceptance_criteria": [
-                "Aujourd'hui button appears, jumps to current date",
-                "+Période picks next unused period for that product",
-                "Réinitialiser renamed with distinct icon, hidden when already zero",
-                "Detail panel summary uses styled cards"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/sales/deliveries/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "UX-4 — Polish",
-            "feature": "Employee page — form improvements and table cleanup",
-            "description": "Bundle: (1) Replace commissionRate column with product assignment count badge. (2) Add select all/deselect all toggle in product assignment panel. (3) Widen dialog to max-w-2xl, increase product list max-h-64. (4) Hide email/phone icons when values empty. (5) Fix product assignment race condition (clear on 0 assignments).",
-            "acceptance_criteria": [
-                "Table shows '3 produits' badge instead of commission %",
-                "Product panel has Tout sélectionner toggle",
-                "Dialog wider, product list taller",
-                "No dangling icons for empty email/phone",
-                "Opening edit for employee with 0 assignments shows empty product list"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/employees/list/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "UX-4 — Polish",
-            "feature": "Cross-cutting — error boundary, sidebar active state, mobile padding",
-            "description": "Bundle: (1) Add app/(app)/error.tsx catch-all error boundary. (2) Sidebar uses usePathname() to highlight current page. (3) Main content gets p-4 on mobile (currently 0). (4) Remove dead employeeOptions code in collections page. (5) Fix variance color semantics in collections (green=0, red=negative, amber=positive).",
-            "acceptance_criteria": [
-                "Error boundary catches unhandled exceptions with retry button",
-                "Current sidebar item is visually highlighted",
-                "Content has padding on mobile screens",
-                "No dead code warnings",
-                "Variance colors match reconciliations page semantics"
-            ],
-            "files": [
-                "nextjs_frontend/app/(app)/error.tsx",
-                "nextjs_frontend/components/ui/navigation/AppSidebar.tsx",
-                "nextjs_frontend/app/(app)/layout.tsx",
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit"
-            ],
-            "passes": false
-        },
-        {
-            "group": "P1 — Daily Usability",
-            "feature": "Archive settled collection periods",
-            "description": "Add isArchived flag to cashCollections. Settled periods can be archived to hide from default view. Backend: POST /:id/archive endpoint to toggle isArchived. Frontend: Archive button for settled collections, default filter hides archived, 'Voir les archivés' toggle to show archived rows with muted styling. Archived data is never deleted, just hidden by default.",
-            "acceptance_criteria": [
-                "cashCollections.isArchived boolean field in schema",
-                "Drizzle migration generated and applied",
-                "POST /cash-collections/:id/archive toggles isArchived",
-                "GET /cash-collections accepts includeArchived query param (default false)",
-                "Collections UI: Archive button for settled collections",
-                "Default view hides archived collections",
-                "Toggle 'Voir les archivés' shows archived rows (muted styling)"
-            ],
-            "files": [
-                "gerpain_backend/src/shared/database/schema.ts",
-                "gerpain_backend/src/domains/collections/routes.ts",
-                "nextjs_frontend/app/(app)/cash/collections/page.tsx"
-            ],
-            "verification": [
-                "bunx tsc --noEmit",
-                "bun run drizzle-kit generate"
-            ],
-            "passes": false
-        }
-    ]
+    {
+      "id": "B",
+      "name": "Master data",
+      "size": "medium",
+      "goal": "Bakeries, locations, products, employees + product assignments",
+      "status": "pending",
+      "blocks_daily_ops": true
+    },
+    {
+      "id": "C",
+      "name": "Deliveries parity",
+      "size": "medium",
+      "goal": "Daily board, date nav, all agents pre-populated, Matin/Soir on one screen",
+      "status": "pending",
+      "blocks_daily_ops": "partial"
+    },
+    {
+      "id": "D",
+      "name": "Collections parity",
+      "size": "medium",
+      "goal": "Employee period view, reconciliations, archive settled periods",
+      "status": "pending",
+      "blocks_daily_ops": "partial"
+    },
+    {
+      "id": "E",
+      "name": "Ledger & dashboard",
+      "size": "small_medium",
+      "goal": "KPIs from Bocal balanceOf; movement history; optional receivable on delivery validate",
+      "status": "pending",
+      "blocks_daily_ops": false
+    },
+    {
+      "id": "F",
+      "name": "Commissions & payroll",
+      "size": "large",
+      "goal": "Per-product commission, net salary adjusted by remainder",
+      "status": "deferred",
+      "blocks_daily_ops": false
+    },
+    {
+      "id": "G",
+      "name": "Inventory & POS",
+      "size": "large",
+      "goal": "Boutique channel, stock, separation of duties",
+      "status": "deferred",
+      "blocks_daily_ops": false
+    },
+    {
+      "id": "H",
+      "name": "Cutover",
+      "size": "small",
+      "goal": "Parity checklist, CI/CD, retire gerpain_backend + nextjs_frontend",
+      "status": "pending",
+      "blocks_daily_ops": false
+    }
+  ],
+  "backlog": [
+    {
+      "group": "Migration — Foundation (Done)",
+      "sprint": null,
+      "feature": "Monorepo scaffold",
+      "description": "Bun workspaces, apps/gerpain TanStack Start, oRPC health.ping, packages/db, bocal, auth stubs.",
+      "acceptance_criteria": [
+        "bun run build && bun run test && bun run typecheck pass",
+        "Home page calls oRPC health"
+      ],
+      "files": [
+        "package.json",
+        "apps/gerpain/",
+        "packages/db/",
+        "packages/bocal/",
+        "packages/auth/"
+      ],
+      "verification": ["bun run typecheck", "bun run build"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Foundation (Done)",
+      "sprint": null,
+      "feature": "Schema in packages/db",
+      "description": "Drizzle schema split auth, org, operations, ledger; migrations; client export.",
+      "acceptance_criteria": [
+        "@gerpain/db exports schema and Database type",
+        "Migrations apply cleanly"
+      ],
+      "files": ["packages/db/src/schema/", "packages/db/src/client.ts"],
+      "verification": ["bun run typecheck"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Foundation (Done)",
+      "sprint": null,
+      "feature": "Bocal v0 ledger",
+      "description": "post, reverse, balanceOf, balancesFor; Drizzle-only; integration tests.",
+      "acceptance_criteria": [
+        "Balanced postings enforced",
+        "Unit + integration tests green"
+      ],
+      "files": ["packages/bocal/src/"],
+      "verification": ["bun run test"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Foundation (Done)",
+      "sprint": null,
+      "feature": "Better Auth + tenant bridge",
+      "description": "Sessions, org context on oRPC, legacyOrganizationIdForBaOrg, seed with active org.",
+      "acceptance_criteria": [
+        "Login works at /login",
+        "oRPC procedures receive legacy org id",
+        "bun run db:seed creates admin user"
+      ],
+      "files": [
+        "packages/auth/",
+        "apps/gerpain/src/server/auth.ts",
+        "apps/gerpain/src/server/orpc/context.ts",
+        "packages/db/src/tenant.ts",
+        "packages/db/src/scripts/seed-core.ts"
+      ],
+      "verification": ["bun run typecheck", "bun run db:seed"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Foundation (Done)",
+      "sprint": null,
+      "feature": "Ledger account seeding",
+      "description": "Default accounts CASH, DRIVER_RECEIVABLE, CASH_SHORTAGE, CASH_OVERAGE per org; idempotent onConflictDoNothing.",
+      "acceptance_criteria": [
+        "runSeed ensures four ledger accounts",
+        "Parallel test runs do not duplicate-key fail"
+      ],
+      "files": [
+        "packages/db/src/scripts/seed-core.ts",
+        "apps/gerpain/src/services/ledger-accounts.ts"
+      ],
+      "verification": ["bun run test", "bun run db:seed"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Vertical slice (Done)",
+      "sprint": "C",
+      "feature": "Deliveries thin slice",
+      "description": "listRuns, getRun, updateItem, validateRun; auto draft runs; UI list + detail with auto-save.",
+      "acceptance_criteria": [
+        "Validate creates pending cash_collection with correct expectedAmount",
+        "Validated runs not editable",
+        "Zero-qty validation blocked"
+      ],
+      "files": [
+        "apps/gerpain/src/services/deliveries.ts",
+        "apps/gerpain/src/server/orpc/deliveries.ts",
+        "apps/gerpain/src/routes/deliveries.tsx",
+        "apps/gerpain/src/routes/deliveries.index.tsx",
+        "apps/gerpain/src/routes/deliveries.$runId.tsx"
+      ],
+      "verification": [
+        "bun run typecheck",
+        "Manual: validate tour → encaissement appears"
+      ],
+      "passes": true
+    },
+    {
+      "group": "Migration — Vertical slice (Done)",
+      "sprint": "D",
+      "feature": "Collections thin slice — submit",
+      "description": "List by date, detail, record cash/card/mobile, submit for validation.",
+      "acceptance_criteria": [
+        "pending/rejected editable; submitted read-only for amounts",
+        "Submit transitions to submitted"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collections.ts",
+        "apps/gerpain/src/server/orpc/collections.ts",
+        "apps/gerpain/src/routes/collections.index.tsx",
+        "apps/gerpain/src/routes/collections.$collectionId.tsx"
+      ],
+      "verification": ["Manual: submit encaissement"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Vertical slice (Done)",
+      "sprint": "D",
+      "feature": "Collection validate with Bocal",
+      "description": "Supervisor validate posts balanced ledger lines atomically with status validated; reject submitted; duplicate-post guard.",
+      "acceptance_criteria": [
+        "Debit CASH = actual; credit DRIVER_RECEIVABLE = expected; shortage/overage lines when variance",
+        "Single db.transaction for post + workflow update",
+        "collection-posting unit tests pass"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collection-posting.ts",
+        "apps/gerpain/src/services/collection-posting.test.ts",
+        "apps/gerpain/src/services/collections.ts"
+      ],
+      "verification": ["bun run test", "Manual: validate → movementId returned"],
+      "passes": true
+    },
+    {
+      "group": "Migration — Vertical slice (Done)",
+      "sprint": "D",
+      "feature": "Collection payroll settlement",
+      "description": "settle marks validated unsettled collections isSettled for date/bakery; UI clôturer button.",
+      "acceptance_criteria": [
+        "collections.settle oRPC works",
+        "Only validated + !isSettled affected",
+        "List shows Paie column"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collections.ts",
+        "apps/gerpain/src/routes/collections.index.tsx"
+      ],
+      "verification": ["Manual: clôturer after validate"],
+      "passes": true
+    },
+    {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "Bakery selector",
+      "description": "Replace silent first-bakery default with explicit selector; persist selection; scope all list queries.",
+      "acceptance_criteria": [
+        "User can switch bakery in UI",
+        "deliveries/collections use selected bakeryId",
+        "Selection survives reload (cookie or localStorage)"
+      ],
+      "files": [
+        "apps/gerpain/src/routes/__root.tsx",
+        "apps/gerpain/src/routes/deliveries.index.tsx",
+        "apps/gerpain/src/routes/collections.index.tsx"
+      ],
+      "verification": ["bun run typecheck", "Manual: switch bakery changes data"],
+      "passes": false
+    },
+    {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "App shell and sidebar",
+      "description": "Operator layout with sidebar nav: Accueil, Livraisons, Encaissements; active route highlight; mobile padding.",
+      "acceptance_criteria": [
+        "Authenticated routes use shared (app) layout",
+        "Sidebar links match modules",
+        "Current page visually active"
+      ],
+      "files": [
+        "apps/gerpain/src/routes/__root.tsx",
+        "apps/gerpain/src/components/"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "Role-based authorization",
+      "description": "Only managers validate/reject/settle collections; livreurs submit only. Enforce in oRPC + hide UI controls.",
+      "acceptance_criteria": [
+        "Non-manager cannot call validate/reject/settle",
+        "UI hides supervisor actions for non-managers",
+        "French error messages"
+      ],
+      "files": [
+        "apps/gerpain/src/server/orpc/context.ts",
+        "apps/gerpain/src/server/orpc/collections.ts"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "validatedBy audit field",
+      "description": "Map Better Auth user to validatedBy on collection validate (legacy users UUID or new mapping table).",
+      "acceptance_criteria": [
+        "validatedBy populated on validate",
+        "No client-supplied user id trusted"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collections.ts",
+        "packages/db/src/schema/"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint B — Master data",
+      "sprint": "B",
+      "feature": "Locations CRUD",
+      "description": "Port locations management; bakery-scoped oRPC + settings page.",
+      "acceptance_criteria": [
+        "Create/edit/deactivate locations",
+        "Used in delivery run assignment"
+      ],
+      "files": [
+        "apps/gerpain/src/services/locations.ts",
+        "apps/gerpain/src/server/orpc/locations.ts",
+        "apps/gerpain/src/routes/settings/locations.tsx"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint B — Master data",
+      "sprint": "B",
+      "feature": "Products and categories CRUD",
+      "description": "Categories + products catalog with FCFA prices; port from legacy domain logic.",
+      "acceptance_criteria": [
+        "Products available for delivery item creation",
+        "Category filtering works"
+      ],
+      "files": [
+        "apps/gerpain/src/services/products.ts",
+        "apps/gerpain/src/routes/sales/products.tsx"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint B — Master data",
+      "sprint": "B",
+      "feature": "Employees + product assignments",
+      "description": "Employee CRUD, employee_products junction, baseSalary, commissionPerUnit; drives draft run products.",
+      "acceptance_criteria": [
+        "Assign products per delivery/cashier employee",
+        "Draft runs use assigned products at qty 0"
+      ],
+      "files": [
+        "apps/gerpain/src/services/employees.ts",
+        "apps/gerpain/src/routes/employees/"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint C — Deliveries parity",
+      "sprint": "C",
+      "feature": "Daily delivery board",
+      "description": "All active livreurs on one screen for a date; summary table + detail panel like legacy /sales/deliveries.",
+      "acceptance_criteria": [
+        "◀/▶/Aujourd'hui date navigation",
+        "All agents visible without clicking into list one-by-one",
+        "Matin/Soir inputs per product"
+      ],
+      "files": [
+        "apps/gerpain/src/routes/deliveries.index.tsx",
+        "apps/gerpain/src/services/deliveries.ts"
+      ],
+      "verification": ["Manual: full day workflow"],
+      "passes": false
+    },
+    {
+      "group": "Sprint C — Deliveries parity",
+      "sprint": "C",
+      "feature": "Delivery history filters",
+      "description": "Filter by date range, employee, location, status; URL query params.",
+      "acceptance_criteria": [
+        "Filters persist in URL",
+        "Clear filters control"
+      ],
+      "files": ["apps/gerpain/src/routes/deliveries.index.tsx"],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint D — Collections parity",
+      "sprint": "D",
+      "feature": "Employee-centric period view",
+      "description": "Replace single-date list with employee + period selector; summary cards; multi-day table. Port legacy /cash/collections UX.",
+      "acceptance_criteria": [
+        "Period presets: week, month, custom range",
+        "Summary: attendu, collecté, solde, performance %",
+        "Inline payment per day row"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collections.ts",
+        "apps/gerpain/src/routes/collections.index.tsx"
+      ],
+      "verification": ["Manual: period workflow"],
+      "passes": false
+    },
+    {
+      "group": "Sprint D — Collections parity",
+      "sprint": "D",
+      "feature": "Reconciliations overview",
+      "description": "All employees birds-eye view with period totals; drill-down to collections with pre-selected employee+period.",
+      "acceptance_criteria": [
+        "One row per employee: attendu, collecté, solde",
+        "Filter by role and settled status",
+        "Click row opens detail with params"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collections.ts",
+        "apps/gerpain/src/routes/cash/reconciliations.tsx"
+      ],
+      "verification": ["bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint D — Collections parity",
+      "sprint": "D",
+      "feature": "Archive settled periods",
+      "description": "Add isArchived to cashCollections; hide archived by default; toggle Voir les archivés.",
+      "acceptance_criteria": [
+        "Migration for isArchived",
+        "Archive only when isSettled",
+        "Reversible unarchive"
+      ],
+      "files": [
+        "packages/db/src/schema/operations.ts",
+        "apps/gerpain/src/services/collections.ts"
+      ],
+      "verification": ["bun run db:migrate", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint E — Ledger & dashboard",
+      "sprint": "E",
+      "feature": "Dashboard KPIs from Bocal",
+      "description": "Home/dashboard reads balanceOf and aggregates — not workflow table sums for money truth.",
+      "acceptance_criteria": [
+        "CASH balance shown",
+        "Unsettled validated collections count/amount",
+        "Outstanding driver receivable summary"
+      ],
+      "files": [
+        "apps/gerpain/src/services/dashboard.ts",
+        "apps/gerpain/src/routes/index.tsx"
+      ],
+      "verification": ["bun run test", "Manual: KPIs match ledger"],
+      "passes": false
+    },
+    {
+      "group": "Sprint E — Ledger & dashboard",
+      "sprint": "E",
+      "feature": "Ledger movement detail on collection",
+      "description": "After validate, show movement lines (accounts, debit/credit) on collection detail.",
+      "acceptance_criteria": [
+        "Query movement by sourceType cash_collection + sourceId",
+        "Read-only display in French"
+      ],
+      "files": [
+        "apps/gerpain/src/services/collections.ts",
+        "apps/gerpain/src/routes/collections.$collectionId.tsx"
+      ],
+      "verification": ["Manual: lines visible after validate"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F — Commissions & payroll",
+      "sprint": "F",
+      "feature": "Commission calculation",
+      "description": "commission = sum(sold × commissionPerUnit) per employee per period; netSalary = base + commission - remainder.",
+      "acceptance_criteria": [
+        "Uses employee_products rates",
+        "Integrates with isSettled periods"
+      ],
+      "files": ["apps/gerpain/src/services/payroll.ts"],
+      "verification": ["bun run test"],
+      "passes": false
+    },
+    {
+      "group": "Sprint G — Deferred",
+      "sprint": "G",
+      "feature": "POS boutique flow",
+      "description": "Cashier quick-entry sales; auto-validate; collection creation. Deferred in EXPECTATIONS.md.",
+      "acceptance_criteria": [],
+      "files": [],
+      "verification": [],
+      "passes": false
+    },
+    {
+      "group": "Sprint G — Deferred",
+      "sprint": "G",
+      "feature": "Recalculate expectedAmount on delivery re-validate",
+      "description": "If delivery corrected after validation, update linked collection expectedAmount and variance.",
+      "acceptance_criteria": [],
+      "files": ["apps/gerpain/src/services/deliveries.ts"],
+      "verification": [],
+      "passes": false
+    },
+    {
+      "group": "Sprint H — Cutover",
+      "sprint": "H",
+      "feature": "Legacy stack retirement",
+      "description": "Parity checklist vs nextjs_frontend; CI/CD for apps/gerpain; remove gerpain_backend and nextjs_frontend.",
+      "acceptance_criteria": [
+        "All EXPECTATIONS.md success criteria pass in new app",
+        "Single deploy pipeline",
+        "Legacy dirs deleted or archived"
+      ],
+      "files": [],
+      "verification": ["bun run build", "bun run test"],
+      "passes": false
+    }
+  ]
 }
