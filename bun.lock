@@ -26,7 +26,6 @@
         "@tanstack/react-start": "latest",
         "@tanstack/router-plugin": "^1.132.0",
         "better-auth": "^1.5.3",
-        "drizzle-orm": "^0.45.1",
         "lucide-react": "^0.545.0",
         "nitro": "npm:nitro-nightly@latest",
         "react": "^19.2.0",
@@ -79,7 +78,7 @@
     "packages/db": {
       "name": "@gerpain/db",
       "dependencies": {
-        "@gerpain/auth": "workspace:*",
+        "better-auth": "^1.5.3",
         "drizzle-orm": "^0.45.1",
         "postgres": "^3.4.7",
         "zod": "^4.3.6",

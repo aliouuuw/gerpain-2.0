@@ -1,7 +1,9 @@
 import { ORPCError, os } from '@orpc/server'
-import { and, eq } from 'drizzle-orm'
 
-import { db, member } from '@gerpain/db'
+import {
+  legacyOrganizationIdForBaOrg,
+  verifyBaMembership,
+} from '@gerpain/db'
 
 import { auth } from '#/server/auth'
 import { activeOrganizationId } from '#/server/session'
@@ -33,12 +35,7 @@ export const orgContext = authedContext.use(async ({ context, next }) => {
     })
   }
 
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(member.organizationId, organizationId),
-      eq(member.userId, context.user.id),
-    ),
-  })
+  const membership = await verifyBaMembership(organizationId, context.user.id)
 
   if (!membership) {
     throw new ORPCError('FORBIDDEN', {
@@ -46,10 +43,20 @@ export const orgContext = authedContext.use(async ({ context, next }) => {
     })
   }
 
+  const legacyOrganizationId =
+    await legacyOrganizationIdForBaOrg(organizationId)
+
+  if (!legacyOrganizationId) {
+    throw new ORPCError('INTERNAL_SERVER_ERROR', {
+      message: 'Organisation métier introuvable',
+    })
+  }
+
   return next({
     context: {
       ...context,
       organizationId,
+      legacyOrganizationId,
       memberRole: membership.role,
     },
   })

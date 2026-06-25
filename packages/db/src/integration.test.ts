@@ -1,14 +1,16 @@
-import { count, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import postgres from 'postgres'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { db, closeDatabase } from './client'
+import { runSeed } from './scripts/seed-core'
 import {
   organization as baOrganization,
   organizations,
   products,
   user,
 } from './schema/index'
+import { legacyOrganizationIdForBaOrg } from './tenant'
 
 const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -33,6 +35,10 @@ async function isDatabaseReachable(): Promise<boolean> {
 const dbReady = await isDatabaseReachable()
 
 describe.skipIf(!dbReady)('local database integration', () => {
+  beforeAll(async () => {
+    await runSeed()
+  })
+
   afterAll(async () => {
     await closeDatabase()
   })
@@ -46,7 +52,7 @@ describe.skipIf(!dbReady)('local database integration', () => {
     expect(admin?.name).toBe('Admin Gerpain')
   })
 
-  it('has Better Auth and legacy organizations', async () => {
+  it('has Better Auth and legacy organizations linked', async () => {
     const baOrg = await db.query.organization.findFirst({
       where: eq(baOrganization.slug, 'gerpain'),
     })
@@ -57,16 +63,20 @@ describe.skipIf(!dbReady)('local database integration', () => {
     expect(baOrg).toBeDefined()
     expect(legacyOrg).toBeDefined()
 
-    const settings = legacyOrg?.settings
-      ? (JSON.parse(legacyOrg.settings) as { betterAuthOrganizationId?: string })
-      : {}
-
-    expect(settings.betterAuthOrganizationId).toBe(baOrg?.id)
+    const legacyId = await legacyOrganizationIdForBaOrg(baOrg!.id)
+    expect(legacyId).toBe(legacyOrg?.id)
   })
 
   it('has bakery catalog seed data', async () => {
-    const [row] = await db.select({ value: count() }).from(products)
-    expect(row?.value).toBeGreaterThanOrEqual(9)
+    const legacyOrg = await db.query.organizations.findFirst({
+      where: eq(organizations.slug, 'gerpain'),
+    })
+    expect(legacyOrg).toBeDefined()
+
+    const catalog = await db.query.products.findMany({
+      where: eq(products.organizationId, legacyOrg!.id),
+    })
+    expect(catalog.length).toBeGreaterThanOrEqual(9)
   })
 })
 

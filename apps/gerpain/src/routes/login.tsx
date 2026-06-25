@@ -20,6 +20,15 @@ function LoginPage() {
     try {
       const result = await authClient.signIn.email({ email, password })
       if (result.error) throw new Error(result.error.message)
+
+      const orgs = await authClient.organization.list()
+      const firstOrg = orgs.data?.[0]
+      if (firstOrg) {
+        await authClient.organization.setActive({
+          organizationId: firstOrg.id,
+        })
+      }
+
       await navigate({ to: '/' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Échec de la connexion')

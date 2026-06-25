@@ -45,6 +45,9 @@ export function createAuth(options: CreateAuthOptions) {
       ...(options.serverOnly ? [] : [tanstackStartCookies()]),
       organization(),
     ],
+    advanced: {
+      disableCSRFCheck: options.serverOnly ?? false,
+    },
     experimental: { joins: true },
   })
 }
