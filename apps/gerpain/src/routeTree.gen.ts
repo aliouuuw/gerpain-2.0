@@ -12,11 +12,17 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DeliveriesRouteImport } from './routes/deliveries'
 import { Route as CollectionsRouteImport } from './routes/collections'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellRouteImport } from './routes/_shell'
 import { Route as DeliveriesIndexRouteImport } from './routes/deliveries.index'
 import { Route as CollectionsIndexRouteImport } from './routes/collections.index'
+import { Route as ShellIndexRouteImport } from './routes/_shell/index'
 import { Route as DeliveriesRunIdRouteImport } from './routes/deliveries.$runId'
 import { Route as CollectionsCollectionIdRouteImport } from './routes/collections.$collectionId'
+import { Route as ShellStockRouteImport } from './routes/_shell/stock'
+import { Route as ShellReglagesRouteImport } from './routes/_shell/reglages'
+import { Route as ShellLivraisonsRouteImport } from './routes/_shell/livraisons'
+import { Route as ShellEquipeRouteImport } from './routes/_shell/equipe'
+import { Route as ShellEncaissementsRouteImport } from './routes/_shell/encaissements'
 import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 
@@ -35,9 +41,8 @@ const CollectionsRoute = CollectionsRouteImport.update({
   path: '/collections',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeliveriesIndexRoute = DeliveriesIndexRouteImport.update({
@@ -50,6 +55,11 @@ const CollectionsIndexRoute = CollectionsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => CollectionsRoute,
 } as any)
+const ShellIndexRoute = ShellIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellRoute,
+} as any)
 const DeliveriesRunIdRoute = DeliveriesRunIdRouteImport.update({
   id: '/$runId',
   path: '/$runId',
@@ -59,6 +69,31 @@ const CollectionsCollectionIdRoute = CollectionsCollectionIdRouteImport.update({
   id: '/$collectionId',
   path: '/$collectionId',
   getParentRoute: () => CollectionsRoute,
+} as any)
+const ShellStockRoute = ShellStockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellReglagesRoute = ShellReglagesRouteImport.update({
+  id: '/reglages',
+  path: '/reglages',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellLivraisonsRoute = ShellLivraisonsRouteImport.update({
+  id: '/livraisons',
+  path: '/livraisons',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellEquipeRoute = ShellEquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellEncaissementsRoute = ShellEncaissementsRouteImport.update({
+  id: '/encaissements',
+  path: '/encaissements',
+  getParentRoute: () => ShellRoute,
 } as any)
 const ApiRpcSplatRoute = ApiRpcSplatRouteImport.update({
   id: '/api/rpc/$',
@@ -72,10 +107,15 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof ShellIndexRoute
   '/collections': typeof CollectionsRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/encaissements': typeof ShellEncaissementsRoute
+  '/equipe': typeof ShellEquipeRoute
+  '/livraisons': typeof ShellLivraisonsRoute
+  '/reglages': typeof ShellReglagesRoute
+  '/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/collections/': typeof CollectionsIndexRoute
@@ -84,10 +124,15 @@ export interface FileRoutesByFullPath {
   '/api/rpc/$': typeof ApiRpcSplatRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/encaissements': typeof ShellEncaissementsRoute
+  '/equipe': typeof ShellEquipeRoute
+  '/livraisons': typeof ShellLivraisonsRoute
+  '/reglages': typeof ShellReglagesRoute
+  '/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
+  '/': typeof ShellIndexRoute
   '/collections': typeof CollectionsIndexRoute
   '/deliveries': typeof DeliveriesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -95,12 +140,18 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_shell': typeof ShellRouteWithChildren
   '/collections': typeof CollectionsRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/_shell/encaissements': typeof ShellEncaissementsRoute
+  '/_shell/equipe': typeof ShellEquipeRoute
+  '/_shell/livraisons': typeof ShellLivraisonsRoute
+  '/_shell/reglages': typeof ShellReglagesRoute
+  '/_shell/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
+  '/_shell/': typeof ShellIndexRoute
   '/collections/': typeof CollectionsIndexRoute
   '/deliveries/': typeof DeliveriesIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -113,6 +164,11 @@ export interface FileRouteTypes {
     | '/collections'
     | '/deliveries'
     | '/login'
+    | '/encaissements'
+    | '/equipe'
+    | '/livraisons'
+    | '/reglages'
+    | '/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
     | '/collections/'
@@ -121,22 +177,33 @@ export interface FileRouteTypes {
     | '/api/rpc/$'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/login'
+    | '/encaissements'
+    | '/equipe'
+    | '/livraisons'
+    | '/reglages'
+    | '/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
+    | '/'
     | '/collections'
     | '/deliveries'
     | '/api/auth/$'
     | '/api/rpc/$'
   id:
     | '__root__'
-    | '/'
+    | '/_shell'
     | '/collections'
     | '/deliveries'
     | '/login'
+    | '/_shell/encaissements'
+    | '/_shell/equipe'
+    | '/_shell/livraisons'
+    | '/_shell/reglages'
+    | '/_shell/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
+    | '/_shell/'
     | '/collections/'
     | '/deliveries/'
     | '/api/auth/$'
@@ -144,7 +211,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  ShellRoute: typeof ShellRouteWithChildren
   CollectionsRoute: typeof CollectionsRouteWithChildren
   DeliveriesRoute: typeof DeliveriesRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -175,11 +242,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
+    '/_shell': {
+      id: '/_shell'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof ShellRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deliveries/': {
@@ -196,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CollectionsIndexRouteImport
       parentRoute: typeof CollectionsRoute
     }
+    '/_shell/': {
+      id: '/_shell/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ShellIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/deliveries/$runId': {
       id: '/deliveries/$runId'
       path: '/$runId'
@@ -209,6 +283,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/collections/$collectionId'
       preLoaderRoute: typeof CollectionsCollectionIdRouteImport
       parentRoute: typeof CollectionsRoute
+    }
+    '/_shell/stock': {
+      id: '/_shell/stock'
+      path: '/stock'
+      fullPath: '/stock'
+      preLoaderRoute: typeof ShellStockRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/reglages': {
+      id: '/_shell/reglages'
+      path: '/reglages'
+      fullPath: '/reglages'
+      preLoaderRoute: typeof ShellReglagesRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/livraisons': {
+      id: '/_shell/livraisons'
+      path: '/livraisons'
+      fullPath: '/livraisons'
+      preLoaderRoute: typeof ShellLivraisonsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/equipe': {
+      id: '/_shell/equipe'
+      path: '/equipe'
+      fullPath: '/equipe'
+      preLoaderRoute: typeof ShellEquipeRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/encaissements': {
+      id: '/_shell/encaissements'
+      path: '/encaissements'
+      fullPath: '/encaissements'
+      preLoaderRoute: typeof ShellEncaissementsRouteImport
+      parentRoute: typeof ShellRoute
     }
     '/api/rpc/$': {
       id: '/api/rpc/$'
@@ -226,6 +335,26 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface ShellRouteChildren {
+  ShellEncaissementsRoute: typeof ShellEncaissementsRoute
+  ShellEquipeRoute: typeof ShellEquipeRoute
+  ShellLivraisonsRoute: typeof ShellLivraisonsRoute
+  ShellReglagesRoute: typeof ShellReglagesRoute
+  ShellStockRoute: typeof ShellStockRoute
+  ShellIndexRoute: typeof ShellIndexRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellEncaissementsRoute: ShellEncaissementsRoute,
+  ShellEquipeRoute: ShellEquipeRoute,
+  ShellLivraisonsRoute: ShellLivraisonsRoute,
+  ShellReglagesRoute: ShellReglagesRoute,
+  ShellStockRoute: ShellStockRoute,
+  ShellIndexRoute: ShellIndexRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
 
 interface CollectionsRouteChildren {
   CollectionsCollectionIdRoute: typeof CollectionsCollectionIdRoute
@@ -256,7 +385,7 @@ const DeliveriesRouteWithChildren = DeliveriesRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  ShellRoute: ShellRouteWithChildren,
   CollectionsRoute: CollectionsRouteWithChildren,
   DeliveriesRoute: DeliveriesRouteWithChildren,
   LoginRoute: LoginRoute,

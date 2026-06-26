@@ -2,7 +2,7 @@
   "name": "gerpain-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": ["apps/*", "packages/*", "mocked-interfaces/*"],
   "scripts": {
     "dev": "bun run --filter gerpain dev",
     "build": "bun run --filter gerpain build",
