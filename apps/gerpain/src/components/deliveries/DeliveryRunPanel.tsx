@@ -187,8 +187,8 @@ export function DeliveryRunPanel({
     })
   }, [run.data, drafts])
 
-  const flushDirtyItems = useCallback(async () => {
-    if (!run.data || dirtyItems.length === 0) return
+  const flushDirtyItems = useCallback(async (): Promise<boolean> => {
+    if (!run.data || dirtyItems.length === 0) return true
     setSaveState('saving')
     try {
       for (const item of dirtyItems) {
@@ -202,8 +202,10 @@ export function DeliveryRunPanel({
       }
       setSaveState('saved')
       window.setTimeout(() => setSaveState('idle'), 1500)
+      return true
     } catch {
-      // handled in mutation onError
+      // error surfaced via mutation onError
+      return false
     }
   }, [dirtyItems, drafts, run.data, updateItem])
 
@@ -263,7 +265,11 @@ export function DeliveryRunPanel({
     setMessage(null)
     try {
       if (dirtyItems.length > 0) {
-        await flushDirtyItems()
+        const saved = await flushDirtyItems()
+        if (!saved) {
+          setConfirmOpen(false)
+          return
+        }
       }
       await validate.mutateAsync({ runId })
     } catch (err) {
