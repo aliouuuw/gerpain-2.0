@@ -392,7 +392,7 @@ export function EncaissementsView() {
                             onClick={() => {
                               if (
                                 window.confirm(
-                                  `Valider l'encaissement de ${formatXof(collected)} ? Un écriture Bocal sera créée.`,
+                                  `Valider l'encaissement de ${formatXof(collected)} ? Cette action est définitive et enregistre l'argent en caisse.`,
                                 )
                               ) {
                                 void validate.mutate({ collectionId: row.id })
