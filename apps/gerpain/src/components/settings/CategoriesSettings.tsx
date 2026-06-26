@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { orpc } from '#/lib/orpc-client'
 import { usePermissions } from '#/lib/use-permissions'
 
@@ -23,9 +24,16 @@ const emptyForm = (): FormState => ({
 export function CategoriesSettings() {
   const { canManageCollections: canManage } = usePermissions()
   const [showInactive, setShowInactive] = useState(false)
+  const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
+  const [pendingDeactivate, setPendingDeactivate] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+
+  const formVisible = showForm || Boolean(editingId)
 
   const categories = useQuery(
     orpc.categories.list.queryOptions({
@@ -38,6 +46,7 @@ export function CategoriesSettings() {
       onSuccess: async () => {
         setForm(emptyForm())
         setFormError(null)
+        setShowForm(false)
         await categories.refetch()
       },
       onError: (error) => setFormError(error.message),
@@ -50,6 +59,7 @@ export function CategoriesSettings() {
         setEditingId(null)
         setForm(emptyForm())
         setFormError(null)
+        setShowForm(false)
         await categories.refetch()
       },
       onError: (error) => setFormError(error.message),
@@ -58,7 +68,10 @@ export function CategoriesSettings() {
 
   const deactivateMutation = useMutation(
     orpc.categories.deactivate.mutationOptions({
-      onSuccess: () => categories.refetch(),
+      onSuccess: () => {
+        setPendingDeactivate(null)
+        void categories.refetch()
+      },
     }),
   )
 
@@ -75,6 +88,7 @@ export function CategoriesSettings() {
     color: string | null
     sortOrder: number | null
   }) {
+    setShowForm(true)
     setEditingId(category.id)
     setForm({
       name: category.name,
@@ -89,6 +103,7 @@ export function CategoriesSettings() {
     setEditingId(null)
     setForm(emptyForm())
     setFormError(null)
+    setShowForm(false)
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -111,8 +126,20 @@ export function CategoriesSettings() {
   const saving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <Card title="Catégories">
-      {canManage ? (
+    <Card title="Catégories" className="settings-section">
+      {canManage && !formVisible ? (
+        <div className="settings-section__toolbar">
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => setShowForm(true)}
+          >
+            + Ajouter une catégorie
+          </button>
+        </div>
+      ) : null}
+
+      {canManage && formVisible ? (
         <form className="settings-form" onSubmit={(e) => void handleSubmit(e)}>
           <p className="settings-form__hint">
             {editingId ? 'Modifier la catégorie' : 'Ajouter une catégorie'}
@@ -168,18 +195,16 @@ export function CategoriesSettings() {
                   ? 'Enregistrer'
                   : 'Ajouter'}
             </button>
-            {editingId ? (
-              <button type="button" className="table-action" onClick={cancelEdit}>
-                Annuler
-              </button>
-            ) : null}
+            <button type="button" className="table-action" onClick={cancelEdit}>
+              Annuler
+            </button>
           </div>
         </form>
-      ) : (
+      ) : !canManage ? (
         <p className="settings-form__hint">
           Seuls les responsables peuvent gérer les catégories.
         </p>
-      )}
+      ) : null}
 
       <div className="settings-list-toolbar">
         <label className="settings-checkbox">
@@ -245,10 +270,10 @@ export function CategoriesSettings() {
                         <button
                           type="button"
                           className="table-action"
-                          disabled={deactivateMutation.isPending}
                           onClick={() =>
-                            deactivateMutation.mutate({
-                              categoryId: category.id,
+                            setPendingDeactivate({
+                              id: category.id,
+                              name: category.name,
                             })
                           }
                         >
@@ -277,6 +302,26 @@ export function CategoriesSettings() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDeactivate !== null}
+        title="Désactiver cette catégorie ?"
+        confirmLabel="Désactiver"
+        confirmVariant="danger"
+        loading={deactivateMutation.isPending}
+        onCancel={() => setPendingDeactivate(null)}
+        onConfirm={() => {
+          if (!pendingDeactivate) return
+          deactivateMutation.mutate({
+            categoryId: pendingDeactivate.id,
+          })
+        }}
+      >
+        <p>
+          « {pendingDeactivate?.name} » ne sera plus proposée pour les nouveaux
+          produits. Les produits existants conservent leur catégorie.
+        </p>
+      </ConfirmDialog>
     </Card>
   )
 }

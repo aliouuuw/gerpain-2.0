@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Badge } from '#/components/ui/Badge'
-import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import {
   groupDeliveryItemsByProduct,
   lineTotal,
@@ -12,6 +11,7 @@ import {
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { formatRpcError } from '#/lib/rpc-error'
+import { isProductRowTouched, runEntryProgress } from '#/lib/run-progress'
 
 type ItemDraft = { entrusted: number; returned: number }
 
@@ -20,63 +20,71 @@ type DeliveryRunPanelProps = {
   bakeryId: string
   onClose: () => void
   onValidated?: () => void
+  inline?: boolean
 }
 
-function QtyInput({
-  label,
-  value,
-  max,
-  disabled,
-  onChange,
-}: {
-  label: string
-  value: number
-  max?: number
-  disabled: boolean
-  onChange: (value: number) => void
-}) {
-  return (
-    <label className="delivery-qty">
-      <span className="delivery-qty__label">{label}</span>
-      <input
-        type="number"
-        min={0}
-        max={max}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value) || 0)}
-      />
-    </label>
-  )
-}
-
-function PeriodCell({
-  period: draft,
+function PeriodGroup({
+  periodLabel,
+  draft,
   editable,
   onChange,
 }: {
-  period: PeriodDraft
+  periodLabel: string
+  draft: PeriodDraft | null
   editable: boolean
   onChange: (patch: Partial<ItemDraft>) => void
 }) {
+  const [returnHint, setReturnHint] = useState(false)
+
+  if (!draft) {
+    return (
+      <div className="period-group">
+        <div className="period-group__header">{periodLabel}</div>
+        <span className="cell-muted mt-2">—</span>
+      </div>
+    )
+  }
+
   return (
-    <div className="delivery-period-cell">
-      <QtyInput
-        label="Confié"
-        value={draft.entrusted}
-        disabled={!editable}
-        onChange={(entrusted) => onChange({ entrusted })}
-      />
-      <QtyInput
-        label="Retour"
-        value={draft.returned}
-        max={draft.entrusted}
-        disabled={!editable}
-        onChange={(returned) => onChange({ returned })}
-      />
-      <span className="delivery-period-cell__sold">
-        Vendu {soldQty(draft)}
-      </span>
+    <div className="period-group">
+      <div className="period-group__header">{periodLabel}</div>
+      <div className="input-pair">
+        <div className="input-field">
+          <span className="input-field__label">Confié</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={draft.entrusted === 0 ? '' : draft.entrusted}
+            placeholder="0"
+            disabled={!editable}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\D/g, '')
+              const val = raw === '' ? 0 : Number.parseInt(raw, 10)
+              setReturnHint(false)
+              onChange({ entrusted: val })
+            }}
+          />
+        </div>
+        <div className="input-field">
+          <span className="input-field__label">Retour</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={draft.returned === 0 ? '' : draft.returned}
+            placeholder="0"
+            disabled={!editable}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/\D/g, '')
+              const val = raw === '' ? 0 : Number.parseInt(raw, 10)
+              setReturnHint(val > draft.entrusted)
+              onChange({ returned: val })
+            }}
+          />
+        </div>
+      </div>
+      {returnHint ? (
+        <span className="delivery-period-cell__hint">Retour ≤ confié</span>
+      ) : null}
     </div>
   )
 }
@@ -86,10 +94,12 @@ export function DeliveryRunPanel({
   bakeryId,
   onClose,
   onValidated,
+  inline = false,
 }: DeliveryRunPanelProps) {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [drafts, setDrafts] = useState<Record<string, ItemDraft>>({})
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -137,6 +147,7 @@ export function DeliveryRunPanel({
     orpc.deliveries.validateRun.mutationOptions({
       onSuccess: async () => {
         setMessage('Tournée validée — encaissement créé.')
+        setConfirmOpen(false)
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: orpc.deliveries.getRun.key({ input: { runId } }),
@@ -156,6 +167,7 @@ export function DeliveryRunPanel({
       },
       onError: (err) => {
         setError(formatRpcError(err))
+        setConfirmOpen(false)
       },
     }),
   )
@@ -222,6 +234,19 @@ export function DeliveryRunPanel({
     }, 0)
   }, [run.data, drafts])
 
+  const confirmStats = useMemo(() => {
+    if (!run.data) return { entered: 0, total: 0, totalSold: 0, expected: 0 }
+    const itemsWithDrafts = run.data.items.map((item) => {
+      const draft = drafts[item.id]
+      return {
+        ...item,
+        quantityEntrusted: draft?.entrusted ?? item.quantityEntrusted,
+        quantityReturned: draft?.returned ?? item.quantityReturned,
+      }
+    })
+    return runEntryProgress(itemsWithDrafts)
+  }, [run.data, drafts])
+
   function updateDraft(itemId: string, patch: Partial<ItemDraft>) {
     setDrafts((current) => {
       const previous = current[itemId]
@@ -255,26 +280,21 @@ export function DeliveryRunPanel({
     return { ...period, ...draft }
   }
 
-  return (
-    <Card
-      title={run.data ? `Saisie — ${run.data.employeeName}` : 'Saisie tournée'}
-      className="settings-card--wide delivery-run-panel"
-    >
-      <div className="delivery-run-panel__header">
-        {run.data ? (
-          <p className="settings-form__hint">
-            {run.data.locationName} · {run.data.date}
-            {run.data.status === 'validated' ? (
-              <Badge variant="success">Validé</Badge>
-            ) : (
-              <Badge variant="neutral">Brouillon</Badge>
-            )}
-          </p>
-        ) : null}
-        <button type="button" className="table-action" onClick={onClose}>
-          Fermer
-        </button>
-      </div>
+  const panelBody = (
+    <>
+      {!inline ? (
+        <div className="delivery-run-panel__header">
+          {run.data ? (
+            <p className="settings-form__hint">
+              {run.data.locationName} · {run.data.date}
+              {run.data.status === 'validated' ? ' · Validé' : ' · Brouillon'}
+            </p>
+          ) : null}
+          <button type="button" className="table-action" onClick={onClose}>
+            Fermer
+          </button>
+        </div>
+      ) : null}
 
       {run.isLoading ? (
         <p className="settings-form__hint">Chargement de la tournée…</p>
@@ -305,86 +325,119 @@ export function DeliveryRunPanel({
               Équipe.
             </p>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table delivery-grid">
-                <thead>
-                  <tr>
-                    <th>Produit</th>
-                    <th>Matin — confié / retour</th>
-                    <th>Soir — confié / retour</th>
-                    <th>CA ligne</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const matin = draftFor(row.matin)
-                    const soir = draftFor(row.soir)
-                    const rowTotal =
-                      lineTotal(matin, row.unitPrice) +
-                      lineTotal(soir, row.unitPrice)
+            <div className="delivery-product-list">
+              {rows.map((row) => {
+                const matin = draftFor(row.matin)
+                const soir = draftFor(row.soir)
+                const rowTotal =
+                  lineTotal(matin, row.unitPrice) +
+                  lineTotal(soir, row.unitPrice)
+                const touched = isProductRowTouched(matin, soir)
+                const rowSold =
+                  (matin ? soldQty(matin) : 0) + (soir ? soldQty(soir) : 0)
 
-                    return (
-                      <tr key={row.productId}>
-                        <td>
-                          <span className="cell-agent">{row.productName}</span>
-                          <span className="cell-sub">
-                            {formatXof(row.unitPrice)} / u
-                          </span>
-                        </td>
-                        <td>
-                          {matin ? (
-                            <PeriodCell
-                              period={matin}
-                              editable={editable}
-                              onChange={(patch) =>
-                                updateDraft(matin.itemId, patch)
-                              }
-                            />
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td>
-                          {soir ? (
-                            <PeriodCell
-                              period={soir}
-                              editable={editable}
-                              onChange={(patch) =>
-                                updateDraft(soir.itemId, patch)
-                              }
-                            />
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="cell-money">
-                          {rowTotal > 0 ? formatXof(rowTotal) : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                return (
+                  <div
+                    key={row.productId}
+                    className={`delivery-product-row ${
+                      !touched ? 'delivery-product-row--muted' : ''
+                    }`}
+                  >
+                    <div className="product-meta">
+                      <span className="product-name">{row.productName}</span>
+                      <span className="product-price">
+                        {formatXof(row.unitPrice)} / u
+                      </span>
+                    </div>
+                    
+                    <PeriodGroup
+                      periodLabel="Matin"
+                      draft={matin}
+                      editable={editable}
+                      onChange={(patch) => updateDraft(matin!.itemId, patch)}
+                    />
+                    
+                    <PeriodGroup
+                      periodLabel="Soir"
+                      draft={soir}
+                      editable={editable}
+                      onChange={(patch) => updateDraft(soir!.itemId, patch)}
+                    />
+
+                    <div className="product-result">
+                      <span className="product-result-money">
+                        {rowTotal > 0 ? formatXof(rowTotal) : '—'}
+                      </span>
+                      {rowSold > 0 ? (
+                        <span className="product-result-qty">
+                          {rowSold} vendus
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
 
-          <div className="delivery-run-panel__footer">
+          <div className="panel-footer--sticky">
             <span className="delivery-run-panel__total">
               CA attendu : <strong>{formatXof(totalExpected)}</strong>
             </span>
             {editable ? (
               <button
                 type="button"
-                className="btn-primary btn-sm"
+                className="btn-primary"
                 disabled={validate.isPending || rows.length === 0}
-                onClick={() => void handleValidate()}
+                onClick={() => setConfirmOpen(true)}
               >
-                {validate.isPending ? 'Validation…' : 'Valider la tournée'}
+                Valider la tournée
               </button>
             ) : null}
           </div>
+
+          <ConfirmDialog
+            open={confirmOpen}
+            title={`Valider ${run.data.employeeName} ?`}
+            confirmLabel="Valider"
+            loading={validate.isPending}
+            onCancel={() => setConfirmOpen(false)}
+            onConfirm={() => void handleValidate()}
+          >
+            <p>
+              {confirmStats.totalSold} unité
+              {confirmStats.totalSold > 1 ? 's' : ''} vendue
+              {confirmStats.totalSold > 1 ? 's' : ''} sur{' '}
+              {confirmStats.entered}/{confirmStats.total} produit
+              {confirmStats.total > 1 ? 's' : ''} saisi
+              {confirmStats.entered > 1 ? 's' : ''}.
+            </p>
+            <p>
+              CA attendu : <strong>{formatXof(confirmStats.expected)}</strong>
+            </p>
+            <p className="settings-form__hint">
+              Un encaissement sera créé automatiquement.
+            </p>
+          </ConfirmDialog>
         </>
       )}
-    </Card>
+    </>
+  )
+
+  if (inline) {
+    return (
+      <div className="delivery-run-panel delivery-run-panel--inline">
+        {panelBody}
+      </div>
+    )
+  }
+
+  return (
+    <div className="delivery-run-panel settings-card--wide">
+      <div className="card-header">
+        {run.data ? `Saisie — ${run.data.employeeName}` : 'Saisie tournée'}
+      </div>
+      <div className="card-body">{panelBody}</div>
+    </div>
   )
 }

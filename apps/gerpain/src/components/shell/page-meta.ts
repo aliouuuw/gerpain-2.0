@@ -1,3 +1,5 @@
+import { settingsSectionMeta } from '#/lib/settings-nav'
+
 export interface ShellPageMeta {
   title: string
   subtitle: string
@@ -31,5 +33,9 @@ export const shellPageMeta: Record<string, ShellPageMeta> = {
 }
 
 export function getShellPageMeta(pathname: string): ShellPageMeta {
+  if (pathname.startsWith('/reglages/')) {
+    return settingsSectionMeta[pathname] ?? shellPageMeta['/reglages']
+  }
+
   return shellPageMeta[pathname] ?? { title: 'Gerpain', subtitle: '' }
 }

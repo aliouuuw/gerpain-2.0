@@ -3,8 +3,14 @@ import { useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
+import { PriceInput } from '#/components/ui/PriceInput'
 import { useBakery } from '#/lib/bakery-context'
-import { formatXof } from '#/lib/format-money'
+import {
+  formatXof,
+  formatXofInput,
+  xofInputToNumber,
+} from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { usePermissions } from '#/lib/use-permissions'
 
@@ -27,9 +33,16 @@ export function ProductsSettings() {
   const { canManageCollections: canManage } = usePermissions()
   const [showInactive, setShowInactive] = useState(false)
   const [filterCategoryId, setFilterCategoryId] = useState('')
+  const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
+  const [pendingDeactivate, setPendingDeactivate] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+
+  const formVisible = showForm || Boolean(editingId)
 
   const categories = useQuery(
     orpc.categories.list.queryOptions({ input: {} }),
@@ -56,6 +69,7 @@ export function ProductsSettings() {
       onSuccess: async () => {
         setForm(emptyForm())
         setFormError(null)
+        setShowForm(false)
         await products.refetch()
       },
       onError: (error) => setFormError(error.message),
@@ -68,6 +82,7 @@ export function ProductsSettings() {
         setEditingId(null)
         setForm(emptyForm())
         setFormError(null)
+        setShowForm(false)
         await products.refetch()
       },
       onError: (error) => setFormError(error.message),
@@ -76,7 +91,10 @@ export function ProductsSettings() {
 
   const deactivateMutation = useMutation(
     orpc.products.deactivate.mutationOptions({
-      onSuccess: () => products.refetch(),
+      onSuccess: () => {
+        setPendingDeactivate(null)
+        void products.refetch()
+      },
     }),
   )
 
@@ -93,10 +111,11 @@ export function ProductsSettings() {
     categoryId: string | null
     description: string | null
   }) {
+    setShowForm(true)
     setEditingId(product.id)
     setForm({
       name: product.name,
-      unitPrice: String(product.unitPrice),
+      unitPrice: formatXofInput(product.unitPrice),
       categoryId: product.categoryId ?? '',
       description: product.description ?? '',
     })
@@ -107,13 +126,14 @@ export function ProductsSettings() {
     setEditingId(null)
     setForm(emptyForm())
     setFormError(null)
+    setShowForm(false)
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!bakeryId) return
 
-    const unitPrice = Number(form.unitPrice)
+    const unitPrice = xofInputToNumber(form.unitPrice)
     if (!Number.isInteger(unitPrice) || unitPrice <= 0) {
       setFormError('Le prix doit être un entier positif (FCFA).')
       return
@@ -142,8 +162,23 @@ export function ProductsSettings() {
   const saving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <Card title="Produits et prix" className="settings-card--wide">
-      {canManage ? (
+    <Card
+      title="Produits et prix"
+      className="settings-section settings-section--wide"
+    >
+      {canManage && !formVisible ? (
+        <div className="settings-section__toolbar">
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => setShowForm(true)}
+          >
+            + Ajouter un produit
+          </button>
+        </div>
+      ) : null}
+
+      {canManage && formVisible ? (
         <form className="settings-form" onSubmit={(e) => void handleSubmit(e)}>
           <p className="settings-form__hint">
             {editingId
@@ -161,15 +196,10 @@ export function ProductsSettings() {
               />
             </label>
             <label className="settings-form__field">
-              <span>Prix unitaire (FCFA)</span>
-              <input
-                type="number"
-                min={1}
-                step={1}
+              <span>Prix unitaire</span>
+              <PriceInput
                 value={form.unitPrice}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, unitPrice: e.target.value }))
-                }
+                onChange={(unitPrice) => setForm((f) => ({ ...f, unitPrice }))}
                 required
               />
             </label>
@@ -211,18 +241,16 @@ export function ProductsSettings() {
                   ? 'Enregistrer'
                   : 'Ajouter'}
             </button>
-            {editingId ? (
-              <button type="button" className="table-action" onClick={cancelEdit}>
-                Annuler
-              </button>
-            ) : null}
+            <button type="button" className="table-action" onClick={cancelEdit}>
+              Annuler
+            </button>
           </div>
         </form>
-      ) : (
+      ) : !canManage ? (
         <p className="settings-form__hint">
           Seuls les responsables peuvent gérer le catalogue produits.
         </p>
-      )}
+      ) : null}
 
       <div className="settings-list-toolbar settings-list-toolbar--split">
         <label className="settings-form__field settings-filter">
@@ -293,11 +321,10 @@ export function ProductsSettings() {
                         <button
                           type="button"
                           className="table-action"
-                          disabled={deactivateMutation.isPending}
                           onClick={() =>
-                            deactivateMutation.mutate({
-                              bakeryId,
-                              productId: product.id,
+                            setPendingDeactivate({
+                              id: product.id,
+                              name: product.name,
                             })
                           }
                         >
@@ -327,6 +354,27 @@ export function ProductsSettings() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDeactivate !== null}
+        title="Désactiver ce produit ?"
+        confirmLabel="Désactiver"
+        confirmVariant="danger"
+        loading={deactivateMutation.isPending}
+        onCancel={() => setPendingDeactivate(null)}
+        onConfirm={() => {
+          if (!pendingDeactivate || !bakeryId) return
+          deactivateMutation.mutate({
+            bakeryId,
+            productId: pendingDeactivate.id,
+          })
+        }}
+      >
+        <p>
+          « {pendingDeactivate?.name} » ne sera plus proposé dans les tournées.
+          Les données historiques sont conservées.
+        </p>
+      </ConfirmDialog>
     </Card>
   )
 }

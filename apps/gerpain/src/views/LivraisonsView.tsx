@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import { DeliveryRunPanel } from '#/components/deliveries/DeliveryRunPanel'
 import { Badge } from '#/components/ui/Badge'
@@ -13,7 +13,19 @@ import {
 } from '#/lib/day-operations'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
+import { runEntryProgress } from '#/lib/run-progress'
 import { useShellDate } from '#/lib/use-shell-date'
+
+const COL_COUNT = 6
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
 
 function formatDeliveryStatus(status: string): string {
   const labels: Record<string, string> = {
@@ -85,15 +97,15 @@ export function LivraisonsView() {
         ) : !runs.data || runs.data.length === 0 ? (
           <p className="empty-state">Aucune tournée pour cette journée.</p>
         ) : (
-          <table className="data-table">
+          <table className="data-table data-table--expandable">
             <thead>
               <tr>
-                <th>Agent</th>
-                <th>Vendu (unités)</th>
+                <th>Agent & Secteur</th>
+                <th>Saisie</th>
+                <th>Volume (unités)</th>
                 <th>CA attendu</th>
                 <th>Encaissement</th>
                 <th>Statut</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -101,78 +113,103 @@ export function LivraisonsView() {
                 const matinQty = periodQty(run.items, 'matin')
                 const soirQty = periodQty(run.items, 'soir')
                 const expected = runExpected(run.items)
+                const progress = runEntryProgress(run.items)
                 const collectionId = collectionByRunId.get(run.id)
                 const hasCollection = Boolean(collectionId)
                 const isSelected = selectedRunId === run.id
 
                 return (
-                  <tr
-                    key={run.id}
-                    className={isSelected ? 'data-table__row--selected' : undefined}
-                  >
-                    <td>
-                      <span className="cell-agent">{run.employeeName}</span>
-                      <span className="cell-sub">{run.locationName}</span>
-                    </td>
-                    <td>
-                      {matinQty > 0 && <span>Matin {matinQty}</span>}
-                      {matinQty > 0 && soirQty > 0 && ' · '}
-                      {soirQty > 0 && <span>Soir {soirQty}</span>}
-                      {matinQty === 0 && soirQty === 0 && '—'}
-                    </td>
-                    <td className="cell-money">
-                      {expected > 0 ? formatXof(expected) : '—'}
-                    </td>
-                    <td>
-                      {hasCollection && collectionId ? (
-                        <button
-                          type="button"
-                          className="link-btn"
-                          onClick={() =>
-                            void navigate({ to: '/encaissements' })
-                          }
-                        >
-                          Voir l&apos;encaissement →
-                        </button>
-                      ) : (
-                        <span className="cell-muted">Après validation</span>
-                      )}
-                    </td>
-                    <td>{deliveryBadge(run.status)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className={`table-action${!isSelected && run.status !== 'validated' ? ' table-action--primary' : ''}`}
-                        onClick={() =>
-                          setSelectedRunId(isSelected ? null : run.id)
-                        }
-                      >
-                        {isSelected
-                          ? 'Fermer'
-                          : run.status === 'validated'
-                            ? 'Voir'
-                            : 'Saisir'}
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={run.id}>
+                    <tr
+                      className={`clickable-row ${isSelected ? 'data-table__row--selected' : ''}`}
+                      onClick={() => setSelectedRunId(isSelected ? null : run.id)}
+                    >
+                      <td>
+                        <div className="agent-lockup">
+                          <div className="avatar--sm">{getInitials(run.employeeName)}</div>
+                          <div className="agent-lockup__info">
+                            <div className="agent-name">{run.employeeName}</div>
+                            <div className="agent-role">{run.locationName}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {run.status === 'draft' ? (
+                          <div className="progress-cell mt-1">
+                            <span className="progress-cell__text">
+                              {progress.entered} / {progress.total} saisis
+                            </span>
+                            <div className="progress-bar">
+                              <div
+                                className="progress-bar__fill"
+                                style={{
+                                  width: `${(progress.entered / Math.max(1, progress.total)) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="cell-muted">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="volume-badges">
+                          {matinQty > 0 && <span className="badge-pill">Matin: {matinQty}</span>}
+                          {soirQty > 0 && <span className="badge-pill">Soir: {soirQty}</span>}
+                          {matinQty === 0 && soirQty === 0 && <span className="cell-muted">—</span>}
+                        </div>
+                      </td>
+                      <td className="cell-money">
+                        {expected > 0 ? formatXof(expected) : '—'}
+                      </td>
+                      <td>
+                        {hasCollection && collectionId ? (
+                          <button
+                            type="button"
+                            className="link-btn"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void navigate({ to: '/encaissements' })
+                            }}
+                          >
+                            Voir l&apos;encaissement →
+                          </button>
+                        ) : (
+                          <span className="cell-muted">Après validation</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="status-cell">
+                          {deliveryBadge(run.status)}
+                          <span className="status-cell__chevron">
+                            {isSelected ? '▲' : '▼'}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {isSelected && bakeryId ? (
+                      <tr className="data-table__expand-row">
+                        <td colSpan={COL_COUNT}>
+                          <DeliveryRunPanel
+                            inline
+                            runId={run.id}
+                            bakeryId={bakeryId}
+                            onClose={() => setSelectedRunId(null)}
+                            onValidated={() => {
+                              void runs.refetch()
+                              void collections.refetch()
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 )
               })}
             </tbody>
           </table>
         )}
       </Card>
-
-      {selectedRunId && bakeryId ? (
-        <DeliveryRunPanel
-          runId={selectedRunId}
-          bakeryId={bakeryId}
-          onClose={() => setSelectedRunId(null)}
-          onValidated={() => {
-            void runs.refetch()
-            void collections.refetch()
-          }}
-        />
-      ) : null}
     </main>
   )
 }

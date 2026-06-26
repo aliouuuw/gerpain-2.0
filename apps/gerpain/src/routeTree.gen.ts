@@ -19,12 +19,18 @@ import { Route as ShellIndexRouteImport } from './routes/_shell/index'
 import { Route as DeliveriesRunIdRouteImport } from './routes/deliveries.$runId'
 import { Route as CollectionsCollectionIdRouteImport } from './routes/collections.$collectionId'
 import { Route as ShellStockRouteImport } from './routes/_shell/stock'
-import { Route as ShellReglagesRouteImport } from './routes/_shell/reglages'
 import { Route as ShellLivraisonsRouteImport } from './routes/_shell/livraisons'
 import { Route as ShellEquipeRouteImport } from './routes/_shell/equipe'
 import { Route as ShellEncaissementsRouteImport } from './routes/_shell/encaissements'
+import { Route as ShellReglagesRouteRouteImport } from './routes/_shell/reglages/route'
+import { Route as ShellReglagesIndexRouteImport } from './routes/_shell/reglages/index'
 import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
+import { Route as ShellReglagesProduitsRouteImport } from './routes/_shell/reglages/produits'
+import { Route as ShellReglagesNotificationsRouteImport } from './routes/_shell/reglages/notifications'
+import { Route as ShellReglagesLieuxRouteImport } from './routes/_shell/reglages/lieux'
+import { Route as ShellReglagesCategoriesRouteImport } from './routes/_shell/reglages/categories'
+import { Route as ShellReglagesBoulangerieRouteImport } from './routes/_shell/reglages/boulangerie'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -75,11 +81,6 @@ const ShellStockRoute = ShellStockRouteImport.update({
   path: '/stock',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellReglagesRoute = ShellReglagesRouteImport.update({
-  id: '/reglages',
-  path: '/reglages',
-  getParentRoute: () => ShellRoute,
-} as any)
 const ShellLivraisonsRoute = ShellLivraisonsRouteImport.update({
   id: '/livraisons',
   path: '/livraisons',
@@ -95,6 +96,16 @@ const ShellEncaissementsRoute = ShellEncaissementsRouteImport.update({
   path: '/encaissements',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellReglagesRouteRoute = ShellReglagesRouteRouteImport.update({
+  id: '/reglages',
+  path: '/reglages',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellReglagesIndexRoute = ShellReglagesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellReglagesRouteRoute,
+} as any)
 const ApiRpcSplatRoute = ApiRpcSplatRouteImport.update({
   id: '/api/rpc/$',
   path: '/api/rpc/$',
@@ -105,38 +116,76 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShellReglagesProduitsRoute = ShellReglagesProduitsRouteImport.update({
+  id: '/produits',
+  path: '/produits',
+  getParentRoute: () => ShellReglagesRouteRoute,
+} as any)
+const ShellReglagesNotificationsRoute =
+  ShellReglagesNotificationsRouteImport.update({
+    id: '/notifications',
+    path: '/notifications',
+    getParentRoute: () => ShellReglagesRouteRoute,
+  } as any)
+const ShellReglagesLieuxRoute = ShellReglagesLieuxRouteImport.update({
+  id: '/lieux',
+  path: '/lieux',
+  getParentRoute: () => ShellReglagesRouteRoute,
+} as any)
+const ShellReglagesCategoriesRoute = ShellReglagesCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => ShellReglagesRouteRoute,
+} as any)
+const ShellReglagesBoulangerieRoute =
+  ShellReglagesBoulangerieRouteImport.update({
+    id: '/boulangerie',
+    path: '/boulangerie',
+    getParentRoute: () => ShellReglagesRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ShellIndexRoute
   '/collections': typeof CollectionsRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/reglages': typeof ShellReglagesRouteRouteWithChildren
   '/encaissements': typeof ShellEncaissementsRoute
   '/equipe': typeof ShellEquipeRoute
   '/livraisons': typeof ShellLivraisonsRoute
-  '/reglages': typeof ShellReglagesRoute
   '/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/collections/': typeof CollectionsIndexRoute
   '/deliveries/': typeof DeliveriesIndexRoute
+  '/reglages/boulangerie': typeof ShellReglagesBoulangerieRoute
+  '/reglages/categories': typeof ShellReglagesCategoriesRoute
+  '/reglages/lieux': typeof ShellReglagesLieuxRoute
+  '/reglages/notifications': typeof ShellReglagesNotificationsRoute
+  '/reglages/produits': typeof ShellReglagesProduitsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
+  '/reglages/': typeof ShellReglagesIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/encaissements': typeof ShellEncaissementsRoute
   '/equipe': typeof ShellEquipeRoute
   '/livraisons': typeof ShellLivraisonsRoute
-  '/reglages': typeof ShellReglagesRoute
   '/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/': typeof ShellIndexRoute
   '/collections': typeof CollectionsIndexRoute
   '/deliveries': typeof DeliveriesIndexRoute
+  '/reglages/boulangerie': typeof ShellReglagesBoulangerieRoute
+  '/reglages/categories': typeof ShellReglagesCategoriesRoute
+  '/reglages/lieux': typeof ShellReglagesLieuxRoute
+  '/reglages/notifications': typeof ShellReglagesNotificationsRoute
+  '/reglages/produits': typeof ShellReglagesProduitsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
+  '/reglages': typeof ShellReglagesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,18 +193,24 @@ export interface FileRoutesById {
   '/collections': typeof CollectionsRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/_shell/reglages': typeof ShellReglagesRouteRouteWithChildren
   '/_shell/encaissements': typeof ShellEncaissementsRoute
   '/_shell/equipe': typeof ShellEquipeRoute
   '/_shell/livraisons': typeof ShellLivraisonsRoute
-  '/_shell/reglages': typeof ShellReglagesRoute
   '/_shell/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/_shell/': typeof ShellIndexRoute
   '/collections/': typeof CollectionsIndexRoute
   '/deliveries/': typeof DeliveriesIndexRoute
+  '/_shell/reglages/boulangerie': typeof ShellReglagesBoulangerieRoute
+  '/_shell/reglages/categories': typeof ShellReglagesCategoriesRoute
+  '/_shell/reglages/lieux': typeof ShellReglagesLieuxRoute
+  '/_shell/reglages/notifications': typeof ShellReglagesNotificationsRoute
+  '/_shell/reglages/produits': typeof ShellReglagesProduitsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
+  '/_shell/reglages/': typeof ShellReglagesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -164,50 +219,67 @@ export interface FileRouteTypes {
     | '/collections'
     | '/deliveries'
     | '/login'
+    | '/reglages'
     | '/encaissements'
     | '/equipe'
     | '/livraisons'
-    | '/reglages'
     | '/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
     | '/collections/'
     | '/deliveries/'
+    | '/reglages/boulangerie'
+    | '/reglages/categories'
+    | '/reglages/lieux'
+    | '/reglages/notifications'
+    | '/reglages/produits'
     | '/api/auth/$'
     | '/api/rpc/$'
+    | '/reglages/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/encaissements'
     | '/equipe'
     | '/livraisons'
-    | '/reglages'
     | '/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
     | '/'
     | '/collections'
     | '/deliveries'
+    | '/reglages/boulangerie'
+    | '/reglages/categories'
+    | '/reglages/lieux'
+    | '/reglages/notifications'
+    | '/reglages/produits'
     | '/api/auth/$'
     | '/api/rpc/$'
+    | '/reglages'
   id:
     | '__root__'
     | '/_shell'
     | '/collections'
     | '/deliveries'
     | '/login'
+    | '/_shell/reglages'
     | '/_shell/encaissements'
     | '/_shell/equipe'
     | '/_shell/livraisons'
-    | '/_shell/reglages'
     | '/_shell/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
     | '/_shell/'
     | '/collections/'
     | '/deliveries/'
+    | '/_shell/reglages/boulangerie'
+    | '/_shell/reglages/categories'
+    | '/_shell/reglages/lieux'
+    | '/_shell/reglages/notifications'
+    | '/_shell/reglages/produits'
     | '/api/auth/$'
     | '/api/rpc/$'
+    | '/_shell/reglages/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -291,13 +363,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellStockRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/reglages': {
-      id: '/_shell/reglages'
-      path: '/reglages'
-      fullPath: '/reglages'
-      preLoaderRoute: typeof ShellReglagesRouteImport
-      parentRoute: typeof ShellRoute
-    }
     '/_shell/livraisons': {
       id: '/_shell/livraisons'
       path: '/livraisons'
@@ -319,6 +384,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellEncaissementsRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/reglages': {
+      id: '/_shell/reglages'
+      path: '/reglages'
+      fullPath: '/reglages'
+      preLoaderRoute: typeof ShellReglagesRouteRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/reglages/': {
+      id: '/_shell/reglages/'
+      path: '/'
+      fullPath: '/reglages/'
+      preLoaderRoute: typeof ShellReglagesIndexRouteImport
+      parentRoute: typeof ShellReglagesRouteRoute
+    }
     '/api/rpc/$': {
       id: '/api/rpc/$'
       path: '/api/rpc/$'
@@ -333,23 +412,79 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_shell/reglages/produits': {
+      id: '/_shell/reglages/produits'
+      path: '/produits'
+      fullPath: '/reglages/produits'
+      preLoaderRoute: typeof ShellReglagesProduitsRouteImport
+      parentRoute: typeof ShellReglagesRouteRoute
+    }
+    '/_shell/reglages/notifications': {
+      id: '/_shell/reglages/notifications'
+      path: '/notifications'
+      fullPath: '/reglages/notifications'
+      preLoaderRoute: typeof ShellReglagesNotificationsRouteImport
+      parentRoute: typeof ShellReglagesRouteRoute
+    }
+    '/_shell/reglages/lieux': {
+      id: '/_shell/reglages/lieux'
+      path: '/lieux'
+      fullPath: '/reglages/lieux'
+      preLoaderRoute: typeof ShellReglagesLieuxRouteImport
+      parentRoute: typeof ShellReglagesRouteRoute
+    }
+    '/_shell/reglages/categories': {
+      id: '/_shell/reglages/categories'
+      path: '/categories'
+      fullPath: '/reglages/categories'
+      preLoaderRoute: typeof ShellReglagesCategoriesRouteImport
+      parentRoute: typeof ShellReglagesRouteRoute
+    }
+    '/_shell/reglages/boulangerie': {
+      id: '/_shell/reglages/boulangerie'
+      path: '/boulangerie'
+      fullPath: '/reglages/boulangerie'
+      preLoaderRoute: typeof ShellReglagesBoulangerieRouteImport
+      parentRoute: typeof ShellReglagesRouteRoute
+    }
   }
 }
 
+interface ShellReglagesRouteRouteChildren {
+  ShellReglagesBoulangerieRoute: typeof ShellReglagesBoulangerieRoute
+  ShellReglagesCategoriesRoute: typeof ShellReglagesCategoriesRoute
+  ShellReglagesLieuxRoute: typeof ShellReglagesLieuxRoute
+  ShellReglagesNotificationsRoute: typeof ShellReglagesNotificationsRoute
+  ShellReglagesProduitsRoute: typeof ShellReglagesProduitsRoute
+  ShellReglagesIndexRoute: typeof ShellReglagesIndexRoute
+}
+
+const ShellReglagesRouteRouteChildren: ShellReglagesRouteRouteChildren = {
+  ShellReglagesBoulangerieRoute: ShellReglagesBoulangerieRoute,
+  ShellReglagesCategoriesRoute: ShellReglagesCategoriesRoute,
+  ShellReglagesLieuxRoute: ShellReglagesLieuxRoute,
+  ShellReglagesNotificationsRoute: ShellReglagesNotificationsRoute,
+  ShellReglagesProduitsRoute: ShellReglagesProduitsRoute,
+  ShellReglagesIndexRoute: ShellReglagesIndexRoute,
+}
+
+const ShellReglagesRouteRouteWithChildren =
+  ShellReglagesRouteRoute._addFileChildren(ShellReglagesRouteRouteChildren)
+
 interface ShellRouteChildren {
+  ShellReglagesRouteRoute: typeof ShellReglagesRouteRouteWithChildren
   ShellEncaissementsRoute: typeof ShellEncaissementsRoute
   ShellEquipeRoute: typeof ShellEquipeRoute
   ShellLivraisonsRoute: typeof ShellLivraisonsRoute
-  ShellReglagesRoute: typeof ShellReglagesRoute
   ShellStockRoute: typeof ShellStockRoute
   ShellIndexRoute: typeof ShellIndexRoute
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
+  ShellReglagesRouteRoute: ShellReglagesRouteRouteWithChildren,
   ShellEncaissementsRoute: ShellEncaissementsRoute,
   ShellEquipeRoute: ShellEquipeRoute,
   ShellLivraisonsRoute: ShellLivraisonsRoute,
-  ShellReglagesRoute: ShellReglagesRoute,
   ShellStockRoute: ShellStockRoute,
   ShellIndexRoute: ShellIndexRoute,
 }

@@ -3,6 +3,7 @@ import { useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { useBakery } from '#/lib/bakery-context'
 import { locationTypeLabel } from '#/lib/location-labels'
 import { orpc } from '#/lib/orpc-client'
@@ -28,9 +29,16 @@ export function LocationsSettings() {
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
   const [showInactive, setShowInactive] = useState(false)
+  const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [formError, setFormError] = useState<string | null>(null)
+  const [pendingDeactivate, setPendingDeactivate] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+
+  const formVisible = showForm || Boolean(editingId)
 
   const locations = useQuery({
     ...orpc.locations.list.queryOptions({
@@ -44,6 +52,7 @@ export function LocationsSettings() {
       onSuccess: async () => {
         setForm(emptyForm())
         setFormError(null)
+        setShowForm(false)
         await locations.refetch()
       },
       onError: (error) => {
@@ -58,6 +67,7 @@ export function LocationsSettings() {
         setEditingId(null)
         setForm(emptyForm())
         setFormError(null)
+        setShowForm(false)
         await locations.refetch()
       },
       onError: (error) => {
@@ -68,7 +78,10 @@ export function LocationsSettings() {
 
   const deactivateMutation = useMutation(
     orpc.locations.deactivate.mutationOptions({
-      onSuccess: () => locations.refetch(),
+      onSuccess: () => {
+        setPendingDeactivate(null)
+        void locations.refetch()
+      },
     }),
   )
 
@@ -85,6 +98,7 @@ export function LocationsSettings() {
     address: string | null
     phone: string | null
   }) {
+    setShowForm(true)
     setEditingId(location.id)
     setForm({
       name: location.name,
@@ -99,6 +113,7 @@ export function LocationsSettings() {
     setEditingId(null)
     setForm(emptyForm())
     setFormError(null)
+    setShowForm(false)
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -127,8 +142,23 @@ export function LocationsSettings() {
   const saving = createMutation.isPending || updateMutation.isPending
 
   return (
-    <Card title="Lieux (boutiques et dépôts)">
-      {canManage ? (
+    <Card
+      title="Lieux (boutiques et dépôts)"
+      className="settings-section settings-section--wide"
+    >
+      {canManage && !formVisible ? (
+        <div className="settings-section__toolbar">
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => setShowForm(true)}
+          >
+            + Ajouter un lieu
+          </button>
+        </div>
+      ) : null}
+
+      {canManage && formVisible ? (
         <form className="settings-form" onSubmit={(e) => void handleSubmit(e)}>
           <p className="settings-form__hint">
             {editingId
@@ -192,22 +222,20 @@ export function LocationsSettings() {
                   ? 'Enregistrer'
                   : 'Ajouter'}
             </button>
-            {editingId ? (
-              <button
-                type="button"
-                className="table-action"
-                onClick={cancelEdit}
-              >
-                Annuler
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="table-action"
+              onClick={cancelEdit}
+            >
+              Annuler
+            </button>
           </div>
         </form>
-      ) : (
+      ) : !canManage ? (
         <p className="settings-form__hint">
           Seuls les responsables peuvent créer ou modifier les lieux.
         </p>
-      )}
+      ) : null}
 
       <div className="settings-list-toolbar">
         <label className="settings-checkbox">
@@ -266,11 +294,10 @@ export function LocationsSettings() {
                         <button
                           type="button"
                           className="table-action"
-                          disabled={deactivateMutation.isPending}
                           onClick={() =>
-                            deactivateMutation.mutate({
-                              bakeryId,
-                              locationId: location.id,
+                            setPendingDeactivate({
+                              id: location.id,
+                              name: location.name,
                             })
                           }
                         >
@@ -300,6 +327,27 @@ export function LocationsSettings() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDeactivate !== null}
+        title="Désactiver ce lieu ?"
+        confirmLabel="Désactiver"
+        confirmVariant="danger"
+        loading={deactivateMutation.isPending}
+        onCancel={() => setPendingDeactivate(null)}
+        onConfirm={() => {
+          if (!pendingDeactivate || !bakeryId) return
+          deactivateMutation.mutate({
+            bakeryId,
+            locationId: pendingDeactivate.id,
+          })
+        }}
+      >
+        <p>
+          « {pendingDeactivate?.name} » ne sera plus proposé pour les nouvelles
+          tournées. Les données existantes sont conservées.
+        </p>
+      </ConfirmDialog>
     </Card>
   )
 }
