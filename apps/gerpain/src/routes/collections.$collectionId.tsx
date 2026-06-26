@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { formatRpcError } from '#/lib/rpc-error'
+import { usePermissions } from '#/lib/use-permissions'
 
 export const Route = createFileRoute('/collections/$collectionId')({
   component: CollectionDetailPage,
@@ -29,6 +30,7 @@ function formatStatus(status: string): string {
 function CollectionDetailPage() {
   const { collectionId } = Route.useParams()
   const queryClient = useQueryClient()
+  const { canManageCollections } = usePermissions()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [draft, setDraft] = useState<PaymentDraft | null>(null)
@@ -325,7 +327,7 @@ function CollectionDetailPage() {
             </div>
           ) : null}
 
-          {reviewable ? (
+          {reviewable && canManageCollections ? (
             <div className="mt-6 space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
               <p className="text-sm font-medium text-amber-900">
                 Validation superviseur
@@ -378,6 +380,10 @@ function CollectionDetailPage() {
                 </button>
               </div>
             </div>
+          ) : reviewable ? (
+            <p className="mt-6 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600">
+              Encaissement soumis — en attente de validation par un responsable.
+            </p>
           ) : null}
 
           {collection.data.rejectionReason ? (

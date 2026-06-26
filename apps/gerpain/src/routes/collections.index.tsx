@@ -6,6 +6,7 @@ import { useBakery } from '#/lib/bakery-context'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { formatRpcError } from '#/lib/rpc-error'
+import { usePermissions } from '#/lib/use-permissions'
 import { todayIso } from '#/lib/today'
 
 export const Route = createFileRoute('/collections/')({
@@ -28,6 +29,7 @@ function CollectionsPage() {
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const { bakery, bakeryId } = useBakery()
+  const { canManageCollections } = usePermissions()
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
@@ -104,7 +106,7 @@ function CollectionsPage() {
             </p>
           </div>
         ) : null}
-        {unsettledValidatedCount > 0 ? (
+        {canManageCollections && unsettledValidatedCount > 0 ? (
           <button
             type="button"
             disabled={settle.isPending || !bakeryId}

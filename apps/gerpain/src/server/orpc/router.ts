@@ -10,6 +10,7 @@ export default {
   },
   me: {
     session: me.sessionInfo,
+    access: me.access,
   },
   bakeries: {
     list: bakeries.list,

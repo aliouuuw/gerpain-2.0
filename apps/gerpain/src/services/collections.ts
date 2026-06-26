@@ -346,6 +346,7 @@ export async function validateCashCollection(
   db: Database,
   organizationId: string,
   collectionId: string,
+  validatedByUserId?: string | null,
 ): Promise<ValidateCashCollectionResult> {
   const movementId = await db.transaction(async (tx) => {
     const [current] = await tx
@@ -430,6 +431,7 @@ export async function validateCashCollection(
       .set({
         status: 'validated',
         validatedAt: now,
+        validatedBy: validatedByUserId ?? null,
         rejectionReason: null,
         actualAmount,
         variance: actualAmount - current.expectedAmount,

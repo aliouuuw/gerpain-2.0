@@ -46,7 +46,10 @@ Architecture steps (`docs/architecture.md`):
 - **Date navigation:** ◀/▶, date picker, Aujourd'hui; URL `?date=`; tab links preserve date; Accueil always today
 - **Shell Livraisons / Encaissements wired** to deliveries + collections oRPC (scoped by `bakeryId` + selected date)
 - Day bar alerts from live delivery/collection counts (not mock)
-- Mock operational data still used for Accueil, Stock, Équipe, Réglages
+- Mock operational data still used for Stock, Équipe, Réglages
+- **Accueil wired** to live deliveries/collections (money strip, tasks, agents du jour)
+- **Role gates:** validate/reject/settle collections restricted to owner/admin; UI hides supervisor actions
+- **`validatedBy`** populated on collection validate via legacy user email bridge
 - Wired API pages kept at `/deliveries`, `/collections` (outside shell, share bakery context)
 
 ### Deliveries (thin slice — wired)
@@ -102,7 +105,7 @@ bun run typecheck && bun run test && bun run build
 - ~~Bakery selector is visual only~~ → **done** (real list, persist, scope queries)
 - ~~Date is display-only~~ → **done** (◀/▶, picker, Aujourd'hui, `?date=`)
 - ~~Livraisons/Encaissements tables use static mock data~~ → **shell views use oRPC**
-- Accueil still uses mock tasks/stats
+- ~~Accueil still uses mock tasks/stats~~ → **wired to oRPC**
 - No product-level drill-down (confié/retour Matin/Soir)
 - No réconciliations tab/view
 
@@ -123,7 +126,7 @@ bun run typecheck && bun run test && bun run build
 
 | Sprint | Focus | Status |
 |--------|-------|--------|
-| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (IA + bakery + date nav + shell Liv/Enc wired) |
+| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (shell wired; roles + validatedBy done) |
 | **B** | Master data — bakeries, locations, products, employees | Pending |
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | Pending |
 | **D** | Collections parity — period view, reconciliations, archive | Pending |
@@ -138,10 +141,9 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **Wire Accueil** — tasks + money strip from live deliveries/collections (not mock)
-2. **Livraisons drill-down** — agent row → product grid (confié/retour per Matin/Soir) in shell
-3. **Role gates** — validate/reject/settle manager-only
-4. **`validatedBy` audit** — map Better Auth user on collection validate
+1. **Livraisons drill-down** — agent row → product grid (confié/retour per Matin/Soir) in shell
+2. **Sprint B** — master data CRUD (locations, products, employees)
+3. **Mark Sprint A complete** in prd once drill-down lands or defer to Sprint C
 
 ---
 

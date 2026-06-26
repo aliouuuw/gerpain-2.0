@@ -3,86 +3,38 @@ import { useNavigate } from '@tanstack/react-router'
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
-import { agentDays, formatCurrency, getDayStats } from '#/mock/operational'
+import { formatXof } from '#/lib/format-money'
+import { useDayData } from '#/lib/use-day-data'
+import { usePermissions } from '#/lib/use-permissions'
 
 export function HomeView() {
   const navigate = useNavigate()
-  const stats = getDayStats()
+  const { stats, tasks, agents, isLoading, isError } = useDayData()
+  const { canManageCollections } = usePermissions()
 
-  const tasks: {
-    id: string
-    label: string
-    detail: string
-    to: '/livraisons' | '/encaissements' | '/stock'
-    urgent: boolean
-  }[] = []
-
-  agentDays.forEach((a) => {
-    if (a.deliveryStatus === 'À valider') {
-      tasks.push({
-        id: `d-${a.agentId}`,
-        label: `Valider la livraison de ${a.agent}`,
-        detail: `${formatCurrency(a.expected)} attendu`,
-        to: '/livraisons',
-        urgent: true,
-      })
-    }
-    if (a.deliveryStatus === 'Brouillon') {
-      tasks.push({
-        id: `b-${a.agentId}`,
-        label: `Compléter la tournée de ${a.agent}`,
-        detail: 'Quantités pas encore enregistrées',
-        to: '/livraisons',
-        urgent: false,
-      })
-    }
-    if (a.collectionStatus === 'Soumis') {
-      tasks.push({
-        id: `c-${a.agentId}`,
-        label: `Valider l’encaissement de ${a.agent}`,
-        detail: `${formatCurrency(a.collected)} déclaré`,
-        to: '/encaissements',
-        urgent: true,
-      })
-    }
-    if (a.deliveryStatus === 'Validé' && !a.hasCollection && a.expected > 0) {
-      tasks.push({
-        id: `e-${a.agentId}`,
-        label: `Saisir l’argent de ${a.agent}`,
-        detail: `${formatCurrency(a.expected)} à encaisser`,
-        to: '/encaissements',
-        urgent: true,
-      })
-    }
-  })
-
-  if (stats.lowStock > 0) {
-    tasks.push({
-      id: 'stock',
-      label: `${stats.lowStock} produit(s) sous le seuil`,
-      detail: 'Voir le stock',
-      to: '/stock',
-      urgent: false,
-    })
-  }
+  const visibleTasks = tasks.filter(
+    (task) => !task.id.startsWith('c-') || canManageCollections,
+  )
 
   return (
     <main className="page-content">
       <section className="money-strip" aria-label="Résumé du jour">
         <div className="money-strip__item">
           <span className="money-strip__label">Attendu aujourd&apos;hui</span>
-          <span className="money-strip__value">{formatCurrency(stats.expected)}</span>
+          <span className="money-strip__value">
+            {isLoading ? '…' : formatXof(stats.expected)}
+          </span>
         </div>
         <div className="money-strip__item">
           <span className="money-strip__label">Déjà reçu</span>
           <span className="money-strip__value money-strip__value--ok">
-            {formatCurrency(stats.collected)}
+            {isLoading ? '…' : formatXof(stats.collected)}
           </span>
         </div>
         <div className="money-strip__item">
           <span className="money-strip__label">Reste à encaisser</span>
           <span className="money-strip__value money-strip__value--warn">
-            {formatCurrency(stats.remaining)}
+            {isLoading ? '…' : formatXof(stats.remaining)}
           </span>
         </div>
       </section>
@@ -93,11 +45,15 @@ export function HomeView() {
       </HelpNote>
 
       <Card title="À faire maintenant">
-        {tasks.length === 0 ? (
+        {isLoading ? (
+          <p className="empty-state">Chargement des tâches du jour…</p>
+        ) : isError ? (
+          <p className="empty-state">Impossible de charger les données du jour.</p>
+        ) : visibleTasks.length === 0 ? (
           <p className="empty-state">Rien en attente. Bonne journée !</p>
         ) : (
           <ul className="task-list">
-            {tasks.map((task) => (
+            {visibleTasks.map((task) => (
               <li key={task.id} className="task-list__item">
                 <div className="task-list__text">
                   <span className="task-list__label">{task.label}</span>
@@ -119,15 +75,23 @@ export function HomeView() {
 
       <section className="two-columns">
         <Card title="Agents du jour">
-          <ul className="mini-agent-list">
-            {agentDays.map((a) => (
-              <li key={a.agentId}>
-                <span className="mini-agent-list__name">{a.agent}</span>
-                <span className="mini-agent-list__role">{a.role}</span>
-                <span className="mini-agent-list__money">{formatCurrency(a.expected)}</span>
-              </li>
-            ))}
-          </ul>
+          {isLoading ? (
+            <p className="empty-state">Chargement…</p>
+          ) : agents.length === 0 ? (
+            <p className="empty-state">Aucun agent actif aujourd&apos;hui.</p>
+          ) : (
+            <ul className="mini-agent-list">
+              {agents.map((agent) => (
+                <li key={agent.id}>
+                  <span className="mini-agent-list__name">{agent.name}</span>
+                  <span className="mini-agent-list__role">{agent.subtitle}</span>
+                  <span className="mini-agent-list__money">
+                    {agent.expected > 0 ? formatXof(agent.expected) : '—'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
         <Card title="Étapes du jour">
           <ol className="steps-list">

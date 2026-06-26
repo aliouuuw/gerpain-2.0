@@ -14,6 +14,7 @@ import {
   organizations,
   products,
   user,
+  users,
 } from '../schema/index'
 import { createSeedAuth } from './seed-auth'
 
@@ -141,6 +142,26 @@ async function ensureBaOrganization(sessionHeaders: Headers) {
   })
 
   return baOrg
+}
+
+async function ensureLegacyUser(email: string, name: string) {
+  let legacyUser = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  })
+
+  if (!legacyUser) {
+    const [created] = await db
+      .insert(users)
+      .values({
+        email,
+        name,
+        emailVerified: true,
+      })
+      .returning()
+    legacyUser = created!
+  }
+
+  return legacyUser
 }
 
 async function seedLegacyDomain(legacyOrgId: string, truncate: boolean) {
@@ -415,6 +436,7 @@ export async function runSeed(): Promise<SeedResult> {
   const truncate = shouldTruncateDomain()
 
   const admin = await ensureAuthUser()
+  await ensureLegacyUser(admin.email, admin.name ?? 'Admin Gerpain')
   const sessionHeaders = await signInAdmin()
   const baOrg = await ensureBaOrganization(sessionHeaders)
   const legacyOrg = await ensureLegacyOrganization(baOrg.id)

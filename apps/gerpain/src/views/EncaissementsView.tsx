@@ -6,8 +6,10 @@ import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { useBakery } from '#/lib/bakery-context'
+import { collectedAmount } from '#/lib/day-operations'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
+import { usePermissions } from '#/lib/use-permissions'
 import { useShellDate } from '#/lib/use-shell-date'
 
 function formatCollectionStatus(status: string): string {
@@ -42,17 +44,10 @@ function varianceClass(variance: number): string {
   return ''
 }
 
-function collectedAmount(col: {
-  cashAmount: number
-  cardAmount: number
-  mobileAmount: number
-}): number {
-  return col.cashAmount + col.cardAmount + col.mobileAmount
-}
-
 export function EncaissementsView() {
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { operationalDate } = useShellDate()
+  const { canManageCollections } = usePermissions()
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
@@ -161,9 +156,9 @@ export function EncaissementsView() {
                       <Link
                         to="/collections/$collectionId"
                         params={{ collectionId: row.id }}
-                        className={`table-action${canValidate ? ' table-action--primary' : ''}`}
+                        className={`table-action${canValidate && canManageCollections ? ' table-action--primary' : ''}`}
                       >
-                        {canValidate
+                        {canValidate && canManageCollections
                           ? 'Valider'
                           : canRecord
                             ? 'Saisir l’argent'

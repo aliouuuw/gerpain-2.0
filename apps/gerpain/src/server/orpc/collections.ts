@@ -1,7 +1,7 @@
 import { ORPCError } from '@orpc/server'
 import { z } from 'zod'
 
-import { db } from '@gerpain/db'
+import { db, legacyUserIdForEmail } from '@gerpain/db'
 
 import { getBakeryForOrg } from '#/services/bakeries'
 import {
@@ -14,6 +14,7 @@ import {
   updateCashCollection,
   validateCashCollection,
 } from '#/services/collections'
+import { assertManagerRole } from '#/server/permissions'
 import { orgContext } from './context'
 
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -126,11 +127,14 @@ export const submit = orgContext
 export const validate = orgContext
   .input(z.object({ collectionId: z.string().uuid() }))
   .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
     try {
+      const validatedByUserId = await legacyUserIdForEmail(context.user.email)
       return await validateCashCollection(
         db,
         context.legacyOrganizationId,
         input.collectionId,
+        validatedByUserId,
       )
     } catch (error) {
       mapCollectionError(error)
@@ -145,6 +149,7 @@ export const reject = orgContext
     }),
   )
   .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
     try {
       return await rejectCashCollection(
         db,
@@ -168,6 +173,7 @@ export const settle = orgContext
     }),
   )
   .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
     const bakery = await getBakeryForOrg(
       db,
       context.legacyOrganizationId,

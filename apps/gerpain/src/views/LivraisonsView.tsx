@@ -6,6 +6,10 @@ import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { useBakery } from '#/lib/bakery-context'
+import {
+  periodQty,
+  runExpected,
+} from '#/lib/day-operations'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { useShellDate } from '#/lib/use-shell-date'
@@ -33,24 +37,6 @@ function deliveryBadge(status: string) {
     default:
       return <Badge variant="neutral">{label}</Badge>
   }
-}
-
-function periodQty(
-  items: { period: string; quantitySold: number }[],
-  period: string,
-): number {
-  return items
-    .filter((item) => item.period.toLowerCase() === period)
-    .reduce((sum, item) => sum + item.quantitySold, 0)
-}
-
-function runExpected(
-  items: { quantitySold: number; unitPrice: number }[],
-): number {
-  return items.reduce(
-    (sum, item) => sum + item.quantitySold * item.unitPrice,
-    0,
-  )
 }
 
 export function LivraisonsView() {

@@ -338,7 +338,7 @@
         "apps/gerpain/src/server/orpc/collections.ts"
       ],
       "verification": ["bun run typecheck"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint A — Platform shell",
@@ -354,7 +354,7 @@
         "packages/db/src/schema/"
       ],
       "verification": ["bun run typecheck"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint B — Master data",

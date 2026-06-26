@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 
 import { db } from './client'
+import { users } from './schema/auth'
 import { member, organizations } from './schema/index'
 
 type OrgSettings = {
@@ -38,4 +39,14 @@ export async function legacyOrganizationIdForBaOrg(
   }
 
   return null
+}
+
+/** Legacy `users` row for Better Auth operator (matched by email). */
+export async function legacyUserIdForEmail(
+  email: string,
+): Promise<string | null> {
+  const row = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  })
+  return row?.id ?? null
 }
