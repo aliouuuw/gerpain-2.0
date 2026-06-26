@@ -8,7 +8,7 @@ import { HelpNote } from '#/components/ui/HelpNote'
 import { useBakery } from '#/lib/bakery-context'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
-import { todayIso } from '#/lib/today'
+import { useShellDate } from '#/lib/use-shell-date'
 
 function formatCollectionStatus(status: string): string {
   const labels: Record<string, string> = {
@@ -52,11 +52,11 @@ function collectedAmount(col: {
 
 export function EncaissementsView() {
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
-  const date = todayIso()
+  const { operationalDate } = useShellDate()
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
-      input: { bakeryId, date },
+      input: { bakeryId, date: operationalDate },
     }),
     enabled: Boolean(bakeryId),
   })
@@ -115,7 +115,7 @@ export function EncaissementsView() {
         ) : collections.isError ? (
           <p className="empty-state">Impossible de charger les encaissements.</p>
         ) : !collections.data || collections.data.length === 0 ? (
-          <p className="empty-state">Aucun encaissement pour aujourd&apos;hui.</p>
+          <p className="empty-state">Aucun encaissement pour cette journée.</p>
         ) : (
           <table className="data-table">
             <thead>

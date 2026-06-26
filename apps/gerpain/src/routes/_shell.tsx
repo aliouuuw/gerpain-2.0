@@ -4,8 +4,10 @@ import { DayContextBar } from '#/components/shell/DayContextBar'
 import { getShellPageMeta } from '#/components/shell/page-meta'
 import { ShellHeader } from '#/components/shell/ShellHeader'
 import { TabNav } from '#/components/shell/TabNav'
+import { shellSearchSchema } from '#/lib/shell-date'
 
 export const Route = createFileRoute('/_shell')({
+  validateSearch: shellSearchSchema,
   component: ShellLayout,
 })
 

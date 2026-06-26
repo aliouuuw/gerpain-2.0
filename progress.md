@@ -43,7 +43,8 @@ Architecture steps (`docs/architecture.md`):
 - Day context bar (bakery pill + journée + alerts), single page header
 - **Clinical Sharp** theme only (`src/styles/shell.css`)
 - **Bakery selector wired:** `BakeryProvider` + `orpc.bakeries.list`, localStorage persistence, dropdown in day bar
-- **Shell Livraisons / Encaissements wired** to deliveries + collections oRPC (scoped by `bakeryId`, today)
+- **Date navigation:** ◀/▶, date picker, Aujourd'hui; URL `?date=`; tab links preserve date; Accueil always today
+- **Shell Livraisons / Encaissements wired** to deliveries + collections oRPC (scoped by `bakeryId` + selected date)
 - Day bar alerts from live delivery/collection counts (not mock)
 - Mock operational data still used for Accueil, Stock, Équipe, Réglages
 - Wired API pages kept at `/deliveries`, `/collections` (outside shell, share bakery context)
@@ -99,7 +100,7 @@ bun run typecheck && bun run test && bun run build
 **Shell (partially wired):**
 
 - ~~Bakery selector is visual only~~ → **done** (real list, persist, scope queries)
-- Date is display-only (no ◀/▶/Aujourd'hui)
+- ~~Date is display-only~~ → **done** (◀/▶, picker, Aujourd'hui, `?date=`)
 - ~~Livraisons/Encaissements tables use static mock data~~ → **shell views use oRPC**
 - Accueil still uses mock tasks/stats
 - No product-level drill-down (confié/retour Matin/Soir)
@@ -122,7 +123,7 @@ bun run typecheck && bun run test && bun run build
 
 | Sprint | Focus | Status |
 |--------|-------|--------|
-| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (IA + bakery + shell Liv/Enc wired) |
+| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (IA + bakery + date nav + shell Liv/Enc wired) |
 | **B** | Master data — bakeries, locations, products, employees | Pending |
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | Pending |
 | **D** | Collections parity — period view, reconciliations, archive | Pending |
@@ -137,11 +138,10 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **Date navigation** — interactive day bar (◀ date ▶, Aujourd'hui); URL `?date=`; scope Livraisons/Encaissements
+1. **Wire Accueil** — tasks + money strip from live deliveries/collections (not mock)
 2. **Livraisons drill-down** — agent row → product grid (confié/retour per Matin/Soir) in shell
-3. **Wire Accueil** — tasks + money strip from live deliveries/collections (not mock)
-4. **Role gates** — validate/reject/settle manager-only
-5. **`validatedBy` audit** — map Better Auth user on collection validate
+3. **Role gates** — validate/reject/settle manager-only
+4. **`validatedBy` audit** — map Better Auth user on collection validate
 
 ---
 

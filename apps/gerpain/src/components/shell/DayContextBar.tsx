@@ -3,25 +3,35 @@ import { useEffect, useRef, useState } from 'react'
 
 import { useBakery } from '#/lib/bakery-context'
 import { orpc } from '#/lib/orpc-client'
-import { todayIso, todayLabel } from '#/lib/today'
+import { todayIso } from '#/lib/today'
+import { useShellDate } from '#/lib/use-shell-date'
 
 export function DayContextBar() {
   const { bakery, bakeries, bakeryId, setBakeryId, isLoading, isError } =
     useBakery()
+  const {
+    operationalDate,
+    urlDate,
+    displayLabel,
+    isToday,
+    setDate,
+    goPrev,
+    goNext,
+    goToday,
+  } = useShellDate()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const date = todayIso()
 
   const runs = useQuery({
     ...orpc.deliveries.listRuns.queryOptions({
-      input: { bakeryId, date },
+      input: { bakeryId, date: operationalDate },
     }),
     enabled: Boolean(bakeryId),
   })
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
-      input: { bakeryId, date },
+      input: { bakeryId, date: operationalDate },
     }),
     enabled: Boolean(bakeryId),
   })
@@ -64,6 +74,11 @@ export function DayContextBar() {
       )
     }
   }
+
+  const statusMessage =
+    operationalDate === todayIso()
+      ? "Tout est à jour pour aujourd'hui"
+      : 'Tout est à jour pour cette journée'
 
   return (
     <div className="day-context">
@@ -118,11 +133,43 @@ export function DayContextBar() {
             </ul>
           ) : null}
         </div>
-        <div className="day-context__date">
-          <span className="day-context__date-label">Journée du</span>
-          <time className="day-context__date-value" dateTime={date}>
-            {todayLabel()}
-          </time>
+
+        <div className="day-context__date-nav">
+          <button
+            type="button"
+            className="day-nav-btn"
+            aria-label="Jour précédent"
+            onClick={goPrev}
+          >
+            ◀
+          </button>
+          <div className="day-context__date">
+            <span className="day-context__date-label">Journée du</span>
+            <time className="day-context__date-value" dateTime={urlDate}>
+              {displayLabel}
+            </time>
+            <label className="day-context__date-picker">
+              <span className="sr-only">Choisir une date</span>
+              <input
+                type="date"
+                value={urlDate}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            className="day-nav-btn"
+            aria-label="Jour suivant"
+            onClick={goNext}
+          >
+            ▶
+          </button>
+          {!isToday ? (
+            <button type="button" className="day-today-btn" onClick={goToday}>
+              Aujourd&apos;hui
+            </button>
+          ) : null}
         </div>
       </div>
       <div className="day-context__right">
@@ -134,7 +181,7 @@ export function DayContextBar() {
             {alerts.join(' · ')}
           </p>
         ) : (
-          <p className="day-context__ok">Tout est à jour pour aujourd&apos;hui</p>
+          <p className="day-context__ok">{statusMessage}</p>
         )}
       </div>
     </div>

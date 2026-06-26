@@ -310,7 +310,7 @@
         "apps/gerpain/src/views/EncaissementsView.tsx"
       ],
       "verification": ["Manual: navigate yesterday and back"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint A — Platform shell",

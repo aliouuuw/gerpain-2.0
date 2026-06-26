@@ -8,7 +8,7 @@ import { HelpNote } from '#/components/ui/HelpNote'
 import { useBakery } from '#/lib/bakery-context'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
-import { todayIso } from '#/lib/today'
+import { useShellDate } from '#/lib/use-shell-date'
 
 function formatDeliveryStatus(status: string): string {
   const labels: Record<string, string> = {
@@ -56,18 +56,18 @@ function runExpected(
 export function LivraisonsView() {
   const navigate = useNavigate()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
-  const date = todayIso()
+  const { operationalDate } = useShellDate()
 
   const runs = useQuery({
     ...orpc.deliveries.listRuns.queryOptions({
-      input: { bakeryId, date },
+      input: { bakeryId, date: operationalDate },
     }),
     enabled: Boolean(bakeryId),
   })
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
-      input: { bakeryId, date },
+      input: { bakeryId, date: operationalDate },
     }),
     enabled: Boolean(bakeryId),
   })
@@ -95,7 +95,7 @@ export function LivraisonsView() {
         ) : runs.isError ? (
           <p className="empty-state">Impossible de charger les livraisons.</p>
         ) : !runs.data || runs.data.length === 0 ? (
-          <p className="empty-state">Aucune tournée pour aujourd&apos;hui.</p>
+          <p className="empty-state">Aucune tournée pour cette journée.</p>
         ) : (
           <table className="data-table">
             <thead>

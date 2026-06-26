@@ -1,5 +1,7 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 
+import { shellSearchSchema } from '#/lib/shell-date'
+
 const tabs = [
   { to: '/', label: 'Accueil', hint: undefined },
   { to: '/livraisons', label: 'Livraisons', hint: 'Sorties du jour' },
@@ -11,6 +13,9 @@ const tabs = [
 
 export function TabNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const rawSearch = useRouterState({ select: (s) => s.location.search })
+  const parsed = shellSearchSchema.safeParse(rawSearch)
+  const search = parsed.success ? parsed.data : {}
 
   return (
     <nav className="tab-nav" aria-label="Navigation principale">
@@ -22,6 +27,7 @@ export function TabNav() {
           <Link
             key={tab.to}
             to={tab.to}
+            search={search}
             className={`tab-nav-item ${isActive ? 'active' : ''}`}
             title={tab.hint}
           >
