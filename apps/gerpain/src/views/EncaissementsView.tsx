@@ -373,7 +373,7 @@ export function EncaissementsView() {
       ) : null}
 
       <Card>
-        {bakeryLoading || employees.isLoading || collections.isLoading ? (
+        {!bakeryId || bakeryLoading || employees.isLoading || collections.isLoading ? (
           <p className="empty-state">Chargement des encaissements…</p>
         ) : collections.isError ? (
           <p className="empty-state">Impossible de charger les encaissements.</p>

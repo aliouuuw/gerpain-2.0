@@ -15,7 +15,6 @@ export const Route = createFileRoute('/login')({
 })
 
 function LoginPage() {
-  const navigate = Route.useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -38,10 +37,13 @@ function LoginPage() {
         })
       }
 
-      await navigate({ to: '/' })
+      // Full-page navigation so the session + active-org cookies are fully
+      // established before any org-scoped data query runs. A client-side
+      // navigate() can fire queries before the active org propagates, which
+      // makes the first page load show empty data until a manual refresh.
+      window.location.assign('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Échec de la connexion')
-    } finally {
       setLoading(false)
     }
   }

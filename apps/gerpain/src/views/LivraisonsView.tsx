@@ -90,7 +90,7 @@ export function LivraisonsView() {
       </HelpNote>
 
       <Card>
-        {bakeryLoading || runs.isLoading ? (
+        {!bakeryId || bakeryLoading || runs.isLoading ? (
           <p className="empty-state">Chargement des tournées…</p>
         ) : runs.isError ? (
           <p className="empty-state">Impossible de charger les livraisons.</p>
