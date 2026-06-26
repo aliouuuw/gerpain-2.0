@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-26  
 **Branch:** `main`  
-**Commit:** `afcdc60` — feat(deliveries): refine livraisons table IA and product entry cards  
+**Commit:** `1989262` — feat(collections): employee-centric period view for encaissements  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -76,10 +76,12 @@ Architecture steps (`docs/architecture.md`):
 - Reject (submitted → rejected)
 - Settle (validated → `isSettled` for payroll)
 - UI: list, detail, supervisor validate/reject, clôturer validés
+- **Employee-centric period view:** period presets (week/month/15 days/custom) + employee selector + summary cards + inline amount editing per day
 
 ### Recent commits (new app)
 
 ```
+1989262 feat(collections): employee-centric period view for encaissements
 afcdc60 feat(deliveries): refine livraisons table IA and product entry cards
 6eaad75 feat(deliveries): add shell matin/soir drill-down panel
 8728fca feat(master-data): complete sprint B catalog and team CRUD
@@ -142,7 +144,7 @@ bun run typecheck && bun run test && bun run build
 | **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **Done** |
 | **B** | Master data — bakeries, locations, products, employees | **Done** |
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Done** |
-| **D** | Collections parity — period view, reconciliations, archive | **Next** |
+| **D** | Collections parity — period view, reconciliations, archive | **In progress** |
 | **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | Pending |
 | **F** | Commissions & payroll | Deferred |
 | **G** | Inventory & POS | Deferred |
@@ -154,10 +156,10 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **Sprint D — Encaissements period view** — employee + period selector in shell `/encaissements`; summary cards; multi-day collection table
-2. **Réconciliations overview** — birds-eye by employee with period totals; drill-down to collections
-3. **Archive settled periods** — add `isArchived` to `cashCollections`, toggle visibility
-4. **Delivery history filters** (optional) — date range, employee, location, status filters on `/deliveries`
+1. **Réconciliations overview** — birds-eye by employee with period totals; drill-down to collections
+2. **Archive settled periods** — add `isArchived` to `cashCollections`, toggle visibility
+3. **Delivery history filters** (optional) — date range, employee, location, status filters on `/deliveries`
+4. **Ledger movement detail** — show Bocal lines on collection detail after validate
 
 ---
 
