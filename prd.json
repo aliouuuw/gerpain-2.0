@@ -292,7 +292,7 @@
         "apps/gerpain/src/routes/_shell.tsx"
       ],
       "verification": ["bun run typecheck", "Manual: switch bakery changes data"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint A — Platform shell",

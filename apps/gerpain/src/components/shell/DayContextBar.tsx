@@ -1,36 +1,134 @@
-import { bakery, getDayStats, todayLabel } from '#/mock/operational'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+
+import { useBakery } from '#/lib/bakery-context'
+import { orpc } from '#/lib/orpc-client'
+import { todayIso, todayLabel } from '#/lib/today'
 
 export function DayContextBar() {
-  const stats = getDayStats()
-  const alerts: string[] = []
+  const { bakery, bakeries, bakeryId, setBakeryId, isLoading, isError } =
+    useBakery()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const date = todayIso()
 
-  if (stats.toValidateDelivery > 0) {
-    alerts.push(`${stats.toValidateDelivery} livraison à valider`)
+  const runs = useQuery({
+    ...orpc.deliveries.listRuns.queryOptions({
+      input: { bakeryId, date },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const collections = useQuery({
+    ...orpc.collections.list.queryOptions({
+      input: { bakeryId, date },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  useEffect(() => {
+    if (!menuOpen) return
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [menuOpen])
+
+  const alerts: string[] = []
+  if (runs.data) {
+    const drafts = runs.data.filter((run) => run.status === 'draft').length
+    const toValidate = runs.data.filter(
+      (run) => run.status !== 'validated' && run.status !== 'draft',
+    ).length
+    if (toValidate > 0) {
+      alerts.push(
+        `${toValidate} livraison${toValidate > 1 ? 's' : ''} à valider`,
+      )
+    }
+    if (drafts > 0) {
+      alerts.push(`${drafts} brouillon${drafts > 1 ? 's' : ''}`)
+    }
   }
-  if (stats.drafts > 0) {
-    alerts.push(`${stats.drafts} brouillon`)
-  }
-  if (stats.toValidateCollection > 0) {
-    alerts.push(`${stats.toValidateCollection} encaissement à valider`)
+  if (collections.data) {
+    const toValidateCollection = collections.data.filter(
+      (col) => col.status === 'submitted',
+    ).length
+    if (toValidateCollection > 0) {
+      alerts.push(
+        `${toValidateCollection} encaissement${toValidateCollection > 1 ? 's' : ''} à valider`,
+      )
+    }
   }
 
   return (
     <div className="day-context">
       <div className="day-context__left">
-        <button type="button" className="bakery-btn" aria-haspopup="listbox">
-          <span className="bakery-btn__code">{bakery.code}</span>
-          <span className="bakery-btn__name">{bakery.name}</span>
-          <span className="bakery-btn__chev" aria-hidden="true">
-            ▾
-          </span>
-        </button>
+        <div className="bakery-picker" ref={menuRef}>
+          <button
+            type="button"
+            className="bakery-btn"
+            aria-haspopup="listbox"
+            aria-expanded={menuOpen}
+            disabled={isLoading || isError || bakeries.length === 0}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span className="bakery-btn__code">
+              {isLoading ? '…' : (bakery?.code ?? '—')}
+            </span>
+            <span className="bakery-btn__name">
+              {isLoading
+                ? 'Chargement…'
+                : isError
+                  ? 'Erreur boulangerie'
+                  : (bakery?.name ?? 'Aucune boulangerie')}
+            </span>
+            <span className="bakery-btn__chev" aria-hidden="true">
+              ▾
+            </span>
+          </button>
+          {menuOpen && bakeries.length > 0 ? (
+            <ul className="bakery-menu" role="listbox" aria-label="Boulangerie">
+              {bakeries.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={item.id === bakeryId}
+                    className={`bakery-menu__item${item.id === bakeryId ? ' bakery-menu__item--active' : ''}`}
+                    onClick={() => {
+                      setBakeryId(item.id)
+                      setMenuOpen(false)
+                    }}
+                  >
+                    <span className="bakery-menu__code">{item.code}</span>
+                    <span className="bakery-menu__name">{item.name}</span>
+                    {item.id === bakeryId ? (
+                      <span className="bakery-menu__check" aria-hidden="true">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
         <div className="day-context__date">
           <span className="day-context__date-label">Journée du</span>
-          <time className="day-context__date-value">{todayLabel()}</time>
+          <time className="day-context__date-value" dateTime={date}>
+            {todayLabel()}
+          </time>
         </div>
       </div>
       <div className="day-context__right">
-        {alerts.length > 0 ? (
+        {runs.isLoading || collections.isLoading ? (
+          <p className="day-context__ok">Chargement du jour…</p>
+        ) : alerts.length > 0 ? (
           <p className="day-context__alerts" role="status">
             <span className="day-context__alerts-dot" aria-hidden="true" />
             {alerts.join(' · ')}

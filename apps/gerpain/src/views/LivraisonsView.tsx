@@ -1,25 +1,86 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { useMemo } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
-import { agentDays, formatCurrency } from '#/mock/operational'
+import { useBakery } from '#/lib/bakery-context'
+import { formatXof } from '#/lib/format-money'
+import { orpc } from '#/lib/orpc-client'
+import { todayIso } from '#/lib/today'
+
+function formatDeliveryStatus(status: string): string {
+  const labels: Record<string, string> = {
+    draft: 'Brouillon',
+    in_progress: 'À valider',
+    submitted: 'À valider',
+    validated: 'Validé',
+  }
+  return labels[status] ?? status
+}
 
 function deliveryBadge(status: string) {
+  const label = formatDeliveryStatus(status)
   switch (status) {
-    case 'Validé':
-      return <Badge variant="success">Validé</Badge>
-    case 'À valider':
-      return <Badge variant="warning">À valider</Badge>
-    case 'Brouillon':
-      return <Badge variant="neutral">Brouillon</Badge>
+    case 'validated':
+      return <Badge variant="success">{label}</Badge>
+    case 'in_progress':
+    case 'submitted':
+      return <Badge variant="warning">{label}</Badge>
+    case 'draft':
+      return <Badge variant="neutral">{label}</Badge>
     default:
-      return <Badge variant="neutral">{status}</Badge>
+      return <Badge variant="neutral">{label}</Badge>
   }
+}
+
+function periodQty(
+  items: { period: string; quantitySold: number }[],
+  period: string,
+): number {
+  return items
+    .filter((item) => item.period.toLowerCase() === period)
+    .reduce((sum, item) => sum + item.quantitySold, 0)
+}
+
+function runExpected(
+  items: { quantitySold: number; unitPrice: number }[],
+): number {
+  return items.reduce(
+    (sum, item) => sum + item.quantitySold * item.unitPrice,
+    0,
+  )
 }
 
 export function LivraisonsView() {
   const navigate = useNavigate()
+  const { bakeryId, isLoading: bakeryLoading } = useBakery()
+  const date = todayIso()
+
+  const runs = useQuery({
+    ...orpc.deliveries.listRuns.queryOptions({
+      input: { bakeryId, date },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const collections = useQuery({
+    ...orpc.collections.list.queryOptions({
+      input: { bakeryId, date },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const collectionByRunId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const col of collections.data ?? []) {
+      if (col.deliveryRunId) {
+        map.set(col.deliveryRunId, col.id)
+      }
+    }
+    return map
+  }, [collections.data])
 
   return (
     <main className="page-content">
@@ -29,54 +90,78 @@ export function LivraisonsView() {
       </HelpNote>
 
       <Card>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Agent</th>
-              <th>Vendu (unités)</th>
-              <th>CA attendu</th>
-              <th>Encaissement</th>
-              <th>Statut</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agentDays.map((row) => (
-              <tr key={row.agentId}>
-                <td>
-                  <span className="cell-agent">{row.agent}</span>
-                  <span className="cell-sub">{row.role}</span>
-                </td>
-                <td>
-                  {row.matinQty > 0 && <span>Matin {row.matinQty}</span>}
-                  {row.matinQty > 0 && row.soirQty > 0 && ' · '}
-                  {row.soirQty > 0 && <span>Soir {row.soirQty}</span>}
-                  {row.matinQty === 0 && row.soirQty === 0 && '—'}
-                </td>
-                <td className="cell-money">{formatCurrency(row.expected)}</td>
-                <td>
-                  {row.hasCollection ? (
-                    <button
-                      type="button"
-                      className="link-btn"
-                      onClick={() => void navigate({ to: '/encaissements' })}
-                    >
-                      Voir l’encaissement →
-                    </button>
-                  ) : (
-                    <span className="cell-muted">Après validation</span>
-                  )}
-                </td>
-                <td>{deliveryBadge(row.deliveryStatus)}</td>
-                <td>
-                  <button type="button" className="table-action table-action--primary">
-                    {row.deliveryStatus === 'Validé' ? 'Voir' : 'Valider'}
-                  </button>
-                </td>
+        {bakeryLoading || runs.isLoading ? (
+          <p className="empty-state">Chargement des tournées…</p>
+        ) : runs.isError ? (
+          <p className="empty-state">Impossible de charger les livraisons.</p>
+        ) : !runs.data || runs.data.length === 0 ? (
+          <p className="empty-state">Aucune tournée pour aujourd&apos;hui.</p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Vendu (unités)</th>
+                <th>CA attendu</th>
+                <th>Encaissement</th>
+                <th>Statut</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {runs.data.map((run) => {
+                const matinQty = periodQty(run.items, 'matin')
+                const soirQty = periodQty(run.items, 'soir')
+                const expected = runExpected(run.items)
+                const collectionId = collectionByRunId.get(run.id)
+                const hasCollection = Boolean(collectionId)
+
+                return (
+                  <tr key={run.id}>
+                    <td>
+                      <span className="cell-agent">{run.employeeName}</span>
+                      <span className="cell-sub">{run.locationName}</span>
+                    </td>
+                    <td>
+                      {matinQty > 0 && <span>Matin {matinQty}</span>}
+                      {matinQty > 0 && soirQty > 0 && ' · '}
+                      {soirQty > 0 && <span>Soir {soirQty}</span>}
+                      {matinQty === 0 && soirQty === 0 && '—'}
+                    </td>
+                    <td className="cell-money">
+                      {expected > 0 ? formatXof(expected) : '—'}
+                    </td>
+                    <td>
+                      {hasCollection && collectionId ? (
+                        <button
+                          type="button"
+                          className="link-btn"
+                          onClick={() =>
+                            void navigate({ to: '/encaissements' })
+                          }
+                        >
+                          Voir l’encaissement →
+                        </button>
+                      ) : (
+                        <span className="cell-muted">Après validation</span>
+                      )}
+                    </td>
+                    <td>{deliveryBadge(run.status)}</td>
+                    <td>
+                      <Link
+                        to="/deliveries/$runId"
+                        params={{ runId: run.id }}
+                        className={`table-action${run.status !== 'validated' ? ' table-action--primary' : ''}`}
+                      >
+                        {run.status === 'validated' ? 'Voir' : 'Valider'}
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </Card>
     </main>
   )

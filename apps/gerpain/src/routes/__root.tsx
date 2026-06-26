@@ -1,5 +1,6 @@
 import {
   HeadContent,
+  Outlet,
   Scripts,
   createRootRouteWithContext,
 } from '@tanstack/react-router'
@@ -7,6 +8,8 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
+
+import { BakeryProvider } from '#/lib/bakery-context'
 
 import appCss from '../styles.css?url'
 
@@ -17,6 +20,7 @@ interface RouterContext {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
+  component: RootComponent,
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
@@ -39,6 +43,14 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   }),
   shellComponent: RootDocument,
 })
+
+function RootComponent() {
+  return (
+    <BakeryProvider>
+      <Outlet />
+    </BakeryProvider>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (

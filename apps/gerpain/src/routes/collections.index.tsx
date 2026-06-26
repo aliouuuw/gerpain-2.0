@@ -2,17 +2,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
+import { useBakery } from '#/lib/bakery-context'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { formatRpcError } from '#/lib/rpc-error'
+import { todayIso } from '#/lib/today'
 
 export const Route = createFileRoute('/collections/')({
   component: CollectionsPage,
 })
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 function formatStatus(status: string): string {
   const labels: Record<string, string> = {
@@ -29,9 +27,7 @@ function CollectionsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
-
-  const bakeries = useQuery(orpc.bakeries.list.queryOptions({}))
-  const bakeryId = bakeries.data?.[0]?.id ?? ''
+  const { bakery, bakeryId } = useBakery()
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
@@ -100,11 +96,11 @@ function CollectionsPage() {
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
         </div>
-        {bakeries.data?.[0] ? (
+        {bakery ? (
           <div className="space-y-1">
             <p className="text-sm font-medium text-neutral-700">Boulangerie</p>
             <p className="text-sm text-neutral-600">
-              {bakeries.data[0].name} ({bakeries.data[0].code})
+              {bakery.name} ({bakery.code})
             </p>
           </div>
         ) : null}

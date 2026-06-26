@@ -1,7 +1,7 @@
 # Gerpain 2.0 — Progress Log
 
 **Last updated:** 2026-06-26  
-**Branch:** `main` (18 commits ahead of `origin/main`)  
+**Branch:** `main`  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -42,8 +42,11 @@ Architecture steps (`docs/architecture.md`):
 - Routes: `_shell` layout at `/`, `/livraisons`, `/encaissements`, `/stock`, `/equipe`, `/reglages`
 - Day context bar (bakery pill + journée + alerts), single page header
 - **Clinical Sharp** theme only (`src/styles/shell.css`)
-- Mock operational data (`src/mock/operational.ts`) — tasks, agent rows, stock
-- Wired API pages kept at `/deliveries`, `/collections` (outside shell, for dev)
+- **Bakery selector wired:** `BakeryProvider` + `orpc.bakeries.list`, localStorage persistence, dropdown in day bar
+- **Shell Livraisons / Encaissements wired** to deliveries + collections oRPC (scoped by `bakeryId`, today)
+- Day bar alerts from live delivery/collection counts (not mock)
+- Mock operational data still used for Accueil, Stock, Équipe, Réglages
+- Wired API pages kept at `/deliveries`, `/collections` (outside shell, share bakery context)
 
 ### Deliveries (thin slice — wired)
 
@@ -93,11 +96,12 @@ bun run typecheck && bun run test && bun run build
 
 ## Gap vs legacy app
 
-**Shell (mock — not wired):**
+**Shell (partially wired):**
 
-- Bakery selector is visual only (not scoped to real `bakeryId`)
+- ~~Bakery selector is visual only~~ → **done** (real list, persist, scope queries)
 - Date is display-only (no ◀/▶/Aujourd'hui)
-- Livraisons/Encaissements tables use static mock data
+- ~~Livraisons/Encaissements tables use static mock data~~ → **shell views use oRPC**
+- Accueil still uses mock tasks/stats
 - No product-level drill-down (confié/retour Matin/Soir)
 - No réconciliations tab/view
 
@@ -118,7 +122,7 @@ bun run typecheck && bun run test && bun run build
 
 | Sprint | Focus | Status |
 |--------|-------|--------|
-| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (IA + theme done) |
+| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (IA + bakery + shell Liv/Enc wired) |
 | **B** | Master data — bakeries, locations, products, employees | Pending |
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | Pending |
 | **D** | Collections parity — period view, reconciliations, archive | Pending |
@@ -133,11 +137,11 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **Wire bakery selector** — real `orpc.bakeries.list`, persist choice, pass `bakeryId` to all queries
-2. **Replace mock Livraisons** — shell `/livraisons` uses deliveries service (or redirect to wired board once built)
-3. **Date navigation** — interactive day bar (◀ date ▶, Aujourd'hui); URL `?date=`
-4. **Livraisons drill-down** — agent row → product grid (confié/retour per Matin/Soir)
-5. **Role gates** — validate/reject/settle manager-only
+1. **Date navigation** — interactive day bar (◀ date ▶, Aujourd'hui); URL `?date=`; scope Livraisons/Encaissements
+2. **Livraisons drill-down** — agent row → product grid (confié/retour per Matin/Soir) in shell
+3. **Wire Accueil** — tasks + money strip from live deliveries/collections (not mock)
+4. **Role gates** — validate/reject/settle manager-only
+5. **`validatedBy` audit** — map Better Auth user on collection validate
 
 ---
 
