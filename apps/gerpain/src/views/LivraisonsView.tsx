@@ -122,7 +122,16 @@ export function LivraisonsView() {
                   <Fragment key={run.id}>
                     <tr
                       className={`clickable-row ${isSelected ? 'data-table__row--selected' : ''}`}
+                      tabIndex={0}
+                      role="button"
+                      aria-expanded={isSelected}
                       onClick={() => setSelectedRunId(isSelected ? null : run.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedRunId(isSelected ? null : run.id)
+                        }
+                      }}
                     >
                       <td>
                         <div className="agent-lockup">

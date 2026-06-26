@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { useBakery } from '#/lib/bakery-context'
 import { collectedAmount } from '#/lib/day-operations'
@@ -62,16 +63,25 @@ function parseMoneyInput(value: string): number {
   return raw === '' ? 0 : Number.parseInt(raw, 10)
 }
 
+function formatRpcError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message
+  }
+  return 'Une erreur est survenue.'
+}
+
 function MoneyInput({
   value,
   disabled,
+  ariaLabel,
   onCommit,
 }: {
   value: number
   disabled: boolean
+  ariaLabel: string
   onCommit: (value: number) => void
 }) {
-  const [draft, setDraft] = useState(String(value))
+  const [draft, setDraft] = useState(value === 0 ? '' : String(value))
 
   useEffect(() => {
     setDraft(value === 0 ? '' : String(value))
@@ -82,6 +92,7 @@ function MoneyInput({
       type="text"
       inputMode="numeric"
       className="money-input"
+      aria-label={ariaLabel}
       value={draft}
       placeholder="0"
       disabled={disabled}
@@ -98,7 +109,6 @@ function MoneyInput({
 }
 
 export function EncaissementsView() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { canManageCollections } = usePermissions()
@@ -107,6 +117,10 @@ export function EncaissementsView() {
   const [customStart, setCustomStart] = useState(todayIso())
   const [customEnd, setCustomEnd] = useState(todayIso())
   const [employeeId, setEmployeeId] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmCollectionId, setConfirmCollectionId] = useState<string | null>(null)
+  const [pendingUpdateId, setPendingUpdateId] = useState<string | null>(null)
 
   const { startDate, endDate } = useMemo(
     () => periodBounds(preset, customStart, customEnd),
@@ -120,77 +134,101 @@ export function EncaissementsView() {
     enabled: Boolean(bakeryId),
   })
 
+  const employeesReady = !employees.isLoading && employees.data
+
+  const selectedEmployeeId = useMemo(() => {
+    if (employeeId) return employeeId
+    if (employees.data && employees.data.length > 0) return employees.data[0].id
+    return ''
+  }, [employeeId, employees.data])
+
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
       input: {
         bakeryId,
         startDate,
         endDate,
-        employeeId: employeeId || undefined,
+        employeeId: selectedEmployeeId || undefined,
       },
     }),
-    enabled: Boolean(bakeryId),
+    enabled: Boolean(bakeryId) && employeesReady && Boolean(selectedEmployeeId),
   })
 
   const update = useMutation(
     orpc.collections.update.mutationOptions({
+      onMutate: ({ collectionId }) => {
+        setPendingUpdateId(collectionId)
+        setError(null)
+      },
       onSuccess: () => {
         void queryClient.invalidateQueries({
           queryKey: orpc.collections.list.key(),
         })
+      },
+      onError: (err) => {
+        setError(formatRpcError(err))
+      },
+      onSettled: () => {
+        setPendingUpdateId(null)
       },
     }),
   )
 
   const submit = useMutation(
     orpc.collections.submit.mutationOptions({
+      onMutate: () => setError(null),
       onSuccess: () => {
         void queryClient.invalidateQueries({
           queryKey: orpc.collections.list.key(),
         })
+      },
+      onError: (err) => {
+        setError(formatRpcError(err))
       },
     }),
   )
 
   const validate = useMutation(
     orpc.collections.validate.mutationOptions({
+      onMutate: () => {
+        setConfirmOpen(false)
+        setConfirmCollectionId(null)
+        setError(null)
+      },
       onSuccess: () => {
         void queryClient.invalidateQueries({
           queryKey: orpc.collections.list.key(),
         })
       },
+      onError: (err) => {
+        setError(formatRpcError(err))
+      },
     }),
   )
 
   useEffect(() => {
-    if (employees.data && employees.data.length > 0 && !employeeId) {
-      setEmployeeId(employees.data[0].id)
-    }
-  }, [employees.data, employeeId])
+    setError(null)
+  }, [preset, customStart, customEnd, selectedEmployeeId])
 
-  const filtered = useMemo(() => {
-    const rows = collections.data ?? []
-    if (!employeeId) return rows
-    return rows.filter((row) => row.employeeId === employeeId)
-  }, [collections.data, employeeId])
+  const rows = useMemo(() => {
+    const data = collections.data ?? []
+    return [...data].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    )
+  }, [collections.data])
 
   const stats = useMemo(() => {
-    const rows = filtered
     const expected = rows.reduce((sum, col) => sum + col.expectedAmount, 0)
     const collected = rows.reduce((sum, col) => sum + collectedAmount(col), 0)
     const balance = collected - expected
     const performance = expected > 0 ? Math.round((collected / expected) * 100) : 0
     return { expected, collected, balance, performance }
-  }, [filtered])
+  }, [rows])
 
   const selectedEmployee = useMemo(
-    () => employees.data?.find((e) => e.id === employeeId),
-    [employees.data, employeeId],
+    () => employees.data?.find((e) => e.id === selectedEmployeeId),
+    [employees.data, selectedEmployeeId],
   )
-
-  function handlePresetChange(next: PeriodPreset) {
-    setPreset(next)
-  }
 
   function handleUpdateAmount(
     collectionId: string,
@@ -199,6 +237,28 @@ export function EncaissementsView() {
   ) {
     void update.mutate({ collectionId, [field]: value })
   }
+
+  function handleValidateRequest(collectionId: string) {
+    setConfirmCollectionId(collectionId)
+    setConfirmOpen(true)
+  }
+
+  function handleConfirmValidate() {
+    if (!confirmCollectionId) return
+    void validate.mutate({ collectionId: confirmCollectionId })
+  }
+
+  function isRowBusy(rowId: string) {
+    return (
+      submit.isPending ||
+      validate.isPending ||
+      pendingUpdateId === rowId
+    )
+  }
+
+  const confirmRow = confirmCollectionId
+    ? rows.find((row) => row.id === confirmCollectionId)
+    : undefined
 
   return (
     <main className="page-content">
@@ -212,7 +272,7 @@ export function EncaissementsView() {
                   key={p}
                   type="button"
                   className={`preset-btn ${preset === p ? 'preset-btn--active' : ''}`}
-                  onClick={() => handlePresetChange(p)}
+                  onClick={() => setPreset(p)}
                 >
                   {presetLabel(p)}
                 </button>
@@ -240,12 +300,14 @@ export function EncaissementsView() {
           <span className="period-toolbar__label">Agent</span>
           <select
             className="employee-select"
-            value={employeeId}
+            value={selectedEmployeeId}
             onChange={(e) => setEmployeeId(e.target.value)}
-            disabled={employees.isLoading}
+            disabled={employees.isLoading || employees.data?.length === 0}
           >
             {employees.isLoading ? (
               <option value="">Chargement…</option>
+            ) : employees.data?.length === 0 ? (
+              <option value="">Aucun agent actif</option>
             ) : (
               employees.data?.map((employee) => (
                 <option key={employee.id} value={employee.id}>
@@ -296,12 +358,22 @@ export function EncaissementsView() {
         . Saisissez les montants reçus, soumettez, puis validez.
       </HelpNote>
 
+      {error ? (
+        <p className="settings-form__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
       <Card>
         {bakeryLoading || employees.isLoading || collections.isLoading ? (
           <p className="empty-state">Chargement des encaissements…</p>
         ) : collections.isError ? (
           <p className="empty-state">Impossible de charger les encaissements.</p>
-        ) : filtered.length === 0 ? (
+        ) : employees.data?.length === 0 ? (
+          <p className="empty-state">
+            Aucun agent actif pour cette boulangerie.
+          </p>
+        ) : rows.length === 0 ? (
           <p className="empty-state">
             Aucun encaissement pour cette période et cet agent.
           </p>
@@ -321,13 +393,14 @@ export function EncaissementsView() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => {
+              {rows.map((row) => {
                 const collected = collectedAmount(row)
                 const variance = row.variance ?? collected - row.expectedAmount
                 const editable =
                   row.status === 'pending' || row.status === 'rejected'
-                const canSubmit = editable && collected > 0
+                const canSubmit = editable
                 const canValidate = row.status === 'submitted'
+                const busy = isRowBusy(row.id)
 
                 return (
                   <tr key={row.id}>
@@ -341,7 +414,8 @@ export function EncaissementsView() {
                     <td>
                       <MoneyInput
                         value={row.cashAmount}
-                        disabled={!editable || update.isPending}
+                        ariaLabel="Espèces"
+                        disabled={!editable || busy}
                         onCommit={(value) =>
                           handleUpdateAmount(row.id, 'cashAmount', value)
                         }
@@ -350,7 +424,8 @@ export function EncaissementsView() {
                     <td>
                       <MoneyInput
                         value={row.cardAmount}
-                        disabled={!editable || update.isPending}
+                        ariaLabel="Carte"
+                        disabled={!editable || busy}
                         onCommit={(value) =>
                           handleUpdateAmount(row.id, 'cardAmount', value)
                         }
@@ -359,7 +434,8 @@ export function EncaissementsView() {
                     <td>
                       <MoneyInput
                         value={row.mobileAmount}
-                        disabled={!editable || update.isPending}
+                        ariaLabel="Mobile"
+                        disabled={!editable || busy}
                         onCommit={(value) =>
                           handleUpdateAmount(row.id, 'mobileAmount', value)
                         }
@@ -389,33 +465,18 @@ export function EncaissementsView() {
                             type="button"
                             className="table-action table-action--primary"
                             disabled={submit.isPending || validate.isPending}
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `Valider l'encaissement de ${formatXof(collected)} ? Cette action est définitive et enregistre l'argent en caisse.`,
-                                )
-                              ) {
-                                void validate.mutate({ collectionId: row.id })
-                              }
-                            }}
+                            onClick={() => handleValidateRequest(row.id)}
                           >
                             Valider
                           </button>
                         )}
-                        {!canSubmit && !canValidate && (
-                          <button
-                            type="button"
-                            className="table-action"
-                            onClick={() =>
-                              void navigate({
-                                to: '/collections/$collectionId',
-                                params: { collectionId: row.id },
-                              })
-                            }
-                          >
-                            Voir
-                          </button>
-                        )}
+                        <Link
+                          to="/collections/$collectionId"
+                          params={{ collectionId: row.id }}
+                          className="table-action"
+                        >
+                          Voir
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -425,6 +486,37 @@ export function EncaissementsView() {
           </table>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Valider l'encaissement ?"
+        confirmLabel="Valider"
+        loading={validate.isPending}
+        onCancel={() => {
+          setConfirmOpen(false)
+          setConfirmCollectionId(null)
+        }}
+        onConfirm={() => handleConfirmValidate()}
+      >
+        {confirmRow ? (
+          <>
+            <p>
+              {confirmRow.employeeName} — {confirmRow.date}
+            </p>
+            <p>
+              Montant collecté :{' '}
+              <strong>
+                {formatXof(collectedAmount(confirmRow))}
+              </strong>
+            </p>
+            <p className="settings-form__hint">
+              Cette action est définitive et enregistre l'argent en caisse.
+            </p>
+          </>
+        ) : (
+          <p>Encaissement introuvable.</p>
+        )}
+      </ConfirmDialog>
     </main>
   )
 }
