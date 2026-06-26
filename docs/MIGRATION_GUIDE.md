@@ -1,5 +1,8 @@
 # Data Migration Guide: Old Gerpain → New Gerpain 2.0
 
+> **Gen-1 monolith (Prisma/Next.js):** operational rules and module inventory → [`legacy-gen1-reference.md`](./legacy-gen1-reference.md).  
+> **Gen-2 split stack:** `gerpain_backend/` + `nextjs_frontend/` — primary parity reference for deliveries/collections.
+
 ## 1. Schema Comparison
 
 ### Entity Mapping (Old → New)
