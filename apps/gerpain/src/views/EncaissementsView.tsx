@@ -142,6 +142,26 @@ export function EncaissementsView() {
     }),
   )
 
+  const submit = useMutation(
+    orpc.collections.submit.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.collections.list.key(),
+        })
+      },
+    }),
+  )
+
+  const validate = useMutation(
+    orpc.collections.validate.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.collections.list.key(),
+        })
+      },
+    }),
+  )
+
   useEffect(() => {
     if (employees.data && employees.data.length > 0 && !employeeId) {
       setEmployeeId(employees.data[0].id)
@@ -358,12 +378,8 @@ export function EncaissementsView() {
                           <button
                             type="button"
                             className="table-action table-action--primary"
-                            onClick={() =>
-                              void navigate({
-                                to: '/collections/$collectionId',
-                                params: { collectionId: row.id },
-                              })
-                            }
+                            disabled={submit.isPending || validate.isPending}
+                            onClick={() => void submit.mutate({ collectionId: row.id })}
                           >
                             Soumettre
                           </button>
@@ -372,12 +388,16 @@ export function EncaissementsView() {
                           <button
                             type="button"
                             className="table-action table-action--primary"
-                            onClick={() =>
-                              void navigate({
-                                to: '/collections/$collectionId',
-                                params: { collectionId: row.id },
-                              })
-                            }
+                            disabled={submit.isPending || validate.isPending}
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Valider l'encaissement de ${formatXof(collected)} ? Un écriture Bocal sera créée.`,
+                                )
+                              ) {
+                                void validate.mutate({ collectionId: row.id })
+                              }
+                            }}
                           >
                             Valider
                           </button>
