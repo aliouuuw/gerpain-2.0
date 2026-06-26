@@ -2,5 +2,8 @@ import { createAuthClient } from 'better-auth/react'
 import { organizationClient } from 'better-auth/client/plugins'
 
 export const authClient = createAuthClient({
+  baseURL: import.meta.env.SSR
+    ? process.env.BETTER_AUTH_URL ?? 'http://localhost:3000'
+    : window.location.origin,
   plugins: [organizationClient()],
 })

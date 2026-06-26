@@ -5,9 +5,13 @@ import { getShellPageMeta } from '#/components/shell/page-meta'
 import { ShellHeader } from '#/components/shell/ShellHeader'
 import { TabNav } from '#/components/shell/TabNav'
 import { shellSearchSchema } from '#/lib/shell-date'
+import { requireSession } from '#/server/require-session-fn'
 
 export const Route = createFileRoute('/_shell')({
   validateSearch: shellSearchSchema,
+  beforeLoad: async () => {
+    await requireSession()
+  },
   component: ShellLayout,
 })
 

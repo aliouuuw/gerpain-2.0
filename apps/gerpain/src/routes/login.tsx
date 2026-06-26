@@ -1,12 +1,21 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 
 import { authClient } from '#/lib/auth-client'
+import { getOptionalSession } from '#/server/require-session-fn'
 
-export const Route = createFileRoute('/login')({ component: LoginPage })
+export const Route = createFileRoute('/login')({
+  beforeLoad: async () => {
+    const session = await getOptionalSession()
+    if (session) {
+      throw redirect({ to: '/' })
+    }
+  },
+  component: LoginPage,
+})
 
 function LoginPage() {
-  const navigate = useNavigate()
+  const navigate = Route.useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -99,9 +108,10 @@ function LoginPage() {
         </button>
       </form>
 
-      <Link to="/" className="mt-6 text-center text-sm text-neutral-500 hover:text-neutral-800">
-        Retour à l&apos;accueil
-      </Link>
+      <p className="mt-6 text-center text-xs text-neutral-400">
+        Compte démo : admin@gerpain.com / admin123 (après{' '}
+        <code className="rounded bg-neutral-100 px-1">bun run db:seed</code>)
+      </p>
     </div>
   )
 }
