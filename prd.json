@@ -2,7 +2,7 @@
   "project_meta": {
     "name": "Gerpain 2.0",
     "version": "2.0.0",
-    "description": "Bakery chain ERP migration to unified TanStack Start + oRPC + Drizzle + Neon + Better Auth + Bocal. Currency: XOF/FCFA. Core money loop (deliveries → collections → Bocal validate → settle) works as thin slice in apps/gerpain. Legacy nextjs_frontend + gerpain_backend remain reference until cutover.",
+    "description": "Bakery chain ERP migration to unified TanStack Start + oRPC + Drizzle + Neon + Better Auth + Bocal. Ledger operator shell (tab nav, Clinical Sharp) lives in apps/gerpain with mock views; core money loop wired at /deliveries and /collections. Legacy nextjs_frontend + gerpain_backend remain reference until cutover.",
     "stack": "TanStack Start, oRPC, TanStack Query, Drizzle, Neon Postgres, Better Auth, packages/bocal, Vitest, Bun workspaces",
     "ralph_type": "opencode",
     "docs": [
@@ -11,6 +11,7 @@
       "docs/adr/0001-unified-base-stack.md",
       "docs/EXPECTATIONS.md",
       "docs/bocal-spec.md",
+      "docs/legacy-gen1-reference.md",
       "progress.md"
     ],
     "legacy_reference": {
@@ -36,8 +37,8 @@
       "id": "A",
       "name": "Platform shell",
       "size": "small",
-      "goal": "Bakery selector, app layout/sidebar, role gates, validatedBy audit",
-      "status": "next",
+      "goal": "Ledger IA shell, bakery selector wired, role gates, validatedBy audit",
+      "status": "in_progress",
       "blocks_daily_ops": true
     },
     {
@@ -258,17 +259,37 @@
     {
       "group": "Sprint A — Platform shell",
       "sprint": "A",
-      "feature": "Bakery selector",
-      "description": "Replace silent first-bakery default with explicit selector; persist selection; scope all list queries.",
+      "feature": "Ledger operator shell (IA + Clinical Sharp)",
+      "description": "Tab nav under day context bar (no sidebar): Accueil, Livraisons, Encaissements, Stock, Équipe, Réglages. Clinical Sharp theme; mock data in views until oRPC wiring.",
       "acceptance_criteria": [
-        "User can switch bakery in UI",
-        "deliveries/collections use selected bakeryId",
-        "Selection survives reload (cookie or localStorage)"
+        "Routes /, /livraisons, /encaissements, /stock, /equipe, /reglages use _shell layout",
+        "Single page header; day context bar with alerts",
+        "Theme tokens in src/styles/shell.css"
       ],
       "files": [
-        "apps/gerpain/src/routes/__root.tsx",
-        "apps/gerpain/src/routes/deliveries.index.tsx",
-        "apps/gerpain/src/routes/collections.index.tsx"
+        "apps/gerpain/src/routes/_shell.tsx",
+        "apps/gerpain/src/routes/_shell/",
+        "apps/gerpain/src/views/",
+        "apps/gerpain/src/components/shell/",
+        "apps/gerpain/src/styles/shell.css",
+        "apps/gerpain/src/mock/operational.ts"
+      ],
+      "verification": ["bun run typecheck", "bun run build"],
+      "passes": true
+    },
+    {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "Wire shell to real bakery + session",
+      "description": "DayContextBar bakery pill calls orpc.bakeries.list; persist selection; scope shell and oRPC queries by bakeryId. Replace mock alerts with live day stats when wired.",
+      "acceptance_criteria": [
+        "User can switch bakery in day bar",
+        "Selected bakeryId passed to deliveries/collections queries",
+        "Selection survives reload"
+      ],
+      "files": [
+        "apps/gerpain/src/components/shell/DayContextBar.tsx",
+        "apps/gerpain/src/routes/_shell.tsx"
       ],
       "verification": ["bun run typecheck", "Manual: switch bakery changes data"],
       "passes": false
@@ -276,19 +297,31 @@
     {
       "group": "Sprint A — Platform shell",
       "sprint": "A",
-      "feature": "App shell and sidebar",
-      "description": "Operator layout with sidebar nav: Accueil, Livraisons, Encaissements; active route highlight; mobile padding.",
+      "feature": "Date navigation in day bar",
+      "description": "◀/▶, date picker, Aujourd'hui on day context bar; URL ?date=; Accueil always today.",
       "acceptance_criteria": [
-        "Authenticated routes use shared (app) layout",
-        "Sidebar links match modules",
-        "Current page visually active"
+        "Changing date updates Livraisons/Encaissements day views",
+        "Past days read-only when fully closed (later)",
+        "URL shareable"
       ],
       "files": [
-        "apps/gerpain/src/routes/__root.tsx",
-        "apps/gerpain/src/components/"
+        "apps/gerpain/src/components/shell/DayContextBar.tsx",
+        "apps/gerpain/src/views/LivraisonsView.tsx",
+        "apps/gerpain/src/views/EncaissementsView.tsx"
       ],
-      "verification": ["bun run typecheck"],
+      "verification": ["Manual: navigate yesterday and back"],
       "passes": false
+    },
+    {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "Bakery selector (legacy item — merged into wire shell)",
+      "description": "Superseded by 'Wire shell to real bakery + session'. Kept for traceability.",
+      "acceptance_criteria": [],
+      "files": [],
+      "verification": [],
+      "passes": false,
+      "deprecated": true
     },
     {
       "group": "Sprint A — Platform shell",
@@ -383,8 +416,9 @@
         "Matin/Soir inputs per product"
       ],
       "files": [
-        "apps/gerpain/src/routes/deliveries.index.tsx",
-        "apps/gerpain/src/services/deliveries.ts"
+        "apps/gerpain/src/views/LivraisonsView.tsx",
+        "apps/gerpain/src/services/deliveries.ts",
+        "apps/gerpain/src/routes/deliveries.index.tsx"
       ],
       "verification": ["Manual: full day workflow"],
       "passes": false
@@ -406,13 +440,14 @@
       "group": "Sprint D — Collections parity",
       "sprint": "D",
       "feature": "Employee-centric period view",
-      "description": "Replace single-date list with employee + period selector; summary cards; multi-day table. Port legacy /cash/collections UX.",
+      "description": "Replace single-date list with employee + period selector; summary cards; multi-day table. Port legacy /cash/collections UX into shell /encaissements.",
       "acceptance_criteria": [
         "Period presets: week, month, custom range",
         "Summary: attendu, collecté, solde, performance %",
         "Inline payment per day row"
       ],
       "files": [
+        "apps/gerpain/src/views/EncaissementsView.tsx",
         "apps/gerpain/src/services/collections.ts",
         "apps/gerpain/src/routes/collections.index.tsx"
       ],
@@ -465,7 +500,7 @@
       ],
       "files": [
         "apps/gerpain/src/services/dashboard.ts",
-        "apps/gerpain/src/routes/index.tsx"
+        "apps/gerpain/src/views/HomeView.tsx"
       ],
       "verification": ["bun run test", "Manual: KPIs match ledger"],
       "passes": false
