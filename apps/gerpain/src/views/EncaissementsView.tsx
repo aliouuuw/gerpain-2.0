@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
+import { Lock } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -46,10 +47,18 @@ function collectionBadge(status: string) {
   }
 }
 
+const ALL_EMPLOYEES = 'all'
+
 function varianceClass(variance: number): string {
   if (variance < 0) return 'text-warning'
   if (variance > 0) return 'text-success'
   return ''
+}
+
+function performanceClass(performance: number): string {
+  if (performance < 100) return 'money-strip__value--warn'
+  if (performance > 100) return 'money-strip__value--info'
+  return 'money-strip__value--ok'
 }
 
 function formatVariance(variance: number, collected: number): string {
@@ -75,11 +84,13 @@ function MoneyInput({
   value,
   disabled,
   ariaLabel,
+  lockHint,
   onCommit,
 }: {
   value: number
   disabled: boolean
   ariaLabel: string
+  lockHint?: string
   onCommit: (value: number) => void
 }) {
   const [draft, setDraft] = useState(value === 0 ? '' : String(value))
@@ -96,23 +107,34 @@ function MoneyInput({
   }
 
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      className="money-input"
-      aria-label={ariaLabel}
-      value={draft}
-      placeholder="0"
-      disabled={disabled}
-      onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          commit()
-          ;(e.target as HTMLInputElement).blur()
-        }
-      }}
-    />
+    <span className="money-input-wrapper">
+      <input
+        type="text"
+        inputMode="numeric"
+        className="money-input"
+        aria-label={ariaLabel}
+        value={draft}
+        placeholder="0"
+        disabled={disabled}
+        onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            commit()
+            ;(e.target as HTMLInputElement).blur()
+          }
+        }}
+      />
+      {disabled && (
+        <span
+          className="money-input-lock"
+          title={lockHint || 'Saisie verrouillée'}
+          aria-hidden="true"
+        >
+          <Lock size={12} />
+        </span>
+      )}
+    </span>
   )
 }
 
@@ -150,7 +172,7 @@ export function EncaissementsView() {
   const setCustomEnd = (value: string) =>
     patchSearch({ end: value, period: 'custom' })
   const setEmployeeId = (value: string) =>
-    patchSearch({ employee: value || undefined })
+    patchSearch({ employee: value === ALL_EMPLOYEES ? 'all' : value || undefined })
 
   const { startDate, endDate } = useMemo(
     () => periodBounds(preset, customStart, customEnd),
@@ -168,6 +190,7 @@ export function EncaissementsView() {
 
   const selectedEmployeeId = useMemo(() => {
     const list = employees.data ?? []
+    if (employeeParam === ALL_EMPLOYEES) return ALL_EMPLOYEES
     if (employeeParam && list.some((e) => e.id === employeeParam)) {
       return employeeParam
     }
@@ -181,10 +204,16 @@ export function EncaissementsView() {
         bakeryId,
         startDate,
         endDate,
-        employeeId: selectedEmployeeId || undefined,
+        employeeId:
+          selectedEmployeeId === ALL_EMPLOYEES
+            ? undefined
+            : selectedEmployeeId || undefined,
       },
     }),
-    enabled: Boolean(bakeryId) && employeesReady && Boolean(selectedEmployeeId),
+    enabled:
+      Boolean(bakeryId) &&
+      employeesReady &&
+      (selectedEmployeeId === ALL_EMPLOYEES || Boolean(selectedEmployeeId)),
   })
 
   const update = useMutation(
@@ -245,9 +274,11 @@ export function EncaissementsView() {
 
   const rows = useMemo(() => {
     const data = collections.data ?? []
-    return [...data].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    )
+    return [...data].sort((a, b) => {
+      const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime()
+      if (dateDiff !== 0) return dateDiff
+      return a.employeeName.localeCompare(b.employeeName)
+    })
   }, [collections.data])
 
   const stats = useMemo(() => {
@@ -259,7 +290,10 @@ export function EncaissementsView() {
   }, [rows])
 
   const selectedEmployee = useMemo(
-    () => employees.data?.find((e) => e.id === selectedEmployeeId),
+    () =>
+      selectedEmployeeId === ALL_EMPLOYEES
+        ? undefined
+        : employees.data?.find((e) => e.id === selectedEmployeeId),
     [employees.data, selectedEmployeeId],
   )
 
@@ -342,11 +376,14 @@ export function EncaissementsView() {
             ) : employees.data?.length === 0 ? (
               <option value="">Aucun agent actif</option>
             ) : (
-              employees.data?.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.firstName} {employee.lastName}
-                </option>
-              ))
+              <>
+                {employees.data?.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.firstName} {employee.lastName}
+                  </option>
+                ))}
+                <option value={ALL_EMPLOYEES}>Tous les agents</option>
+              </>
             )}
           </select>
         </div>
@@ -381,13 +418,19 @@ export function EncaissementsView() {
         </div>
         <div className="money-strip__item">
           <span className="money-strip__label">Performance</span>
-          <span className="money-strip__value">{stats.performance}%</span>
+          <span className={`money-strip__value ${performanceClass(stats.performance)}`}>
+            {stats.performance}%
+          </span>
         </div>
       </section>
 
       <HelpNote>
         Période : {formatPeriodLabel(startDate, endDate)}
-        {selectedEmployee ? ` — ${selectedEmployee.firstName} ${selectedEmployee.lastName}` : ''}
+        {selectedEmployee
+          ? ` — ${selectedEmployee.firstName} ${selectedEmployee.lastName}`
+          : selectedEmployeeId === ALL_EMPLOYEES
+            ? ' — Tous les agents'
+            : ''}
         . Saisissez les montants reçus, soumettez, puis validez.
       </HelpNote>
 
@@ -408,13 +451,15 @@ export function EncaissementsView() {
           </p>
         ) : rows.length === 0 ? (
           <p className="empty-state">
-            Aucun encaissement pour cette période et cet agent.
+            Aucun encaissement pour cette période
+            {selectedEmployeeId === ALL_EMPLOYEES ? '' : ' et cet agent'}.
           </p>
         ) : (
           <table className="data-table data-table--period">
             <thead>
               <tr>
                 <th>Date</th>
+                {selectedEmployeeId === ALL_EMPLOYEES && <th>Agent</th>}
                 <th>Attendu</th>
                 <th>Espèces</th>
                 <th>Carte</th>
@@ -434,13 +479,21 @@ export function EncaissementsView() {
                 const canSubmit = editable && collected > 0
                 const canValidate = row.status === 'submitted'
                 const busy = isRowBusy(row.id)
+                const lockHint = busy
+                  ? 'Enregistrement en cours…'
+                  : 'Encaissement verrouillé (soumis ou validé)'
 
                 return (
                   <tr key={row.id}>
                     <td>
-                      <span className="cell-agent">{formatDayShort(row.date)}</span>
+                      <span className="cell-date">{formatDayShort(row.date)}</span>
                       <span className="cell-sub">{row.source}</span>
                     </td>
+                    {selectedEmployeeId === ALL_EMPLOYEES && (
+                      <td>
+                        <span className="cell-agent">{row.employeeName}</span>
+                      </td>
+                    )}
                     <td className="cell-money">
                       {formatXof(row.expectedAmount)}
                     </td>
@@ -449,6 +502,7 @@ export function EncaissementsView() {
                         value={row.cashAmount}
                         ariaLabel="Espèces"
                         disabled={!editable || busy}
+                        lockHint={lockHint}
                         onCommit={(value) =>
                           handleUpdateAmount(row.id, 'cashAmount', value)
                         }
@@ -459,6 +513,7 @@ export function EncaissementsView() {
                         value={row.cardAmount}
                         ariaLabel="Carte"
                         disabled={!editable || busy}
+                        lockHint={lockHint}
                         onCommit={(value) =>
                           handleUpdateAmount(row.id, 'cardAmount', value)
                         }
@@ -469,6 +524,7 @@ export function EncaissementsView() {
                         value={row.mobileAmount}
                         ariaLabel="Mobile"
                         disabled={!editable || busy}
+                        lockHint={lockHint}
                         onCommit={(value) =>
                           handleUpdateAmount(row.id, 'mobileAmount', value)
                         }

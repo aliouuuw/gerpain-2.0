@@ -503,6 +503,10 @@
   color: var(--warning);
 }
 
+.money-strip__value--info {
+  color: var(--info);
+}
+
 /* === Task list (home) === */
 .task-list {
   list-style: none;
@@ -1769,6 +1773,12 @@
 }
 
 /* === Money input in table === */
+.money-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .money-input {
   width: 78px;
   padding: 6px 8px;
@@ -1795,13 +1805,38 @@
 }
 
 .money-input:disabled {
+  padding-right: 22px;
   background: var(--surface-2);
   color: var(--text-3);
   cursor: not-allowed;
 }
 
+.money-input-lock {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  pointer-events: none;
+}
+
 .data-table--period td {
   vertical-align: middle;
+}
+
+.cell-date,
+.cell-agent {
+  display: block;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cell-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 2px;
 }
 
 @media (max-width: 768px) {
