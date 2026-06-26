@@ -2,6 +2,7 @@ import * as bakeries from './bakeries'
 import * as collections from './collections'
 import * as deliveries from './deliveries'
 import * as health from './health'
+import * as locations from './locations'
 import * as me from './me'
 
 export default {
@@ -14,6 +15,13 @@ export default {
   },
   bakeries: {
     list: bakeries.list,
+  },
+  locations: {
+    list: locations.list,
+    get: locations.get,
+    create: locations.create,
+    update: locations.update,
+    deactivate: locations.deactivate,
   },
   collections: {
     list: collections.list,

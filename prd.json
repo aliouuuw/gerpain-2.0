@@ -38,7 +38,7 @@
       "name": "Platform shell",
       "size": "small",
       "goal": "Ledger IA shell, bakery selector wired, role gates, validatedBy audit",
-      "status": "in_progress",
+      "status": "done",
       "blocks_daily_ops": true
     },
     {
@@ -46,7 +46,7 @@
       "name": "Master data",
       "size": "medium",
       "goal": "Bakeries, locations, products, employees + product assignments",
-      "status": "pending",
+      "status": "in_progress",
       "blocks_daily_ops": true
     },
     {
@@ -357,6 +357,25 @@
       "passes": true
     },
     {
+      "group": "Sprint A — Platform shell",
+      "sprint": "A",
+      "feature": "Session guards and logout",
+      "description": "beforeLoad redirects unauthenticated users to /login; ShellHeader shows real session user and sign-out.",
+      "acceptance_criteria": [
+        "/ and shell routes require session",
+        "Logout returns to /login",
+        "Login redirects to / when already authenticated"
+      ],
+      "files": [
+        "apps/gerpain/src/server/require-session-fn.ts",
+        "apps/gerpain/src/routes/_shell.tsx",
+        "apps/gerpain/src/components/shell/ShellHeader.tsx",
+        "apps/gerpain/src/routes/login.tsx"
+      ],
+      "verification": ["bun run build", "Manual: logout and redirect"],
+      "passes": true
+    },
+    {
       "group": "Sprint B — Master data",
       "sprint": "B",
       "feature": "Locations CRUD",
@@ -368,10 +387,11 @@
       "files": [
         "apps/gerpain/src/services/locations.ts",
         "apps/gerpain/src/server/orpc/locations.ts",
-        "apps/gerpain/src/routes/settings/locations.tsx"
+        "apps/gerpain/src/components/settings/LocationsSettings.tsx",
+        "apps/gerpain/src/views/ReglagesView.tsx"
       ],
-      "verification": ["bun run typecheck"],
-      "passes": false
+      "verification": ["bun run typecheck", "Manual: CRUD in Réglages"],
+      "passes": true
     },
     {
       "group": "Sprint B — Master data",

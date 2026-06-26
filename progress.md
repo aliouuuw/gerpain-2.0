@@ -22,7 +22,7 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Ledger operator shell is in `apps/gerpain` (mock UI). Wire shell views to oRPC and close parity gaps vs legacy.
+**Current focus:** Sprint B master data — locations done; products and employees next.
 
 ---
 
@@ -36,7 +36,7 @@ Architecture steps (`docs/architecture.md`):
 - `packages/auth`: Better Auth factory; login; org-scoped oRPC context
 - Seed: `admin@gerpain.com` / `admin123`, ledger accounts (`CASH`, `DRIVER_RECEIVABLE`, …)
 
-### Operator shell (Sprint A — partial)
+### Operator shell (Sprint A — done)
 
 - **Ledger IA approved:** tab nav (no sidebar) — Accueil, Livraisons, Encaissements, Stock, Équipe, Réglages
 - Routes: `_shell` layout at `/`, `/livraisons`, `/encaissements`, `/stock`, `/equipe`, `/reglages`
@@ -46,11 +46,16 @@ Architecture steps (`docs/architecture.md`):
 - **Date navigation:** ◀/▶, date picker, Aujourd'hui; URL `?date=`; tab links preserve date; Accueil always today
 - **Shell Livraisons / Encaissements wired** to deliveries + collections oRPC (scoped by `bakeryId` + selected date)
 - Day bar alerts from live delivery/collection counts (not mock)
-- Mock operational data still used for Stock, Équipe, Réglages
+- Mock operational data still used for Stock, Équipe
 - **Accueil wired** to live deliveries/collections (money strip, tasks, agents du jour)
 - **Role gates:** validate/reject/settle collections restricted to owner/admin; UI hides supervisor actions
 - **`validatedBy`** populated on collection validate via legacy user email bridge
+- **Session guards:** unauthenticated users redirected to `/login`; header shows real user + déconnexion
 - Wired API pages kept at `/deliveries`, `/collections` (outside shell, share bakery context)
+
+### Master data (Sprint B — partial)
+
+- **Locations CRUD** in Réglages: list/create/edit/deactivate via `orpc.locations.*`; manager-only mutations; bakery-scoped
 
 ### Deliveries (thin slice — wired)
 
