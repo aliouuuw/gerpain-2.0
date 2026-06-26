@@ -22,7 +22,7 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Sprint B master data — locations done; products and employees next.
+**Current focus:** Sprint C — Livraisons drill-down (Matin/Soir product grid in shell).
 
 ---
 
@@ -46,16 +46,18 @@ Architecture steps (`docs/architecture.md`):
 - **Date navigation:** ◀/▶, date picker, Aujourd'hui; URL `?date=`; tab links preserve date; Accueil always today
 - **Shell Livraisons / Encaissements wired** to deliveries + collections oRPC (scoped by `bakeryId` + selected date)
 - Day bar alerts from live delivery/collection counts (not mock)
-- Mock operational data still used for Stock, Équipe
+- Mock operational data still used for Stock
 - **Accueil wired** to live deliveries/collections (money strip, tasks, agents du jour)
 - **Role gates:** validate/reject/settle collections restricted to owner/admin; UI hides supervisor actions
 - **`validatedBy`** populated on collection validate via legacy user email bridge
 - **Session guards:** unauthenticated users redirected to `/login`; header shows real user + déconnexion
 - Wired API pages kept at `/deliveries`, `/collections` (outside shell, share bakery context)
 
-### Master data (Sprint B — partial)
+### Master data (Sprint B — done)
 
 - **Locations CRUD** in Réglages: list/create/edit/deactivate via `orpc.locations.*`; manager-only mutations; bakery-scoped
+- **Categories + products CRUD** in Réglages: org-scoped categories; bakery-scoped products with FCFA prices and category filter
+- **Employees + product assignments** in Équipe: CRUD, location assignment, per-product commission; drives draft delivery items
 
 ### Deliveries (thin slice — wired)
 
@@ -111,7 +113,7 @@ bun run typecheck && bun run test && bun run build
 - ~~Date is display-only~~ → **done** (◀/▶, picker, Aujourd'hui, `?date=`)
 - ~~Livraisons/Encaissements tables use static mock data~~ → **shell views use oRPC**
 - ~~Accueil still uses mock tasks/stats~~ → **wired to oRPC**
-- No product-level drill-down (confié/retour Matin/Soir)
+- No product-level drill-down (confié/retour Matin/Soir) — **Sprint C next**
 - No réconciliations tab/view
 
 **Still only in legacy (not in shell or thin slice):**
@@ -132,23 +134,23 @@ bun run typecheck && bun run test && bun run build
 | Sprint | Focus | Status |
 |--------|-------|--------|
 | **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (shell wired; roles + validatedBy done) |
-| **B** | Master data — bakeries, locations, products, employees | Pending |
-| **C** | Deliveries parity — daily board, date nav, Matin/Soir | Pending |
+| **B** | Master data — bakeries, locations, products, employees | **Done** |
+| **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Next** |
 | **D** | Collections parity — period view, reconciliations, archive | Pending |
 | **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | Pending |
 | **F** | Commissions & payroll | Deferred |
 | **G** | Inventory & POS | Deferred |
 | **H** | Cutover | Pending |
 
-**Recommended next order:** finish **A** (wire bakery) → **C** (wire Livraisons + daily board) → **D** (wire Encaissements period + réconciliations)
+**Recommended next order:** **C** (Livraisons drill-down + daily board) → **D** (Encaissements period + réconciliations)
 
 ---
 
 ## Next session
 
-1. **Livraisons drill-down** — agent row → product grid (confié/retour per Matin/Soir) in shell
-2. **Sprint B** — master data CRUD (locations, products, employees)
-3. **Mark Sprint A complete** in prd once drill-down lands or defer to Sprint C
+1. **Sprint C — Livraisons drill-down** — inline product grid (confié/retour Matin/Soir) in shell; backend: Soir items per product
+2. **Daily delivery board** — all agents visible, validate in-shell
+3. **Sprint D** — employee period view for encaissements
 
 ---
 

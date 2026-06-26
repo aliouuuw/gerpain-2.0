@@ -46,7 +46,7 @@
       "name": "Master data",
       "size": "medium",
       "goal": "Bakeries, locations, products, employees + product assignments",
-      "status": "in_progress",
+      "status": "done",
       "blocks_daily_ops": true
     },
     {
@@ -404,10 +404,14 @@
       ],
       "files": [
         "apps/gerpain/src/services/products.ts",
-        "apps/gerpain/src/routes/sales/products.tsx"
+        "apps/gerpain/src/services/categories.ts",
+        "apps/gerpain/src/server/orpc/products.ts",
+        "apps/gerpain/src/server/orpc/categories.ts",
+        "apps/gerpain/src/components/settings/ProductsSettings.tsx",
+        "apps/gerpain/src/components/settings/CategoriesSettings.tsx"
       ],
-      "verification": ["bun run typecheck"],
-      "passes": false
+      "verification": ["bun run typecheck", "Manual: CRUD in Réglages"],
+      "passes": true
     },
     {
       "group": "Sprint B — Master data",
@@ -420,10 +424,11 @@
       ],
       "files": [
         "apps/gerpain/src/services/employees.ts",
-        "apps/gerpain/src/routes/employees/"
+        "apps/gerpain/src/server/orpc/employees.ts",
+        "apps/gerpain/src/views/EquipeView.tsx"
       ],
-      "verification": ["bun run typecheck"],
-      "passes": false
+      "verification": ["bun run typecheck", "Manual: assign products in Équipe"],
+      "passes": true
     },
     {
       "group": "Sprint C — Deliveries parity",

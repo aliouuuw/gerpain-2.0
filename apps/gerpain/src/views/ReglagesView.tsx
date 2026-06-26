@@ -1,4 +1,6 @@
+import { CategoriesSettings } from '#/components/settings/CategoriesSettings'
 import { LocationsSettings } from '#/components/settings/LocationsSettings'
+import { ProductsSettings } from '#/components/settings/ProductsSettings'
 import { Card } from '#/components/ui/Card'
 import { useBakery } from '#/lib/bakery-context'
 
@@ -37,7 +39,9 @@ export function ReglagesView() {
           )}
         </Card>
 
+        <CategoriesSettings />
         <LocationsSettings />
+        <ProductsSettings />
 
         <Card title="Notifications">
           <div className="setting-row">
