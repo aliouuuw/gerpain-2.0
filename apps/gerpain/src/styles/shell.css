@@ -985,6 +985,79 @@
   font-size: 13px;
 }
 
+.delivery-run-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.delivery-run-panel__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.delivery-run-panel__total {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.delivery-run-panel__success {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+  background: color-mix(in srgb, var(--success) 8%, var(--surface));
+  font-size: 13px;
+  color: var(--success);
+}
+
+.delivery-period-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.delivery-qty {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.delivery-qty input {
+  width: 64px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.delivery-period-cell__sold {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.data-table__row--selected td {
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.delivery-grid td {
+  vertical-align: top;
+}
+
 .setting-row {
   display: flex;
   justify-content: space-between;

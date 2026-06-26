@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useMemo, useState } from 'react'
 
+import { DeliveryRunPanel } from '#/components/deliveries/DeliveryRunPanel'
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
@@ -43,6 +44,7 @@ export function LivraisonsView() {
   const navigate = useNavigate()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { operationalDate } = useShellDate()
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
 
   const runs = useQuery({
     ...orpc.deliveries.listRuns.queryOptions({
@@ -71,8 +73,8 @@ export function LivraisonsView() {
   return (
     <main className="page-content">
       <HelpNote>
-        Une ligne par agent. Quand vous validez, l’encaissement correspondant est créé
-        automatiquement — vous pourrez saisir l’argent dans l’onglet Encaissements.
+        Une ligne par agent. Saisissez confié et retour par produit (Matin /
+        Soir), puis validez — l&apos;encaissement est créé automatiquement.
       </HelpNote>
 
       <Card>
@@ -101,9 +103,13 @@ export function LivraisonsView() {
                 const expected = runExpected(run.items)
                 const collectionId = collectionByRunId.get(run.id)
                 const hasCollection = Boolean(collectionId)
+                const isSelected = selectedRunId === run.id
 
                 return (
-                  <tr key={run.id}>
+                  <tr
+                    key={run.id}
+                    className={isSelected ? 'data-table__row--selected' : undefined}
+                  >
                     <td>
                       <span className="cell-agent">{run.employeeName}</span>
                       <span className="cell-sub">{run.locationName}</span>
@@ -126,7 +132,7 @@ export function LivraisonsView() {
                             void navigate({ to: '/encaissements' })
                           }
                         >
-                          Voir l’encaissement →
+                          Voir l&apos;encaissement →
                         </button>
                       ) : (
                         <span className="cell-muted">Après validation</span>
@@ -134,13 +140,19 @@ export function LivraisonsView() {
                     </td>
                     <td>{deliveryBadge(run.status)}</td>
                     <td>
-                      <Link
-                        to="/deliveries/$runId"
-                        params={{ runId: run.id }}
-                        className={`table-action${run.status !== 'validated' ? ' table-action--primary' : ''}`}
+                      <button
+                        type="button"
+                        className={`table-action${!isSelected && run.status !== 'validated' ? ' table-action--primary' : ''}`}
+                        onClick={() =>
+                          setSelectedRunId(isSelected ? null : run.id)
+                        }
                       >
-                        {run.status === 'validated' ? 'Voir' : 'Valider'}
-                      </Link>
+                        {isSelected
+                          ? 'Fermer'
+                          : run.status === 'validated'
+                            ? 'Voir'
+                            : 'Saisir'}
+                      </button>
                     </td>
                   </tr>
                 )
@@ -149,6 +161,18 @@ export function LivraisonsView() {
           </table>
         )}
       </Card>
+
+      {selectedRunId && bakeryId ? (
+        <DeliveryRunPanel
+          runId={selectedRunId}
+          bakeryId={bakeryId}
+          onClose={() => setSelectedRunId(null)}
+          onValidated={() => {
+            void runs.refetch()
+            void collections.refetch()
+          }}
+        />
+      ) : null}
     </main>
   )
 }

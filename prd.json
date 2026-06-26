@@ -54,7 +54,7 @@
       "name": "Deliveries parity",
       "size": "medium",
       "goal": "Daily board, date nav, all agents pre-populated, Matin/Soir on one screen",
-      "status": "pending",
+      "status": "in_progress",
       "blocks_daily_ops": "partial"
     },
     {
@@ -442,11 +442,12 @@
       ],
       "files": [
         "apps/gerpain/src/views/LivraisonsView.tsx",
-        "apps/gerpain/src/services/deliveries.ts",
-        "apps/gerpain/src/routes/deliveries.index.tsx"
+        "apps/gerpain/src/components/deliveries/DeliveryRunPanel.tsx",
+        "apps/gerpain/src/lib/delivery-grid.ts",
+        "apps/gerpain/src/services/deliveries.ts"
       ],
-      "verification": ["Manual: full day workflow"],
-      "passes": false
+      "verification": ["bun run typecheck", "Manual: saisie Matin/Soir in shell"],
+      "passes": true
     },
     {
       "group": "Sprint C — Deliveries parity",

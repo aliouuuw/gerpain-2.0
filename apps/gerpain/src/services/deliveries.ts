@@ -68,6 +68,114 @@ export type ListDeliveryRunsInput = {
   locationId?: string
 }
 
+const RUN_PERIODS = ['Matin', 'Soir'] as const
+
+function buildDraftItemValues(
+  runId: string,
+  productsToUse: Array<{ id: string; unitPrice: number }>,
+) {
+  return productsToUse.flatMap((product) =>
+    RUN_PERIODS.map((period) => ({
+      runId,
+      productId: product.id,
+      period,
+      quantityEntrusted: 0,
+      quantityReturned: 0,
+      unitPrice: product.unitPrice,
+    })),
+  )
+}
+
+async function syncDraftRunItems(
+  db: Database,
+  input: { organizationId: string; bakeryId: string; date: string },
+) {
+  const { organizationId, bakeryId, date } = input
+
+  const draftRuns = await db
+    .select()
+    .from(deliveryRuns)
+    .where(
+      and(
+        eq(deliveryRuns.organizationId, organizationId),
+        eq(deliveryRuns.bakeryId, bakeryId),
+        eq(deliveryRuns.date, date),
+        eq(deliveryRuns.status, 'draft'),
+      ),
+    )
+
+  if (draftRuns.length === 0) return
+
+  const employeeIds = draftRuns.map((run) => run.employeeId)
+
+  const [activeProducts, assignedRows, existingItems] = await Promise.all([
+    db
+      .select()
+      .from(products)
+      .where(
+        and(
+          eq(products.organizationId, organizationId),
+          eq(products.isActive, true),
+        ),
+      ),
+    db
+      .select({
+        employeeId: employeeProducts.employeeId,
+        productId: employeeProducts.productId,
+      })
+      .from(employeeProducts)
+      .where(
+        and(
+          inArray(employeeProducts.employeeId, employeeIds),
+          eq(employeeProducts.isActive, true),
+        ),
+      ),
+    db
+      .select()
+      .from(deliveryItems)
+      .where(inArray(deliveryItems.runId, draftRuns.map((run) => run.id))),
+  ])
+
+  const assignedByEmployee = new Map<string, string[]>()
+  for (const row of assignedRows) {
+    const list = assignedByEmployee.get(row.employeeId) ?? []
+    list.push(row.productId)
+    assignedByEmployee.set(row.employeeId, list)
+  }
+
+  const itemsByRun = new Map<string, typeof existingItems>()
+  for (const item of existingItems) {
+    const list = itemsByRun.get(item.runId) ?? []
+    list.push(item)
+    itemsByRun.set(item.runId, list)
+  }
+
+  for (const run of draftRuns) {
+    const productIds = assignedByEmployee.get(run.employeeId) ?? []
+    const productsToUse = activeProducts.filter((product) =>
+      productIds.includes(product.id),
+    )
+    const runItems = itemsByRun.get(run.id) ?? []
+    const existingKeys = new Set(
+      runItems.map((item) => `${item.productId}:${item.period}`),
+    )
+
+    const missingProducts = productsToUse.filter((product) =>
+      RUN_PERIODS.some(
+        (period) => !existingKeys.has(`${product.id}:${period}`),
+      ),
+    )
+
+    if (missingProducts.length === 0) continue
+
+    await db.insert(deliveryItems).values(
+      buildDraftItemValues(run.id, missingProducts).filter(
+        (row) => !existingKeys.has(`${row.productId}:${row.period}`),
+      ),
+    )
+  }
+}
+
 async function ensureDraftRunsForDate(
   db: Database,
   input: { organizationId: string; bakeryId: string; date: string },
@@ -107,8 +215,7 @@ async function ensureDraftRunsForDate(
     (e) => !existingEmployeeIds.has(e.id),
   )
 
-  if (missingEmployees.length === 0) return
-
+  if (missingEmployees.length > 0) {
   const missingEmployeeIds = missingEmployees.map((e) => e.id)
 
   const [activeProducts, allAssignedProducts, allPrimaryLocations, fallbackLocation] =
@@ -194,18 +301,14 @@ async function ensureDraftRunsForDate(
     )
 
     if (productsToUse.length > 0) {
-      await db.insert(deliveryItems).values(
-        productsToUse.map((product) => ({
-          runId: run!.id,
-          productId: product.id,
-          period: 'Matin' as const,
-          quantityEntrusted: 0,
-          quantityReturned: 0,
-          unitPrice: product.unitPrice,
-        })),
-      )
+      await db
+        .insert(deliveryItems)
+        .values(buildDraftItemValues(run!.id, productsToUse))
     }
   }
+  }
+
+  await syncDraftRunItems(db, { organizationId, bakeryId, date })
 }
 
 export async function listDeliveryRuns(

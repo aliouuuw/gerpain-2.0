@@ -22,7 +22,7 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Sprint C — Livraisons drill-down (Matin/Soir product grid in shell).
+**Current focus:** Sprint C — delivery history filters; Sprint D encaissements period view.
 
 ---
 
@@ -62,9 +62,10 @@ Architecture steps (`docs/architecture.md`):
 ### Deliveries (thin slice — wired)
 
 - `listRuns`, `getRun`, `updateItem`, `validateRun`
-- Auto-create draft runs for date (`ensureDraftRunsForDate`)
+- Auto-create draft runs for date (`ensureDraftRunsForDate`) with **Matin + Soir** items per assigned product
 - Validate → pending `cash_collection` (no Bocal on delivery validate yet)
 - UI: list by date, detail with draft qty, auto-save, validate
+- **Shell Livraisons drill-down:** inline `DeliveryRunPanel` with confié/retour grid per Matin/Soir (no redirect to `/deliveries`)
 
 ### Collections (thin slice — wired)
 
@@ -113,7 +114,7 @@ bun run typecheck && bun run test && bun run build
 - ~~Date is display-only~~ → **done** (◀/▶, picker, Aujourd'hui, `?date=`)
 - ~~Livraisons/Encaissements tables use static mock data~~ → **shell views use oRPC**
 - ~~Accueil still uses mock tasks/stats~~ → **wired to oRPC**
-- No product-level drill-down (confié/retour Matin/Soir) — **Sprint C next**
+- No product-level drill-down (confié/retour Matin/Soir) — **done in shell Livraisons**
 - No réconciliations tab/view
 
 **Still only in legacy (not in shell or thin slice):**
