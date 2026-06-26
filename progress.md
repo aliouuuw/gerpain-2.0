@@ -2,6 +2,7 @@
 
 **Last updated:** 2026-06-26  
 **Branch:** `main`  
+**Commit:** `afcdc60` — feat(deliveries): refine livraisons table IA and product entry cards  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -66,6 +67,7 @@ Architecture steps (`docs/architecture.md`):
 - Validate → pending `cash_collection` (no Bocal on delivery validate yet)
 - UI: list by date, detail with draft qty, auto-save, validate
 - **Shell Livraisons drill-down:** inline `DeliveryRunPanel` with confié/retour grid per Matin/Soir (no redirect to `/deliveries`)
+- **Livraisons IA redesign:** agent lockups with avatars, progress bar for entry completion, Matin/Soir volume pills, and clean product entry cards
 
 ### Collections (thin slice — wired)
 
@@ -78,6 +80,9 @@ Architecture steps (`docs/architecture.md`):
 ### Recent commits (new app)
 
 ```
+afcdc60 feat(deliveries): refine livraisons table IA and product entry cards
+6eaad75 feat(deliveries): add shell matin/soir drill-down panel
+8728fca feat(master-data): complete sprint B catalog and team CRUD
 9fd0c32 chore(deps): drop mocked-interfaces from bun workspaces
 8b23a2d chore: remove mocked-interfaces after shell port to app
 ba9e566 feat(shell): port ledger IA into apps/gerpain with clinical sharp theme
@@ -134,24 +139,25 @@ bun run typecheck && bun run test && bun run build
 
 | Sprint | Focus | Status |
 |--------|-------|--------|
-| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **In progress** (shell wired; roles + validatedBy done) |
+| **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **Done** |
 | **B** | Master data — bakeries, locations, products, employees | **Done** |
-| **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Next** |
-| **D** | Collections parity — period view, reconciliations, archive | Pending |
+| **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Done** |
+| **D** | Collections parity — period view, reconciliations, archive | **Next** |
 | **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | Pending |
 | **F** | Commissions & payroll | Deferred |
 | **G** | Inventory & POS | Deferred |
 | **H** | Cutover | Pending |
 
-**Recommended next order:** **C** (Livraisons drill-down + daily board) → **D** (Encaissements period + réconciliations)
+**Recommended next order:** **D** (Encaissements period view + réconciliations) → **E** (Bocal KPIs) → **H** (cutover)
 
 ---
 
 ## Next session
 
-1. **Sprint C — Livraisons drill-down** — inline product grid (confié/retour Matin/Soir) in shell; backend: Soir items per product
-2. **Daily delivery board** — all agents visible, validate in-shell
-3. **Sprint D** — employee period view for encaissements
+1. **Sprint D — Encaissements period view** — employee + period selector in shell `/encaissements`; summary cards; multi-day collection table
+2. **Réconciliations overview** — birds-eye by employee with period totals; drill-down to collections
+3. **Archive settled periods** — add `isArchived` to `cashCollections`, toggle visibility
+4. **Delivery history filters** (optional) — date range, employee, location, status filters on `/deliveries`
 
 ---
 
