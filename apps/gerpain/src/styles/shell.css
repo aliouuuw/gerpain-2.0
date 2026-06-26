@@ -704,6 +704,22 @@
   opacity: 0.85;
 }
 
+.link-btn--strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.link-btn--strong:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
 .table-action--primary {
   background: var(--accent);
   color: var(--accent-fg);

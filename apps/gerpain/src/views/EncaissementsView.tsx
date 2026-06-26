@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -116,19 +116,41 @@ function MoneyInput({
   )
 }
 
+const routeApi = getRouteApi('/_shell/encaissements')
+
 export function EncaissementsView() {
   const queryClient = useQueryClient()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { canManageCollections } = usePermissions()
 
-  const [preset, setPreset] = useState<PeriodPreset>('week')
-  const [customStart, setCustomStart] = useState(todayIso())
-  const [customEnd, setCustomEnd] = useState(todayIso())
-  const [employeeId, setEmployeeId] = useState<string>('')
+  const search = routeApi.useSearch()
+  const navigate = routeApi.useNavigate()
+
+  const preset: PeriodPreset = search.period ?? 'week'
+  const customStart = search.start ?? todayIso()
+  const customEnd = search.end ?? todayIso()
+  const employeeParam = search.employee
+
   const [error, setError] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmCollectionId, setConfirmCollectionId] = useState<string | null>(null)
   const [pendingUpdateId, setPendingUpdateId] = useState<string | null>(null)
+
+  const patchSearch = (patch: Partial<typeof search>) => {
+    void navigate({
+      search: (prev) => ({ ...prev, ...patch }),
+      replace: true,
+    })
+  }
+
+  const setPreset = (next: PeriodPreset) =>
+    patchSearch({ period: next === 'week' ? undefined : next })
+  const setCustomStart = (value: string) =>
+    patchSearch({ start: value, period: 'custom' })
+  const setCustomEnd = (value: string) =>
+    patchSearch({ end: value, period: 'custom' })
+  const setEmployeeId = (value: string) =>
+    patchSearch({ employee: value || undefined })
 
   const { startDate, endDate } = useMemo(
     () => periodBounds(preset, customStart, customEnd),
@@ -146,10 +168,12 @@ export function EncaissementsView() {
 
   const selectedEmployeeId = useMemo(() => {
     const list = employees.data ?? []
-    if (employeeId && list.some((e) => e.id === employeeId)) return employeeId
+    if (employeeParam && list.some((e) => e.id === employeeParam)) {
+      return employeeParam
+    }
     if (list.length > 0) return list[0].id
     return ''
-  }, [employeeId, employees.data])
+  }, [employeeParam, employees.data])
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({

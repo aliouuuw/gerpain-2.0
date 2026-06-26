@@ -208,10 +208,18 @@ export function LivraisonsView() {
                         {hasCollection && collectionId ? (
                           <button
                             type="button"
-                            className="link-btn"
+                            className="link-btn link-btn--strong"
                             onClick={(e) => {
                               e.stopPropagation()
-                              void navigate({ to: '/encaissements' })
+                              void navigate({
+                                to: '/encaissements',
+                                search: {
+                                  employee: run.employeeId,
+                                  period: 'custom',
+                                  start: operationalDate,
+                                  end: operationalDate,
+                                },
+                              })
                             }}
                           >
                             Voir l&apos;encaissement →
