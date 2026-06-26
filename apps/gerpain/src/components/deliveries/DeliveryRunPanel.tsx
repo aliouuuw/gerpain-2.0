@@ -158,9 +158,7 @@ export function DeliveryRunPanel({
             }),
           }),
           queryClient.invalidateQueries({
-            queryKey: orpc.collections.list.key({
-              input: { bakeryId, date: run.data?.date },
-            }),
+            queryKey: orpc.collections.list.key(),
           }),
         ])
         onValidated?.()

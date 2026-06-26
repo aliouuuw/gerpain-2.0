@@ -87,6 +87,13 @@ function MoneyInput({
     setDraft(value === 0 ? '' : String(value))
   }, [value])
 
+  function commit() {
+    const next = parseMoneyInput(draft)
+    if (next !== value) {
+      onCommit(next)
+    }
+  }
+
   return (
     <input
       type="text"
@@ -97,10 +104,10 @@ function MoneyInput({
       placeholder="0"
       disabled={disabled}
       onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
-      onBlur={() => onCommit(parseMoneyInput(draft))}
+      onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
-          onCommit(parseMoneyInput(draft))
+          commit()
           ;(e.target as HTMLInputElement).blur()
         }
       }}
@@ -137,8 +144,9 @@ export function EncaissementsView() {
   const employeesReady = !employees.isLoading && employees.data
 
   const selectedEmployeeId = useMemo(() => {
-    if (employeeId) return employeeId
-    if (employees.data && employees.data.length > 0) return employees.data[0].id
+    const list = employees.data ?? []
+    if (employeeId && list.some((e) => e.id === employeeId)) return employeeId
+    if (list.length > 0) return list[0].id
     return ''
   }, [employeeId, employees.data])
 
@@ -398,7 +406,7 @@ export function EncaissementsView() {
                 const variance = row.variance ?? collected - row.expectedAmount
                 const editable =
                   row.status === 'pending' || row.status === 'rejected'
-                const canSubmit = editable
+                const canSubmit = editable && collected > 0
                 const canValidate = row.status === 'submitted'
                 const busy = isRowBusy(row.id)
 
@@ -406,7 +414,7 @@ export function EncaissementsView() {
                   <tr key={row.id}>
                     <td>
                       <span className="cell-agent">{row.date}</span>
-                      <span className="cell-sub">{row.routeLabel}</span>
+                      <span className="cell-sub">{row.source}</span>
                     </td>
                     <td className="cell-money">
                       {formatXof(row.expectedAmount)}
