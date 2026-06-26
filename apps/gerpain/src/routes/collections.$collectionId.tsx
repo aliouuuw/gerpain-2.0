@@ -92,7 +92,7 @@ function CollectionDetailPage() {
     orpc.collections.validate.mutationOptions({
       onSuccess: async (data) => {
         setSuccess(
-          `Encaissement validé et comptabilisé (mouvement ${data.movementId.slice(0, 8)}…).`,
+          `Encaissement validé. L'argent est enregistré en caisse (réf. ${data.movementId.slice(0, 8)}…).`,
         )
         await queryClient.invalidateQueries({
           queryKey: orpc.collections.get.key({ input: { collectionId } }),
@@ -333,8 +333,8 @@ function CollectionDetailPage() {
                 Validation superviseur
               </p>
               <p className="text-sm text-amber-800">
-                Vérifiez les montants puis validez pour comptabiliser dans le
-                ledger Bocal.
+                Vérifiez les montants reçus, puis validez pour enregistrer
+                l'argent en caisse. Cette action est définitive.
               </p>
               <div className="space-y-2">
                 <label
@@ -376,7 +376,7 @@ function CollectionDetailPage() {
                   onClick={() => validate.mutate({ collectionId })}
                   className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                 >
-                  {validate.isPending ? 'Validation…' : 'Valider et comptabiliser'}
+                  {validate.isPending ? 'Validation…' : 'Valider l’encaissement'}
                 </button>
               </div>
             </div>

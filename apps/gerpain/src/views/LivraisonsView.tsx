@@ -82,8 +82,41 @@ export function LivraisonsView() {
     return map
   }, [collections.data])
 
+  const dayTotals = useMemo(() => {
+    const list = runs.data ?? []
+    return {
+      count: list.length,
+      expected: list.reduce((sum, run) => sum + runExpected(run.items), 0),
+      drafts: list.filter((run) => run.status === 'draft').length,
+      validated: list.filter((run) => run.status === 'validated').length,
+    }
+  }, [runs.data])
+
   return (
     <main className="page-content">
+      {dayTotals.count > 0 ? (
+        <section className="money-strip" aria-label="Résumé du jour">
+          <div className="money-strip__item">
+            <span className="money-strip__label">Tournées</span>
+            <span className="money-strip__value">{dayTotals.count}</span>
+          </div>
+          <div className="money-strip__item">
+            <span className="money-strip__label">CA attendu</span>
+            <span className="money-strip__value">{formatXof(dayTotals.expected)}</span>
+          </div>
+          <div className="money-strip__item">
+            <span className="money-strip__label">Brouillons</span>
+            <span className="money-strip__value">{dayTotals.drafts}</span>
+          </div>
+          <div className="money-strip__item">
+            <span className="money-strip__label">Validées</span>
+            <span className="money-strip__value money-strip__value--ok">
+              {dayTotals.validated}
+            </span>
+          </div>
+        </section>
+      ) : null}
+
       <HelpNote>
         Une ligne par agent. Saisissez confié et retour par produit (Matin /
         Soir), puis validez — l&apos;encaissement est créé automatiquement.

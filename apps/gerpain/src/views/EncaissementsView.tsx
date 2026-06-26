@@ -17,6 +17,7 @@ import {
   type PeriodPreset,
 } from '#/lib/period'
 import { usePermissions } from '#/lib/use-permissions'
+import { formatDayShort } from '#/lib/shell-date'
 import { todayIso } from '#/lib/today'
 
 function formatCollectionStatus(status: string): string {
@@ -351,7 +352,7 @@ export function EncaissementsView() {
           >
             {stats.balance === 0
               ? '0 F'
-              : formatXof(Math.abs(stats.balance))}
+              : `${formatXof(Math.abs(stats.balance))} ${stats.balance < 0 ? '(manque)' : '(excédent)'}`}
           </span>
         </div>
         <div className="money-strip__item">
@@ -413,7 +414,7 @@ export function EncaissementsView() {
                 return (
                   <tr key={row.id}>
                     <td>
-                      <span className="cell-agent">{row.date}</span>
+                      <span className="cell-agent">{formatDayShort(row.date)}</span>
                       <span className="cell-sub">{row.source}</span>
                     </td>
                     <td className="cell-money">

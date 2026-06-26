@@ -22,3 +22,11 @@ export function formatDateLabel(iso: string): string {
     month: 'long',
   })
 }
+
+export function formatDayShort(iso: string): string {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+}
