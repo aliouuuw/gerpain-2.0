@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-06-26  
 **Branch:** `main`  
-**Commit:** `1989262` — feat(collections): employee-centric period view for encaissements  
+**Commit:** `2eda1f3` — fix(ui): period view UX/accessibility and row keyboard navigation  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -81,6 +81,7 @@ Architecture steps (`docs/architecture.md`):
 ### Recent commits (new app)
 
 ```
+2eda1f3 fix(ui): period view UX/accessibility and row keyboard navigation
 1989262 feat(collections): employee-centric period view for encaissements
 afcdc60 feat(deliveries): refine livraisons table IA and product entry cards
 6eaad75 feat(deliveries): add shell matin/soir drill-down panel
