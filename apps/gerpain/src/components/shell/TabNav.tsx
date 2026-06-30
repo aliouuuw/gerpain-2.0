@@ -1,14 +1,14 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-
+import { usePermissions } from '#/lib/use-permissions'
 import { shellSearchSchema } from '#/lib/shell-date'
 
 const tabs = [
-  { to: '/', label: 'Accueil', hint: undefined },
-  { to: '/livraisons', label: 'Livraisons', hint: 'Sorties du jour' },
-  { to: '/encaissements', label: 'Encaissements', hint: 'Argent reçu' },
-  { to: '/stock', label: 'Stock', hint: undefined },
-  { to: '/equipe', label: 'Équipe', hint: undefined },
-  { to: '/reglages', label: 'Réglages', hint: undefined },
+  { to: '/', label: 'Accueil', hint: undefined, mock: false },
+  { to: '/livraisons', label: 'Livraisons', hint: 'Sorties du jour', mock: false },
+  { to: '/encaissements', label: 'Encaissements', hint: 'Argent reçu', mock: false },
+  { to: '/stock', label: 'Stock', hint: 'Bientôt disponible', mock: true },
+  { to: '/equipe', label: 'Équipe', hint: undefined, mock: false },
+  { to: '/reglages', label: 'Réglages', hint: undefined, mock: false },
 ] as const
 
 export function TabNav() {
@@ -16,10 +16,25 @@ export function TabNav() {
   const rawSearch = useRouterState({ select: (s) => s.location.search })
   const parsed = shellSearchSchema.safeParse(rawSearch)
   const search = parsed.success ? parsed.data : {}
+  const { canManageCollections } = usePermissions()
+
+  const visibleTabs = [
+    ...tabs.filter((tab) => !tab.mock),
+    ...(canManageCollections
+      ? [
+          {
+            to: '/reconciliations' as const,
+            label: 'Réconciliations',
+            hint: 'Clôture paie par agent',
+            mock: false,
+          },
+        ]
+      : []),
+  ]
 
   return (
     <nav className="tab-nav" aria-label="Navigation principale">
-      {tabs.map((tab) => {
+      {visibleTabs.map((tab) => {
         const isActive =
           tab.to === '/' ? pathname === '/' : pathname.startsWith(tab.to)
 

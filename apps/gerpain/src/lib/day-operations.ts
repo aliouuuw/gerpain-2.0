@@ -20,6 +20,7 @@ type DeliveryRun = {
 type CashCollection = {
   id: string
   deliveryRunId: string | null
+  employeeId: string
   employeeName: string
   expectedAmount: number
   cashAmount: number
@@ -74,8 +75,11 @@ export type HomeTask = {
   id: string
   label: string
   detail: string
-  to: '/livraisons' | '/encaissements' | '/stock'
+  to: '/livraisons' | '/encaissements' | '/reconciliations'
   urgent: boolean
+  action?: 'prepare-day'
+  runId?: string
+  employeeId?: string
 }
 
 export function buildHomeTasks(
@@ -83,6 +87,19 @@ export function buildHomeTasks(
   collections: CashCollection[],
 ): HomeTask[] {
   const tasks: HomeTask[] = []
+
+  if (runs.length === 0) {
+    tasks.push({
+      id: 'prepare-day',
+      label: 'Préparer les tournées du jour',
+      detail: 'Créer une ligne par livreur actif',
+      to: '/livraisons',
+      urgent: true,
+      action: 'prepare-day',
+    })
+    return tasks
+  }
+
   const collectionByRunId = new Map<string, CashCollection>()
 
   for (const col of collections) {
@@ -103,6 +120,7 @@ export function buildHomeTasks(
         detail: 'Quantités pas encore enregistrées',
         to: '/livraisons',
         urgent: false,
+        runId: run.id,
       })
     }
 
@@ -113,6 +131,7 @@ export function buildHomeTasks(
         detail: `${formatXof(expected)} attendu`,
         to: '/livraisons',
         urgent: true,
+        runId: run.id,
       })
     }
 
@@ -123,6 +142,7 @@ export function buildHomeTasks(
         detail: `${formatXof(collectedAmount(collection))} déclaré`,
         to: '/encaissements',
         urgent: true,
+        employeeId: collection.employeeId,
       })
     }
 
@@ -139,6 +159,7 @@ export function buildHomeTasks(
         detail: `${formatXof(collection.expectedAmount)} à encaisser`,
         to: '/encaissements',
         urgent: true,
+        employeeId: collection.employeeId,
       })
     }
   }

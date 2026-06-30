@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { Fragment, useMemo, useState } from 'react'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import { DeliveryRunPanel } from '#/components/deliveries/DeliveryRunPanel'
 import { Badge } from '#/components/ui/Badge'
@@ -18,6 +18,7 @@ import { runEntryProgress } from '#/lib/run-progress'
 import { useShellDate } from '#/lib/use-shell-date'
 
 const COL_COUNT = 6
+const routeApi = getRouteApi('/_shell/livraisons')
 
 function getInitials(name: string) {
   return name
@@ -54,12 +55,31 @@ function deliveryBadge(status: string) {
 }
 
 export function LivraisonsView() {
-  const navigate = useNavigate()
+  const patchNavigate = routeApi.useNavigate()
   const queryClient = useQueryClient()
+  const search = routeApi.useSearch()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { operationalDate } = useShellDate()
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [prepareError, setPrepareError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!search.run) return
+    setSelectedRunId(search.run)
+  }, [search.run])
+
+  function selectRun(runId: string | null) {
+    setSelectedRunId(runId)
+    void patchNavigate({
+      search: (prev) => ({
+        ...prev,
+        run: runId ?? undefined,
+      }),
+      replace: true,
+    })
+  }
+
+  const navigate = useNavigate()
 
   const runs = useQuery({
     ...orpc.deliveries.listRuns.queryOptions({
@@ -197,11 +217,11 @@ export function LivraisonsView() {
                       tabIndex={0}
                       role="button"
                       aria-expanded={isSelected}
-                      onClick={() => setSelectedRunId(isSelected ? null : run.id)}
+                      onClick={() => selectRun(isSelected ? null : run.id)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
-                          setSelectedRunId(isSelected ? null : run.id)
+                          selectRun(isSelected ? null : run.id)
                         }
                       }}
                     >
@@ -283,7 +303,7 @@ export function LivraisonsView() {
                             inline
                             runId={run.id}
                             bakeryId={bakeryId}
-                            onClose={() => setSelectedRunId(null)}
+                            onClose={() => selectRun(null)}
                             onValidated={() => {
                               void runs.refetch()
                               void collections.refetch()

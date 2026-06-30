@@ -504,6 +504,25 @@
   text-transform: capitalize;
 }
 
+.day-context__period {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-context__period-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-reconcile-cue {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
 .day-context__alerts {
   display: flex;
   align-items: center;

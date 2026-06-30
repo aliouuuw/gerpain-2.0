@@ -197,8 +197,7 @@ export function EncaissementsView() {
     if (employeeParam && list.some((e) => e.id === employeeParam)) {
       return employeeParam
     }
-    if (list.length > 0) return list[0].id
-    return ''
+    return ALL_EMPLOYEES
   }, [employeeParam, employees.data])
 
   const collections = useQuery({
@@ -437,12 +436,12 @@ export function EncaissementsView() {
               <option value="">Aucun agent actif</option>
             ) : (
               <>
+                <option value={ALL_EMPLOYEES}>Tous les agents</option>
                 {employees.data?.map((employee) => (
                   <option key={employee.id} value={employee.id}>
                     {employee.firstName} {employee.lastName}
                   </option>
                 ))}
-                <option value={ALL_EMPLOYEES}>Tous les agents</option>
               </>
             )}
           </select>
