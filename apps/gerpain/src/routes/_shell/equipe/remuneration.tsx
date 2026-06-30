@@ -1,16 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { EquipePlaceholderView } from '#/views/equipe/EquipePlaceholderView'
+import { RemunerationView } from '#/views/equipe/RemunerationView'
 
 export const Route = createFileRoute('/_shell/equipe/remuneration')({
-  component: RemunerationRoute,
+  component: RemunerationView,
 })
-
-function RemunerationRoute() {
-  return (
-    <EquipePlaceholderView
-      title="Rémunération"
-      description="Configuration du salaire de base, des grilles de commission et des primes — disponible prochainement."
-    />
-  )
-}

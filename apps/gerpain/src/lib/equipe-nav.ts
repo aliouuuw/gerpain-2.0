@@ -16,7 +16,6 @@ export const equipeNavItems = [
     to: '/equipe/remuneration',
     label: 'Rémunération',
     hint: 'Salaire de base, grilles et primes',
-    disabled: true,
   },
   {
     to: '/equipe/avances',
