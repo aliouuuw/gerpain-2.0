@@ -26,7 +26,7 @@ const tabs = [
     managerOnly: true,
   },
   { to: '/stock', label: 'Stock', hint: 'Bientôt disponible', mock: true, managerOnly: false },
-  { to: '/equipe', label: 'Équipe', hint: undefined, mock: false, managerOnly: false },
+  { to: '/equipe', label: 'Équipe', hint: 'Personnel & paie', mock: false, managerOnly: false },
   { to: '/reglages', label: 'Réglages', hint: undefined, mock: false, managerOnly: false },
 ] as const
 

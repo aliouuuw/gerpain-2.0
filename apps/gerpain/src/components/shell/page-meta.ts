@@ -1,3 +1,4 @@
+import { equipeSectionMeta } from '#/lib/equipe-nav'
 import { settingsSectionMeta } from '#/lib/settings-nav'
 
 export interface ShellPageMeta {
@@ -27,8 +28,8 @@ export const shellPageMeta: Record<string, ShellPageMeta> = {
     subtitle: 'Quantités en dépôt',
   },
   '/equipe': {
-    title: 'Équipe',
-    subtitle: 'Livreurs, caissiers et contacts',
+    title: 'Personnel & paie',
+    subtitle: 'Effectif, affectations et paie',
   },
   '/reglages': {
     title: 'Réglages',
@@ -39,6 +40,13 @@ export const shellPageMeta: Record<string, ShellPageMeta> = {
 export function getShellPageMeta(pathname: string): ShellPageMeta {
   if (pathname.startsWith('/reglages/')) {
     return settingsSectionMeta[pathname] ?? shellPageMeta['/reglages']
+  }
+
+  if (pathname.startsWith('/equipe/')) {
+    if (pathname.startsWith('/equipe/agents/')) {
+      return equipeSectionMeta['/equipe/agents'] ?? shellPageMeta['/equipe']
+    }
+    return equipeSectionMeta[pathname] ?? shellPageMeta['/equipe']
   }
 
   return shellPageMeta[pathname] ?? { title: 'Gerpain', subtitle: '' }

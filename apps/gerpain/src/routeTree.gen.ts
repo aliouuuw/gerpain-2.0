@@ -21,10 +21,11 @@ import { Route as CollectionsCollectionIdRouteImport } from './routes/collection
 import { Route as ShellStockRouteImport } from './routes/_shell/stock'
 import { Route as ShellReconciliationsRouteImport } from './routes/_shell/reconciliations'
 import { Route as ShellLivraisonsRouteImport } from './routes/_shell/livraisons'
-import { Route as ShellEquipeRouteImport } from './routes/_shell/equipe'
 import { Route as ShellEncaissementsRouteImport } from './routes/_shell/encaissements'
 import { Route as ShellReglagesRouteRouteImport } from './routes/_shell/reglages/route'
+import { Route as ShellEquipeRouteRouteImport } from './routes/_shell/equipe/route'
 import { Route as ShellReglagesIndexRouteImport } from './routes/_shell/reglages/index'
+import { Route as ShellEquipeIndexRouteImport } from './routes/_shell/equipe/index'
 import { Route as ApiRpcSplatRouteImport } from './routes/api.rpc.$'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as ShellReglagesProduitsRouteImport } from './routes/_shell/reglages/produits'
@@ -32,6 +33,13 @@ import { Route as ShellReglagesNotificationsRouteImport } from './routes/_shell/
 import { Route as ShellReglagesLieuxRouteImport } from './routes/_shell/reglages/lieux'
 import { Route as ShellReglagesCategoriesRouteImport } from './routes/_shell/reglages/categories'
 import { Route as ShellReglagesBoulangerieRouteImport } from './routes/_shell/reglages/boulangerie'
+import { Route as ShellEquipeRemunerationRouteImport } from './routes/_shell/equipe/remuneration'
+import { Route as ShellEquipePaieRouteImport } from './routes/_shell/equipe/paie'
+import { Route as ShellEquipeCongesRouteImport } from './routes/_shell/equipe/conges'
+import { Route as ShellEquipeAvancesRouteImport } from './routes/_shell/equipe/avances'
+import { Route as ShellEquipeAnnuaireRouteImport } from './routes/_shell/equipe/annuaire'
+import { Route as ShellEquipeAffectationsRouteImport } from './routes/_shell/equipe/affectations'
+import { Route as ShellEquipeAgentsEmployeeIdRouteImport } from './routes/_shell/equipe/agents.$employeeId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -92,11 +100,6 @@ const ShellLivraisonsRoute = ShellLivraisonsRouteImport.update({
   path: '/livraisons',
   getParentRoute: () => ShellRoute,
 } as any)
-const ShellEquipeRoute = ShellEquipeRouteImport.update({
-  id: '/equipe',
-  path: '/equipe',
-  getParentRoute: () => ShellRoute,
-} as any)
 const ShellEncaissementsRoute = ShellEncaissementsRouteImport.update({
   id: '/encaissements',
   path: '/encaissements',
@@ -107,10 +110,20 @@ const ShellReglagesRouteRoute = ShellReglagesRouteRouteImport.update({
   path: '/reglages',
   getParentRoute: () => ShellRoute,
 } as any)
+const ShellEquipeRouteRoute = ShellEquipeRouteRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
+  getParentRoute: () => ShellRoute,
+} as any)
 const ShellReglagesIndexRoute = ShellReglagesIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => ShellReglagesRouteRoute,
+} as any)
+const ShellEquipeIndexRoute = ShellEquipeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShellEquipeRouteRoute,
 } as any)
 const ApiRpcSplatRoute = ApiRpcSplatRouteImport.update({
   id: '/api/rpc/$',
@@ -149,15 +162,51 @@ const ShellReglagesBoulangerieRoute =
     path: '/boulangerie',
     getParentRoute: () => ShellReglagesRouteRoute,
   } as any)
+const ShellEquipeRemunerationRoute = ShellEquipeRemunerationRouteImport.update({
+  id: '/remuneration',
+  path: '/remuneration',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
+const ShellEquipePaieRoute = ShellEquipePaieRouteImport.update({
+  id: '/paie',
+  path: '/paie',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
+const ShellEquipeCongesRoute = ShellEquipeCongesRouteImport.update({
+  id: '/conges',
+  path: '/conges',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
+const ShellEquipeAvancesRoute = ShellEquipeAvancesRouteImport.update({
+  id: '/avances',
+  path: '/avances',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
+const ShellEquipeAnnuaireRoute = ShellEquipeAnnuaireRouteImport.update({
+  id: '/annuaire',
+  path: '/annuaire',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
+const ShellEquipeAffectationsRoute = ShellEquipeAffectationsRouteImport.update({
+  id: '/affectations',
+  path: '/affectations',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
+const ShellEquipeAgentsEmployeeIdRoute =
+  ShellEquipeAgentsEmployeeIdRouteImport.update({
+    id: '/agents/$employeeId',
+    path: '/agents/$employeeId',
+    getParentRoute: () => ShellEquipeRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ShellIndexRoute
   '/collections': typeof CollectionsRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/equipe': typeof ShellEquipeRouteRouteWithChildren
   '/reglages': typeof ShellReglagesRouteRouteWithChildren
   '/encaissements': typeof ShellEncaissementsRoute
-  '/equipe': typeof ShellEquipeRoute
   '/livraisons': typeof ShellLivraisonsRoute
   '/reconciliations': typeof ShellReconciliationsRoute
   '/stock': typeof ShellStockRoute
@@ -165,6 +214,12 @@ export interface FileRoutesByFullPath {
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
   '/collections/': typeof CollectionsIndexRoute
   '/deliveries/': typeof DeliveriesIndexRoute
+  '/equipe/affectations': typeof ShellEquipeAffectationsRoute
+  '/equipe/annuaire': typeof ShellEquipeAnnuaireRoute
+  '/equipe/avances': typeof ShellEquipeAvancesRoute
+  '/equipe/conges': typeof ShellEquipeCongesRoute
+  '/equipe/paie': typeof ShellEquipePaieRoute
+  '/equipe/remuneration': typeof ShellEquipeRemunerationRoute
   '/reglages/boulangerie': typeof ShellReglagesBoulangerieRoute
   '/reglages/categories': typeof ShellReglagesCategoriesRoute
   '/reglages/lieux': typeof ShellReglagesLieuxRoute
@@ -172,12 +227,13 @@ export interface FileRoutesByFullPath {
   '/reglages/produits': typeof ShellReglagesProduitsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
+  '/equipe/': typeof ShellEquipeIndexRoute
   '/reglages/': typeof ShellReglagesIndexRoute
+  '/equipe/agents/$employeeId': typeof ShellEquipeAgentsEmployeeIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/encaissements': typeof ShellEncaissementsRoute
-  '/equipe': typeof ShellEquipeRoute
   '/livraisons': typeof ShellLivraisonsRoute
   '/reconciliations': typeof ShellReconciliationsRoute
   '/stock': typeof ShellStockRoute
@@ -186,6 +242,12 @@ export interface FileRoutesByTo {
   '/': typeof ShellIndexRoute
   '/collections': typeof CollectionsIndexRoute
   '/deliveries': typeof DeliveriesIndexRoute
+  '/equipe/affectations': typeof ShellEquipeAffectationsRoute
+  '/equipe/annuaire': typeof ShellEquipeAnnuaireRoute
+  '/equipe/avances': typeof ShellEquipeAvancesRoute
+  '/equipe/conges': typeof ShellEquipeCongesRoute
+  '/equipe/paie': typeof ShellEquipePaieRoute
+  '/equipe/remuneration': typeof ShellEquipeRemunerationRoute
   '/reglages/boulangerie': typeof ShellReglagesBoulangerieRoute
   '/reglages/categories': typeof ShellReglagesCategoriesRoute
   '/reglages/lieux': typeof ShellReglagesLieuxRoute
@@ -193,7 +255,9 @@ export interface FileRoutesByTo {
   '/reglages/produits': typeof ShellReglagesProduitsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
+  '/equipe': typeof ShellEquipeIndexRoute
   '/reglages': typeof ShellReglagesIndexRoute
+  '/equipe/agents/$employeeId': typeof ShellEquipeAgentsEmployeeIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -201,9 +265,9 @@ export interface FileRoutesById {
   '/collections': typeof CollectionsRouteWithChildren
   '/deliveries': typeof DeliveriesRouteWithChildren
   '/login': typeof LoginRoute
+  '/_shell/equipe': typeof ShellEquipeRouteRouteWithChildren
   '/_shell/reglages': typeof ShellReglagesRouteRouteWithChildren
   '/_shell/encaissements': typeof ShellEncaissementsRoute
-  '/_shell/equipe': typeof ShellEquipeRoute
   '/_shell/livraisons': typeof ShellLivraisonsRoute
   '/_shell/reconciliations': typeof ShellReconciliationsRoute
   '/_shell/stock': typeof ShellStockRoute
@@ -212,6 +276,12 @@ export interface FileRoutesById {
   '/_shell/': typeof ShellIndexRoute
   '/collections/': typeof CollectionsIndexRoute
   '/deliveries/': typeof DeliveriesIndexRoute
+  '/_shell/equipe/affectations': typeof ShellEquipeAffectationsRoute
+  '/_shell/equipe/annuaire': typeof ShellEquipeAnnuaireRoute
+  '/_shell/equipe/avances': typeof ShellEquipeAvancesRoute
+  '/_shell/equipe/conges': typeof ShellEquipeCongesRoute
+  '/_shell/equipe/paie': typeof ShellEquipePaieRoute
+  '/_shell/equipe/remuneration': typeof ShellEquipeRemunerationRoute
   '/_shell/reglages/boulangerie': typeof ShellReglagesBoulangerieRoute
   '/_shell/reglages/categories': typeof ShellReglagesCategoriesRoute
   '/_shell/reglages/lieux': typeof ShellReglagesLieuxRoute
@@ -219,7 +289,9 @@ export interface FileRoutesById {
   '/_shell/reglages/produits': typeof ShellReglagesProduitsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/rpc/$': typeof ApiRpcSplatRoute
+  '/_shell/equipe/': typeof ShellEquipeIndexRoute
   '/_shell/reglages/': typeof ShellReglagesIndexRoute
+  '/_shell/equipe/agents/$employeeId': typeof ShellEquipeAgentsEmployeeIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -228,9 +300,9 @@ export interface FileRouteTypes {
     | '/collections'
     | '/deliveries'
     | '/login'
+    | '/equipe'
     | '/reglages'
     | '/encaissements'
-    | '/equipe'
     | '/livraisons'
     | '/reconciliations'
     | '/stock'
@@ -238,6 +310,12 @@ export interface FileRouteTypes {
     | '/deliveries/$runId'
     | '/collections/'
     | '/deliveries/'
+    | '/equipe/affectations'
+    | '/equipe/annuaire'
+    | '/equipe/avances'
+    | '/equipe/conges'
+    | '/equipe/paie'
+    | '/equipe/remuneration'
     | '/reglages/boulangerie'
     | '/reglages/categories'
     | '/reglages/lieux'
@@ -245,12 +323,13 @@ export interface FileRouteTypes {
     | '/reglages/produits'
     | '/api/auth/$'
     | '/api/rpc/$'
+    | '/equipe/'
     | '/reglages/'
+    | '/equipe/agents/$employeeId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/encaissements'
-    | '/equipe'
     | '/livraisons'
     | '/reconciliations'
     | '/stock'
@@ -259,6 +338,12 @@ export interface FileRouteTypes {
     | '/'
     | '/collections'
     | '/deliveries'
+    | '/equipe/affectations'
+    | '/equipe/annuaire'
+    | '/equipe/avances'
+    | '/equipe/conges'
+    | '/equipe/paie'
+    | '/equipe/remuneration'
     | '/reglages/boulangerie'
     | '/reglages/categories'
     | '/reglages/lieux'
@@ -266,16 +351,18 @@ export interface FileRouteTypes {
     | '/reglages/produits'
     | '/api/auth/$'
     | '/api/rpc/$'
+    | '/equipe'
     | '/reglages'
+    | '/equipe/agents/$employeeId'
   id:
     | '__root__'
     | '/_shell'
     | '/collections'
     | '/deliveries'
     | '/login'
+    | '/_shell/equipe'
     | '/_shell/reglages'
     | '/_shell/encaissements'
-    | '/_shell/equipe'
     | '/_shell/livraisons'
     | '/_shell/reconciliations'
     | '/_shell/stock'
@@ -284,6 +371,12 @@ export interface FileRouteTypes {
     | '/_shell/'
     | '/collections/'
     | '/deliveries/'
+    | '/_shell/equipe/affectations'
+    | '/_shell/equipe/annuaire'
+    | '/_shell/equipe/avances'
+    | '/_shell/equipe/conges'
+    | '/_shell/equipe/paie'
+    | '/_shell/equipe/remuneration'
     | '/_shell/reglages/boulangerie'
     | '/_shell/reglages/categories'
     | '/_shell/reglages/lieux'
@@ -291,7 +384,9 @@ export interface FileRouteTypes {
     | '/_shell/reglages/produits'
     | '/api/auth/$'
     | '/api/rpc/$'
+    | '/_shell/equipe/'
     | '/_shell/reglages/'
+    | '/_shell/equipe/agents/$employeeId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -389,13 +484,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellLivraisonsRouteImport
       parentRoute: typeof ShellRoute
     }
-    '/_shell/equipe': {
-      id: '/_shell/equipe'
-      path: '/equipe'
-      fullPath: '/equipe'
-      preLoaderRoute: typeof ShellEquipeRouteImport
-      parentRoute: typeof ShellRoute
-    }
     '/_shell/encaissements': {
       id: '/_shell/encaissements'
       path: '/encaissements'
@@ -410,12 +498,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellReglagesRouteRouteImport
       parentRoute: typeof ShellRoute
     }
+    '/_shell/equipe': {
+      id: '/_shell/equipe'
+      path: '/equipe'
+      fullPath: '/equipe'
+      preLoaderRoute: typeof ShellEquipeRouteRouteImport
+      parentRoute: typeof ShellRoute
+    }
     '/_shell/reglages/': {
       id: '/_shell/reglages/'
       path: '/'
       fullPath: '/reglages/'
       preLoaderRoute: typeof ShellReglagesIndexRouteImport
       parentRoute: typeof ShellReglagesRouteRoute
+    }
+    '/_shell/equipe/': {
+      id: '/_shell/equipe/'
+      path: '/'
+      fullPath: '/equipe/'
+      preLoaderRoute: typeof ShellEquipeIndexRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
     }
     '/api/rpc/$': {
       id: '/api/rpc/$'
@@ -466,8 +568,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellReglagesBoulangerieRouteImport
       parentRoute: typeof ShellReglagesRouteRoute
     }
+    '/_shell/equipe/remuneration': {
+      id: '/_shell/equipe/remuneration'
+      path: '/remuneration'
+      fullPath: '/equipe/remuneration'
+      preLoaderRoute: typeof ShellEquipeRemunerationRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
+    '/_shell/equipe/paie': {
+      id: '/_shell/equipe/paie'
+      path: '/paie'
+      fullPath: '/equipe/paie'
+      preLoaderRoute: typeof ShellEquipePaieRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
+    '/_shell/equipe/conges': {
+      id: '/_shell/equipe/conges'
+      path: '/conges'
+      fullPath: '/equipe/conges'
+      preLoaderRoute: typeof ShellEquipeCongesRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
+    '/_shell/equipe/avances': {
+      id: '/_shell/equipe/avances'
+      path: '/avances'
+      fullPath: '/equipe/avances'
+      preLoaderRoute: typeof ShellEquipeAvancesRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
+    '/_shell/equipe/annuaire': {
+      id: '/_shell/equipe/annuaire'
+      path: '/annuaire'
+      fullPath: '/equipe/annuaire'
+      preLoaderRoute: typeof ShellEquipeAnnuaireRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
+    '/_shell/equipe/affectations': {
+      id: '/_shell/equipe/affectations'
+      path: '/affectations'
+      fullPath: '/equipe/affectations'
+      preLoaderRoute: typeof ShellEquipeAffectationsRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
+    '/_shell/equipe/agents/$employeeId': {
+      id: '/_shell/equipe/agents/$employeeId'
+      path: '/agents/$employeeId'
+      fullPath: '/equipe/agents/$employeeId'
+      preLoaderRoute: typeof ShellEquipeAgentsEmployeeIdRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
   }
 }
+
+interface ShellEquipeRouteRouteChildren {
+  ShellEquipeAffectationsRoute: typeof ShellEquipeAffectationsRoute
+  ShellEquipeAnnuaireRoute: typeof ShellEquipeAnnuaireRoute
+  ShellEquipeAvancesRoute: typeof ShellEquipeAvancesRoute
+  ShellEquipeCongesRoute: typeof ShellEquipeCongesRoute
+  ShellEquipePaieRoute: typeof ShellEquipePaieRoute
+  ShellEquipeRemunerationRoute: typeof ShellEquipeRemunerationRoute
+  ShellEquipeIndexRoute: typeof ShellEquipeIndexRoute
+  ShellEquipeAgentsEmployeeIdRoute: typeof ShellEquipeAgentsEmployeeIdRoute
+}
+
+const ShellEquipeRouteRouteChildren: ShellEquipeRouteRouteChildren = {
+  ShellEquipeAffectationsRoute: ShellEquipeAffectationsRoute,
+  ShellEquipeAnnuaireRoute: ShellEquipeAnnuaireRoute,
+  ShellEquipeAvancesRoute: ShellEquipeAvancesRoute,
+  ShellEquipeCongesRoute: ShellEquipeCongesRoute,
+  ShellEquipePaieRoute: ShellEquipePaieRoute,
+  ShellEquipeRemunerationRoute: ShellEquipeRemunerationRoute,
+  ShellEquipeIndexRoute: ShellEquipeIndexRoute,
+  ShellEquipeAgentsEmployeeIdRoute: ShellEquipeAgentsEmployeeIdRoute,
+}
+
+const ShellEquipeRouteRouteWithChildren =
+  ShellEquipeRouteRoute._addFileChildren(ShellEquipeRouteRouteChildren)
 
 interface ShellReglagesRouteRouteChildren {
   ShellReglagesBoulangerieRoute: typeof ShellReglagesBoulangerieRoute
@@ -491,9 +667,9 @@ const ShellReglagesRouteRouteWithChildren =
   ShellReglagesRouteRoute._addFileChildren(ShellReglagesRouteRouteChildren)
 
 interface ShellRouteChildren {
+  ShellEquipeRouteRoute: typeof ShellEquipeRouteRouteWithChildren
   ShellReglagesRouteRoute: typeof ShellReglagesRouteRouteWithChildren
   ShellEncaissementsRoute: typeof ShellEncaissementsRoute
-  ShellEquipeRoute: typeof ShellEquipeRoute
   ShellLivraisonsRoute: typeof ShellLivraisonsRoute
   ShellReconciliationsRoute: typeof ShellReconciliationsRoute
   ShellStockRoute: typeof ShellStockRoute
@@ -501,9 +677,9 @@ interface ShellRouteChildren {
 }
 
 const ShellRouteChildren: ShellRouteChildren = {
+  ShellEquipeRouteRoute: ShellEquipeRouteRouteWithChildren,
   ShellReglagesRouteRoute: ShellReglagesRouteRouteWithChildren,
   ShellEncaissementsRoute: ShellEncaissementsRoute,
-  ShellEquipeRoute: ShellEquipeRoute,
   ShellLivraisonsRoute: ShellLivraisonsRoute,
   ShellReconciliationsRoute: ShellReconciliationsRoute,
   ShellStockRoute: ShellStockRoute,

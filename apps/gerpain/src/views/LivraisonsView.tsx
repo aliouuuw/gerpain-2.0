@@ -214,7 +214,7 @@ export function LivraisonsView() {
             <p className="prepare-day-cta__hint">
               Créez une ligne par livreur actif pour commencer la saisie Matin / Soir.
               Pas de livreurs ?{' '}
-              <Link to="/equipe" className="text-link">
+              <Link to="/equipe/affectations" className="text-link">
                 Ajoutez-les dans Équipe
               </Link>
               .

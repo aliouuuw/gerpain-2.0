@@ -7,6 +7,8 @@ export type SectionNavItem = {
   label: string
   hint?: string
   disabled?: boolean
+  /** Extra path prefix that should mark this item active (e.g. drill-down routes). */
+  matchPath?: string
 }
 
 export type SectionNavLayoutProps = {
@@ -25,7 +27,10 @@ export function SectionNavLayout({ navLabel, items }: SectionNavLayoutProps) {
       <aside className="section-nav">
         <nav className="section-nav__list" aria-label={navLabel}>
           {items.map((item) => {
-            const isActive = pathname === item.to || pathname.startsWith(`${item.to}/`)
+            const isActive =
+              pathname === item.to ||
+              pathname.startsWith(`${item.to}/`) ||
+              (item.matchPath != null && pathname.startsWith(item.matchPath))
 
             if (item.disabled) {
               return (
