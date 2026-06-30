@@ -3,12 +3,31 @@ import { usePermissions } from '#/lib/use-permissions'
 import { shellSearchSchema } from '#/lib/shell-date'
 
 const tabs = [
-  { to: '/', label: 'Accueil', hint: undefined, mock: false },
-  { to: '/livraisons', label: 'Livraisons', hint: 'Sorties du jour', mock: false },
-  { to: '/encaissements', label: 'Encaissements', hint: 'Argent reçu', mock: false },
-  { to: '/stock', label: 'Stock', hint: 'Bientôt disponible', mock: true },
-  { to: '/equipe', label: 'Équipe', hint: undefined, mock: false },
-  { to: '/reglages', label: 'Réglages', hint: undefined, mock: false },
+  { to: '/', label: 'Accueil', hint: undefined, mock: false, managerOnly: false },
+  {
+    to: '/livraisons',
+    label: 'Livraisons',
+    hint: 'Sorties du jour',
+    mock: false,
+    managerOnly: false,
+  },
+  {
+    to: '/encaissements',
+    label: 'Encaissements',
+    hint: 'Argent reçu',
+    mock: false,
+    managerOnly: false,
+  },
+  {
+    to: '/reconciliations',
+    label: 'Réconciliations',
+    hint: 'Clôture paie par agent',
+    mock: false,
+    managerOnly: true,
+  },
+  { to: '/stock', label: 'Stock', hint: 'Bientôt disponible', mock: true, managerOnly: false },
+  { to: '/equipe', label: 'Équipe', hint: undefined, mock: false, managerOnly: false },
+  { to: '/reglages', label: 'Réglages', hint: undefined, mock: false, managerOnly: false },
 ] as const
 
 export function TabNav() {
@@ -18,19 +37,10 @@ export function TabNav() {
   const search = parsed.success ? parsed.data : {}
   const { canManageCollections } = usePermissions()
 
-  const visibleTabs = [
-    ...tabs.filter((tab) => !tab.mock),
-    ...(canManageCollections
-      ? [
-          {
-            to: '/reconciliations' as const,
-            label: 'Réconciliations',
-            hint: 'Clôture paie par agent',
-            mock: false,
-          },
-        ]
-      : []),
-  ]
+  const visibleTabs = tabs.filter(
+    (tab) =>
+      !tab.mock && (!tab.managerOnly || canManageCollections),
+  )
 
   return (
     <nav className="tab-nav" aria-label="Navigation principale">

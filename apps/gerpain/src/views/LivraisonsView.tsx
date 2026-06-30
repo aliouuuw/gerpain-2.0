@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import { DeliveryRunPanel } from '#/components/deliveries/DeliveryRunPanel'
@@ -16,8 +17,8 @@ import { orpc } from '#/lib/orpc-client'
 import { formatRpcError } from '#/lib/rpc-error'
 import { runEntryProgress } from '#/lib/run-progress'
 import { useShellDate } from '#/lib/use-shell-date'
+import { usePermissions } from '#/lib/use-permissions'
 
-const COL_COUNT = 6
 const routeApi = getRouteApi('/_shell/livraisons')
 
 function getInitials(name: string) {
@@ -59,9 +60,12 @@ export function LivraisonsView() {
   const queryClient = useQueryClient()
   const search = routeApi.useSearch()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
+  const { canManageCollections: canManage } = usePermissions()
   const { operationalDate } = useShellDate()
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [prepareError, setPrepareError] = useState<string | null>(null)
+
+  const colCount = canManage ? 7 : 6
 
   useEffect(() => {
     if (!search.run) return
@@ -102,6 +106,31 @@ export function LivraisonsView() {
       onError: (err) => setPrepareError(formatRpcError(err)),
     }),
   )
+
+  const reorderEmployees = useMutation(
+    orpc.employees.reorder.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.deliveries.listRuns.key(),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: orpc.employees.list.key(),
+        })
+      },
+    }),
+  )
+
+  function moveRun(index: number, direction: -1 | 1) {
+    if (!bakeryId || !runs.data) return
+    const target = index + direction
+    if (target < 0 || target >= runs.data.length) return
+
+    const orderedIds = runs.data.map((run) => run.employeeId)
+    const [moved] = orderedIds.splice(index, 1)
+    orderedIds.splice(target, 0, moved!)
+
+    reorderEmployees.mutate({ bakeryId, orderedIds })
+  }
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
@@ -158,6 +187,9 @@ export function LivraisonsView() {
       <HelpNote>
         Une ligne par agent. Saisissez confié et retour par produit (Matin /
         Soir), puis validez — l&apos;encaissement est créé automatiquement.
+        {canManage
+          ? ' Utilisez les flèches pour définir l’ordre de passage des livreurs.'
+          : null}
       </HelpNote>
 
       <Card>
@@ -208,6 +240,7 @@ export function LivraisonsView() {
           <table className="data-table data-table--expandable">
             <thead>
               <tr>
+                {canManage ? <th aria-label="Ordre" /> : null}
                 <th>Agent & Secteur</th>
                 <th>Saisie</th>
                 <th>Volume (unités)</th>
@@ -217,7 +250,7 @@ export function LivraisonsView() {
               </tr>
             </thead>
             <tbody>
-              {runs.data.map((run) => {
+              {runs.data.map((run, index) => {
                 const matinQty = periodQty(run.items, 'matin')
                 const soirQty = periodQty(run.items, 'soir')
                 const expected = runExpected(run.items)
@@ -241,6 +274,34 @@ export function LivraisonsView() {
                         }
                       }}
                     >
+                      {canManage ? (
+                        <td
+                          className="reorder-cell"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            className="reorder-btn"
+                            aria-label="Monter"
+                            disabled={index === 0 || reorderEmployees.isPending}
+                            onClick={() => moveRun(index, -1)}
+                          >
+                            <ChevronUp size={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="reorder-btn"
+                            aria-label="Descendre"
+                            disabled={
+                              index === runs.data.length - 1 ||
+                              reorderEmployees.isPending
+                            }
+                            onClick={() => moveRun(index, 1)}
+                          >
+                            <ChevronDown size={16} aria-hidden="true" />
+                          </button>
+                        </td>
+                      ) : null}
                       <td>
                         <div className="agent-lockup">
                           <div className="avatar--sm">{getInitials(run.employeeName)}</div>
@@ -314,7 +375,7 @@ export function LivraisonsView() {
                     </tr>
                     {isSelected && bakeryId ? (
                       <tr className="data-table__expand-row">
-                        <td colSpan={COL_COUNT}>
+                        <td colSpan={colCount}>
                           <DeliveryRunPanel
                             inline
                             runId={run.id}
