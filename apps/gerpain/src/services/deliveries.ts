@@ -12,6 +12,10 @@ import {
   products,
 } from '@gerpain/db'
 
+type DbClient =
+  | Database
+  | Parameters<Parameters<Database['transaction']>[0]>[0]
+
 export class DeliveryServiceError extends Error {
   constructor(
     readonly code:
@@ -90,7 +94,7 @@ function buildDraftItemValues(
 }
 
 async function syncDraftRunItems(
-  db: Database,
+  db: DbClient,
   input: { organizationId: string; bakeryId: string; date: string },
 ) {
   const { organizationId, bakeryId, date } = input
@@ -180,7 +184,7 @@ async function syncDraftRunItems(
 }
 
 async function prepareDeliveryDay(
-  db: Database,
+  db: DbClient,
   input: { organizationId: string; bakeryId: string; date: string },
 ) {
   const { organizationId, bakeryId, date } = input
@@ -318,31 +322,33 @@ export async function prepareDeliveryDayRuns(
   db: Database,
   input: { organizationId: string; bakeryId: string; date: string },
 ): Promise<{ created: number }> {
-  const before = await db
-    .select()
-    .from(deliveryRuns)
-    .where(
-      and(
-        eq(deliveryRuns.organizationId, input.organizationId),
-        eq(deliveryRuns.bakeryId, input.bakeryId),
-        eq(deliveryRuns.date, input.date),
-      ),
-    )
+  return db.transaction(async (tx) => {
+    const before = await tx
+      .select({ id: deliveryRuns.id })
+      .from(deliveryRuns)
+      .where(
+        and(
+          eq(deliveryRuns.organizationId, input.organizationId),
+          eq(deliveryRuns.bakeryId, input.bakeryId),
+          eq(deliveryRuns.date, input.date),
+        ),
+      )
 
-  await prepareDeliveryDay(db, input)
+    await prepareDeliveryDay(tx, input)
 
-  const after = await db
-    .select()
-    .from(deliveryRuns)
-    .where(
-      and(
-        eq(deliveryRuns.organizationId, input.organizationId),
-        eq(deliveryRuns.bakeryId, input.bakeryId),
-        eq(deliveryRuns.date, input.date),
-      ),
-    )
+    const after = await tx
+      .select({ id: deliveryRuns.id })
+      .from(deliveryRuns)
+      .where(
+        and(
+          eq(deliveryRuns.organizationId, input.organizationId),
+          eq(deliveryRuns.bakeryId, input.bakeryId),
+          eq(deliveryRuns.date, input.date),
+        ),
+      )
 
-  return { created: after.length - before.length }
+    return { created: after.length - before.length }
+  })
 }
 
 export async function listDeliveryRuns(

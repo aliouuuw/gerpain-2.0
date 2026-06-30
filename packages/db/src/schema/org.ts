@@ -1,4 +1,11 @@
-import { boolean, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -17,20 +24,29 @@ export const organizations = pgTable('organizations', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export const bakeries = pgTable('bakeries', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  organizationId: uuid('organization_id')
-    .notNull()
-    .references(() => organizations.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  code: text('code').notNull(),
-  address: text('address'),
-  phone: text('phone'),
-  settings: text('settings').default('{}'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-})
+export const bakeries = pgTable(
+  'bakeries',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    code: text('code').notNull(),
+    address: text('address'),
+    phone: text('phone'),
+    settings: text('settings').default('{}'),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    orgCodeUnique: unique('bakeries_org_code_unique').on(
+      table.organizationId,
+      table.code,
+    ),
+  }),
+)
 
 export const organizationMembers = pgTable('organization_members', {
   id: uuid('id').defaultRandom().primaryKey(),

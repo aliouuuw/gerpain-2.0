@@ -1,0 +1,1 @@
+ALTER TABLE "bakeries" ADD CONSTRAINT "bakeries_org_code_unique" UNIQUE("organization_id","code");

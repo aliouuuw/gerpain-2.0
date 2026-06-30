@@ -164,7 +164,18 @@ export function LivraisonsView() {
         {!bakeryId || bakeryLoading || runs.isLoading ? (
           <p className="empty-state">Chargement des tournées…</p>
         ) : runs.isError ? (
-          <p className="empty-state">Impossible de charger les livraisons.</p>
+          <div className="empty-state empty-state--action">
+            <p>Impossible de charger les livraisons.</p>
+            <p className="empty-state__hint">{formatRpcError(runs.error)}</p>
+            <button
+              type="button"
+              className="btn-primary btn-sm"
+              disabled={runs.isFetching}
+              onClick={() => void runs.refetch()}
+            >
+              {runs.isFetching ? 'Nouvelle tentative…' : 'Réessayer'}
+            </button>
+          </div>
         ) : !runs.data || runs.data.length === 0 ? (
           <div className="prepare-day-cta" role="status">
             <p className="prepare-day-cta__title">Aucune tournée pour cette journée</p>
