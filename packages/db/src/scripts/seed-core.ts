@@ -183,10 +183,16 @@ async function seedLegacyDomain(legacyOrgId: string, truncate: boolean) {
       CASCADE
     `)
   } else {
-    const existing = await db.query.products.findFirst({
-      where: eq(products.organizationId, legacyOrgId),
+    // Idempotency guard: the bakery is the first row inserted below, so guard on
+    // it (org + code) rather than products. Guarding on products meant a seed run
+    // that failed after the bakery insert would append a *second* bakery on retry.
+    const existingBakery = await db.query.bakeries.findFirst({
+      where: and(
+        eq(bakeries.organizationId, legacyOrgId),
+        eq(bakeries.code, 'BC'),
+      ),
     })
-    if (existing) {
+    if (existingBakery) {
       console.log('ℹ️  Domain data already present — skipping catalog seed.')
       return null
     }
