@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import { type Database, categories } from '@gerpain/db'
 
@@ -30,7 +30,7 @@ export async function listCategories(
 ) {
   const rows = await db.query.categories.findMany({
     where: eq(categories.organizationId, organizationId),
-    orderBy: [desc(categories.sortOrder), categories.name],
+    orderBy: [asc(categories.sortOrder), asc(categories.name)],
   })
 
   if (options?.includeInactive) {
@@ -123,4 +123,42 @@ export async function deactivateCategory(
   categoryId: string,
 ) {
   return updateCategory(db, organizationId, categoryId, { isActive: false })
+}
+
+export async function reorderCategories(
+  db: Database,
+  organizationId: string,
+  orderedIds: string[],
+): Promise<void> {
+  if (orderedIds.length === 0) return
+
+  await db.transaction(async (tx) => {
+    const owned = await tx
+      .select({ id: categories.id })
+      .from(categories)
+      .where(
+        and(
+          inArray(categories.id, orderedIds),
+          eq(categories.organizationId, organizationId),
+        ),
+      )
+
+    const ownedIds = new Set(owned.map((row) => row.id))
+    const now = new Date()
+
+    let position = 0
+    for (const id of orderedIds) {
+      if (!ownedIds.has(id)) continue
+      await tx
+        .update(categories)
+        .set({ sortOrder: position, updatedAt: now })
+        .where(
+          and(
+            eq(categories.id, id),
+            eq(categories.organizationId, organizationId),
+          ),
+        )
+      position += 1
+    }
+  })
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -314,7 +315,13 @@ export function ProductsSettings() {
       ) : products.isError ? (
         <p className="settings-form__error">Impossible de charger les produits.</p>
       ) : (products.data?.length ?? 0) === 0 ? (
-        <p className="settings-form__hint">Aucun produit pour cette boulangerie.</p>
+        <p className="settings-form__hint">
+          Aucun produit pour cette boulangerie.{' '}
+          <Link to="/reglages/categories" className="text-link">
+            Commencez par les catégories
+          </Link>
+          , puis ajoutez vos produits ici.
+        </p>
       ) : (
         <div className="table-wrap">
           <table className="data-table">

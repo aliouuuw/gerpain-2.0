@@ -19,12 +19,15 @@ export default {
   },
   bakeries: {
     list: bakeries.list,
+    get: bakeries.get,
+    update: bakeries.update,
   },
   categories: {
     list: categories.list,
     get: categories.get,
     create: categories.create,
     update: categories.update,
+    reorder: categories.reorder,
     deactivate: categories.deactivate,
   },
   locations: {

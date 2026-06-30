@@ -9,6 +9,7 @@ import {
   getCategory,
   listCategories,
   CategoryServiceError,
+  reorderCategories,
   updateCategory,
 } from '#/services/categories'
 import { assertManagerRole } from '#/server/permissions'
@@ -87,6 +88,22 @@ export const update = orgContext
     } catch (error) {
       mapCategoryError(error)
     }
+  })
+
+export const reorder = orgContext
+  .input(
+    z.object({
+      orderedIds: z.array(z.string().uuid()).min(1),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await reorderCategories(
+      db,
+      context.legacyOrganizationId,
+      input.orderedIds,
+    )
+    return { ok: true }
   })
 
 export const deactivate = orgContext

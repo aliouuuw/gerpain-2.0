@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { getRouteApi, Link, useNavigate } from '@tanstack/react-router'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 
 import { DeliveryRunPanel } from '#/components/deliveries/DeliveryRunPanel'
@@ -181,6 +181,11 @@ export function LivraisonsView() {
             <p className="prepare-day-cta__title">Aucune tournée pour cette journée</p>
             <p className="prepare-day-cta__hint">
               Créez une ligne par livreur actif pour commencer la saisie Matin / Soir.
+              Pas de livreurs ?{' '}
+              <Link to="/equipe" className="text-link">
+                Ajoutez-les dans Équipe
+              </Link>
+              .
             </p>
             {prepareError ? (
               <p className="form-error" role="alert">

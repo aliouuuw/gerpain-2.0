@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -11,14 +12,12 @@ type FormState = {
   name: string
   description: string
   color: string
-  sortOrder: string
 }
 
 const emptyForm = (): FormState => ({
   name: '',
   description: '',
   color: '',
-  sortOrder: '0',
 })
 
 export function CategoriesSettings() {
@@ -81,6 +80,26 @@ export function CategoriesSettings() {
     }),
   )
 
+  const reorderMutation = useMutation(
+    orpc.categories.reorder.mutationOptions({
+      onSuccess: () => categories.refetch(),
+    }),
+  )
+
+  const canReorder = canManage && !showInactive && !formVisible
+
+  function moveCategory(index: number, direction: -1 | 1) {
+    const list = categories.data ?? []
+    const target = index + direction
+    if (target < 0 || target >= list.length) return
+
+    const orderedIds = list.map((c) => c.id)
+    const [moved] = orderedIds.splice(index, 1)
+    orderedIds.splice(target, 0, moved!)
+
+    reorderMutation.mutate({ orderedIds })
+  }
+
   function startEdit(category: {
     id: string
     name: string
@@ -94,7 +113,6 @@ export function CategoriesSettings() {
       name: category.name,
       description: category.description ?? '',
       color: category.color ?? '',
-      sortOrder: String(category.sortOrder ?? 0),
     })
     setFormError(null)
   }
@@ -112,7 +130,6 @@ export function CategoriesSettings() {
       name: form.name.trim(),
       description: form.description.trim() || undefined,
       color: form.color.trim() || undefined,
-      sortOrder: Number(form.sortOrder) || 0,
     }
 
     if (editingId) {
@@ -152,16 +169,6 @@ export function CategoriesSettings() {
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 required
                 maxLength={255}
-              />
-            </label>
-            <label className="settings-form__field">
-              <span>Ordre</span>
-              <input
-                type="number"
-                value={form.sortOrder}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, sortOrder: e.target.value }))
-                }
               />
             </label>
             <label className="settings-form__field settings-form__field--wide">
@@ -228,15 +235,40 @@ export function CategoriesSettings() {
           <table className="data-table">
             <thead>
               <tr>
+                {canReorder ? <th aria-label="Ordre" /> : null}
                 <th>Nom</th>
-                <th>Ordre</th>
                 <th>Statut</th>
                 {canManage ? <th aria-label="Actions" /> : null}
               </tr>
             </thead>
             <tbody>
-              {categories.data?.map((category) => (
+              {categories.data?.map((category, index) => (
                 <tr key={category.id}>
+                  {canReorder ? (
+                    <td className="reorder-cell">
+                      <button
+                        type="button"
+                        className="reorder-btn"
+                        aria-label="Monter"
+                        disabled={index === 0 || reorderMutation.isPending}
+                        onClick={() => moveCategory(index, -1)}
+                      >
+                        <ChevronUp size={16} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="reorder-btn"
+                        aria-label="Descendre"
+                        disabled={
+                          index === (categories.data?.length ?? 0) - 1 ||
+                          reorderMutation.isPending
+                        }
+                        onClick={() => moveCategory(index, 1)}
+                      >
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </button>
+                    </td>
+                  ) : null}
                   <td>
                     <span className="category-name">
                       {category.color ? (
@@ -249,7 +281,6 @@ export function CategoriesSettings() {
                       {category.name}
                     </span>
                   </td>
-                  <td>{category.sortOrder ?? 0}</td>
                   <td>
                     {category.isActive === false ? (
                       <Badge variant="neutral">Inactive</Badge>

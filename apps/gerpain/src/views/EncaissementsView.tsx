@@ -148,7 +148,15 @@ export function EncaissementsView() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
 
-  const preset: PeriodPreset = search.period ?? 'week'
+  const bakeryDetail = useQuery({
+    ...orpc.bakeries.get.queryOptions({ input: { bakeryId } }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const preset: PeriodPreset =
+    search.period ??
+    bakeryDetail.data?.settings.defaultPayrollPreset ??
+    'week'
   const customStart = search.start ?? todayIso()
   const customEnd = search.end ?? todayIso()
   const employeeParam = search.employee

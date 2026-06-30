@@ -35,7 +35,15 @@ export function ReconciliationsView() {
   const patchNavigate = routeApi.useNavigate()
   const navigate = useNavigate()
 
-  const preset: PeriodPreset = search.period ?? 'month'
+  const bakeryDetail = useQuery({
+    ...orpc.bakeries.get.queryOptions({ input: { bakeryId } }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const preset: PeriodPreset =
+    search.period ??
+    bakeryDetail.data?.settings.defaultPayrollPreset ??
+    'month'
   const customStart = search.start ?? todayIso()
   const customEnd = search.end ?? todayIso()
   const roleFilter = search.role ?? 'all'

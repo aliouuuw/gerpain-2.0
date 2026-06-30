@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
@@ -28,11 +29,15 @@ function PeriodGroup({
   draft,
   editable,
   onChange,
+  entrustedTabIndex,
+  returnedTabIndex,
 }: {
   periodLabel: string
   draft: PeriodDraft | null
   editable: boolean
   onChange: (patch: Partial<ItemDraft>) => void
+  entrustedTabIndex?: number
+  returnedTabIndex?: number
 }) {
   const [returnHint, setReturnHint] = useState(false)
 
@@ -54,6 +59,7 @@ function PeriodGroup({
           <input
             type="text"
             inputMode="numeric"
+            tabIndex={entrustedTabIndex}
             value={draft.entrusted === 0 ? '' : draft.entrusted}
             placeholder="0"
             disabled={!editable}
@@ -70,6 +76,7 @@ function PeriodGroup({
           <input
             type="text"
             inputMode="numeric"
+            tabIndex={returnedTabIndex}
             value={draft.returned === 0 ? '' : draft.returned}
             placeholder="0"
             disabled={!editable}
@@ -325,14 +332,17 @@ export function DeliveryRunPanel({
 
           {rows.length === 0 ? (
             <p className="settings-form__hint">
-              Aucun produit assigné à cet agent. Configurez les produits dans
-              Équipe.
+              Aucun produit assigné à cet agent.{' '}
+              <Link to="/equipe" className="text-link">
+                Configurer dans Équipe →
+              </Link>
             </p>
           ) : (
             <div className="delivery-product-list">
-              {rows.map((row) => {
+              {rows.map((row, rowIndex) => {
                 const matin = draftFor(row.matin)
                 const soir = draftFor(row.soir)
+                const tabBase = rowIndex * 4 + 1
                 const rowTotal =
                   lineTotal(matin, row.unitPrice) +
                   lineTotal(soir, row.unitPrice)
@@ -358,13 +368,17 @@ export function DeliveryRunPanel({
                       periodLabel="Matin"
                       draft={matin}
                       editable={editable}
+                      entrustedTabIndex={tabBase}
+                      returnedTabIndex={tabBase + 1}
                       onChange={(patch) => updateDraft(matin!.itemId, patch)}
                     />
-                    
+
                     <PeriodGroup
                       periodLabel="Soir"
                       draft={soir}
                       editable={editable}
+                      entrustedTabIndex={tabBase + 2}
+                      returnedTabIndex={tabBase + 3}
                       onChange={(patch) => updateDraft(soir!.itemId, patch)}
                     />
 

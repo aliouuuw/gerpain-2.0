@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -278,7 +279,18 @@ export function EquipeView() {
       ) : employees.isError ? (
         <p className="settings-form__error">Impossible de charger l&apos;équipe.</p>
       ) : (employees.data?.length ?? 0) === 0 ? (
-        <p className="settings-form__hint">Aucun employé pour cette boulangerie.</p>
+        <p className="settings-form__hint">
+          Aucun employé pour cette boulangerie.{' '}
+          {canManage ? (
+            <>
+              Ajoutez un livreur ci-dessus, puis configurez les produits dans{' '}
+              <Link to="/reglages/produits" className="text-link">
+                Réglages → Produits
+              </Link>
+              .
+            </>
+          ) : null}
+        </p>
       ) : (
         <section className="cards-grid">
           {employees.data?.map((employee, index) => (
