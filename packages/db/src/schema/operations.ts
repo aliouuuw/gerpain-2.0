@@ -110,6 +110,31 @@ export const employeeProducts = pgTable('employee_products', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const leaveRequests = pgTable('leave_requests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  bakeryId: uuid('bakery_id')
+    .notNull()
+    .references(() => bakeries.id, { onDelete: 'cascade' }),
+  employeeId: uuid('employee_id')
+    .notNull()
+    .references(() => employees.id, { onDelete: 'cascade' }),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  type: text('type').notNull().default('annual'),
+  status: text('status').notNull().default('pending'),
+  reason: text('reason'),
+  reviewedBy: uuid('reviewed_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  reviewedAt: timestamp('reviewed_at'),
+  reviewNote: text('review_note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 export const deliveryRuns = pgTable('delivery_runs', {
   id: uuid('id').defaultRandom().primaryKey(),
   organizationId: uuid('organization_id')
@@ -280,6 +305,7 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
   employeeProducts: many(employeeProducts),
   deliveryRuns: many(deliveryRuns),
   cashCollections: many(cashCollections),
+  leaveRequests: many(leaveRequests),
 }))
 
 export const employeeLocationsRelations = relations(employeeLocations, ({ one }) => ({
@@ -301,6 +327,25 @@ export const employeeProductsRelations = relations(employeeProducts, ({ one }) =
   product: one(products, {
     fields: [employeeProducts.productId],
     references: [products.id],
+  }),
+}))
+
+export const leaveRequestsRelations = relations(leaveRequests, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [leaveRequests.organizationId],
+    references: [organizations.id],
+  }),
+  bakery: one(bakeries, {
+    fields: [leaveRequests.bakeryId],
+    references: [bakeries.id],
+  }),
+  employee: one(employees, {
+    fields: [leaveRequests.employeeId],
+    references: [employees.id],
+  }),
+  reviewer: one(users, {
+    fields: [leaveRequests.reviewedBy],
+    references: [users.id],
   }),
 }))
 
@@ -495,6 +540,16 @@ export const insertEmployeeProductSchema = z.object({
   isActive: z.boolean().optional(),
 })
 
+export const insertLeaveRequestSchema = z.object({
+  organizationId: z.string().uuid(),
+  bakeryId: z.string().uuid(),
+  employeeId: z.string().uuid(),
+  startDate: z.string(),
+  endDate: z.string(),
+  type: z.enum(['annual', 'sick', 'other']).optional(),
+  reason: z.string().optional(),
+})
+
 export const insertInventoryItemSchema = z.object({
   organizationId: z.string().uuid(),
   locationId: z.string().uuid(),
@@ -523,6 +578,8 @@ export type CashCollection = typeof cashCollections.$inferSelect
 export type NewCashCollection = typeof cashCollections.$inferInsert
 export type EmployeeProduct = typeof employeeProducts.$inferSelect
 export type NewEmployeeProduct = typeof employeeProducts.$inferInsert
+export type LeaveRequest = typeof leaveRequests.$inferSelect
+export type NewLeaveRequest = typeof leaveRequests.$inferInsert
 export type PricingRule = typeof pricingRules.$inferSelect
 export type NewPricingRule = typeof pricingRules.$inferInsert
 export type InventoryItem = typeof inventoryItems.$inferSelect

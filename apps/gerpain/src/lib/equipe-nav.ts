@@ -27,7 +27,6 @@ export const equipeNavItems = [
     to: '/equipe/conges',
     label: 'Congés',
     hint: 'Demandes et absences',
-    disabled: true,
   },
   {
     to: '/equipe/paie',

@@ -12,6 +12,8 @@ import {
   products,
 } from '@gerpain/db'
 
+import { getEmployeeIdsOnApprovedLeave } from '#/services/leave-requests'
+
 type DbClient =
   | Database
   | Parameters<Parameters<Database['transaction']>[0]>[0]
@@ -214,8 +216,17 @@ async function prepareDeliveryDay(
     )
     .orderBy(asc(employees.sortOrder), asc(employees.hireDate))
 
+  const onLeaveIds = await getEmployeeIdsOnApprovedLeave(
+    db,
+    organizationId,
+    bakeryId,
+    date,
+  )
+
   const eligibleEmployees = deliveryEmployees.filter(
-    (employee) => !employee.hireDate || employee.hireDate <= date,
+    (employee) =>
+      (!employee.hireDate || employee.hireDate <= date) &&
+      !onLeaveIds.has(employee.id),
   )
 
   const existingEmployeeIds = new Set(existingRuns.map((r) => r.employeeId))

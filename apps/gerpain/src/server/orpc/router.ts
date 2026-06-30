@@ -5,6 +5,7 @@ import * as dashboard from './dashboard'
 import * as deliveries from './deliveries'
 import * as employees from './employees'
 import * as health from './health'
+import * as leaveRequests from './leave-requests'
 import * as locations from './locations'
 import * as me from './me'
 import * as products from './products'
@@ -77,5 +78,12 @@ export default {
     reorder: employees.reorder,
     listProducts: employees.listProducts,
     setProducts: employees.setProducts,
+  },
+  leaveRequests: {
+    list: leaveRequests.list,
+    create: leaveRequests.create,
+    approve: leaveRequests.approve,
+    reject: leaveRequests.reject,
+    cancel: leaveRequests.cancel,
   },
 }

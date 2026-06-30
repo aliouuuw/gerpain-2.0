@@ -968,6 +968,10 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
+.leave-review-note {
+  margin-top: 16px;
+}
+
 /* === Fiche agent === */
 
 .fiche-back {
