@@ -216,13 +216,96 @@
 /* === Day context bar === */
 .day-context {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 24px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.day-context__row {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px 20px;
-  padding: 12px 24px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  width: 100%;
+}
+
+.day-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  width: 100%;
+}
+
+.day-strip__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  color: var(--text-2);
+}
+
+.day-strip__day:hover {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.day-strip__day--selected {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.day-strip__day--today .day-strip__num {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.day-strip__weekday {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.day-strip__num {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.day-strip__dots {
+  display: flex;
+  gap: 3px;
+  min-height: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-strip__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+.day-strip__dot--delivery {
+  background: var(--accent);
+}
+
+.day-strip__dot--collection {
+  background: var(--success);
+}
+
+.day-strip__dot--strong {
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 .day-context__left {
@@ -591,6 +674,20 @@
   padding: 8px 0;
   font-size: 14px;
   color: var(--text-2);
+}
+
+.empty-state--action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px 0;
+}
+
+.empty-state__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 /* === Mini lists === */

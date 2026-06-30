@@ -209,10 +209,16 @@ function CollectionDetailPage() {
           ) : null}
         </div>
         <Link
-          to="/collections"
+          to="/encaissements"
+          search={{
+            employee: collection.data?.employeeId,
+            period: 'custom',
+            start: collection.data?.date,
+            end: collection.data?.date,
+          }}
           className="text-sm text-neutral-500 underline hover:text-neutral-800"
         >
-          Retour
+          Retour aux encaissements
         </Link>
       </div>
 

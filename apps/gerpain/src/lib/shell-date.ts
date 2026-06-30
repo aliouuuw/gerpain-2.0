@@ -30,3 +30,23 @@ export function formatDayShort(iso: string): string {
     month: 'short',
   })
 }
+
+/** Monday-start week containing `centerIso`. */
+export function weekRange(centerIso: string): string[] {
+  const center = new Date(`${centerIso}T12:00:00`)
+  const weekday = center.getDay()
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday
+  const monday = new Date(center)
+  monday.setDate(center.getDate() + mondayOffset)
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + index)
+    return day.toISOString().slice(0, 10)
+  })
+}
+
+export function weekBounds(centerIso: string): { startDate: string; endDate: string } {
+  const days = weekRange(centerIso)
+  return { startDate: days[0]!, endDate: days[6]! }
+}

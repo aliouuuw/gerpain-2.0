@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Fragment, useMemo, useState } from 'react'
 
@@ -13,6 +13,7 @@ import {
 } from '#/lib/day-operations'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
+import { formatRpcError } from '#/lib/rpc-error'
 import { runEntryProgress } from '#/lib/run-progress'
 import { useShellDate } from '#/lib/use-shell-date'
 
@@ -54,9 +55,11 @@ function deliveryBadge(status: string) {
 
 export function LivraisonsView() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { operationalDate } = useShellDate()
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
+  const [prepareError, setPrepareError] = useState<string | null>(null)
 
   const runs = useQuery({
     ...orpc.deliveries.listRuns.queryOptions({
@@ -64,6 +67,21 @@ export function LivraisonsView() {
     }),
     enabled: Boolean(bakeryId),
   })
+
+  const prepareDay = useMutation(
+    orpc.deliveries.prepareDay.mutationOptions({
+      onMutate: () => setPrepareError(null),
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.deliveries.listRuns.key(),
+        })
+        void queryClient.invalidateQueries({
+          queryKey: orpc.dashboard.dayActivity.key(),
+        })
+      },
+      onError: (err) => setPrepareError(formatRpcError(err)),
+    }),
+  )
 
   const collections = useQuery({
     ...orpc.collections.list.queryOptions({
@@ -128,7 +146,28 @@ export function LivraisonsView() {
         ) : runs.isError ? (
           <p className="empty-state">Impossible de charger les livraisons.</p>
         ) : !runs.data || runs.data.length === 0 ? (
-          <p className="empty-state">Aucune tournée pour cette journée.</p>
+          <div className="empty-state empty-state--action">
+            <p>Aucune tournée pour cette journée.</p>
+            <p className="empty-state__hint">
+              Préparez la journée pour créer une ligne par livreur actif.
+            </p>
+            {prepareError ? (
+              <p className="form-error" role="alert">
+                {prepareError}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn--primary"
+              disabled={!bakeryId || prepareDay.isPending}
+              onClick={() => {
+                if (!bakeryId) return
+                prepareDay.mutate({ bakeryId, date: operationalDate })
+              }}
+            >
+              {prepareDay.isPending ? 'Préparation…' : 'Préparer les tournées'}
+            </button>
+          </div>
         ) : (
           <table className="data-table data-table--expandable">
             <thead>

@@ -8,6 +8,7 @@ import {
   DeliveryServiceError,
   getDeliveryRun,
   listDeliveryRuns,
+  prepareDeliveryDayRuns,
   updateDeliveryItem,
   validateDeliveryRun,
 } from '#/services/deliveries'
@@ -62,6 +63,33 @@ export const listRuns = orgContext
       employeeId: input.employeeId,
       locationId: input.locationId,
       status: input.status,
+    })
+  })
+
+export const prepareDay = orgContext
+  .input(
+    z.object({
+      bakeryId: z.string().uuid(),
+      date: dateSchema,
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    const bakery = await getBakeryForOrg(
+      db,
+      context.legacyOrganizationId,
+      input.bakeryId,
+    )
+
+    if (!bakery) {
+      throw new ORPCError('NOT_FOUND', {
+        message: 'Boulangerie introuvable',
+      })
+    }
+
+    return prepareDeliveryDayRuns(db, {
+      organizationId: context.legacyOrganizationId,
+      bakeryId: input.bakeryId,
+      date: input.date,
     })
   })
 

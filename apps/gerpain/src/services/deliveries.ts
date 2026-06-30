@@ -179,7 +179,7 @@ async function syncDraftRunItems(
   }
 }
 
-async function ensureDraftRunsForDate(
+async function prepareDeliveryDay(
   db: Database,
   input: { organizationId: string; bakeryId: string; date: string },
 ) {
@@ -314,16 +314,43 @@ async function ensureDraftRunsForDate(
   await syncDraftRunItems(db, { organizationId, bakeryId, date })
 }
 
+export async function prepareDeliveryDayRuns(
+  db: Database,
+  input: { organizationId: string; bakeryId: string; date: string },
+): Promise<{ created: number }> {
+  const before = await db
+    .select()
+    .from(deliveryRuns)
+    .where(
+      and(
+        eq(deliveryRuns.organizationId, input.organizationId),
+        eq(deliveryRuns.bakeryId, input.bakeryId),
+        eq(deliveryRuns.date, input.date),
+      ),
+    )
+
+  await prepareDeliveryDay(db, input)
+
+  const after = await db
+    .select()
+    .from(deliveryRuns)
+    .where(
+      and(
+        eq(deliveryRuns.organizationId, input.organizationId),
+        eq(deliveryRuns.bakeryId, input.bakeryId),
+        eq(deliveryRuns.date, input.date),
+      ),
+    )
+
+  return { created: after.length - before.length }
+}
+
 export async function listDeliveryRuns(
   db: Database,
   input: ListDeliveryRunsInput,
 ): Promise<DeliveryRunDetail[]> {
   const { organizationId, bakeryId, date, startDate, endDate, employeeId, locationId, status } =
     input
-
-  if (date && !startDate && !endDate) {
-    await ensureDraftRunsForDate(db, { organizationId, bakeryId, date })
-  }
 
   const conditions = [eq(deliveryRuns.organizationId, organizationId)]
 

@@ -56,9 +56,11 @@ export default {
   },
   dashboard: {
     summary: dashboard.summary,
+    dayActivity: dashboard.dayActivity,
   },
   deliveries: {
     listRuns: deliveries.listRuns,
+    prepareDay: deliveries.prepareDay,
     getRun: deliveries.getRun,
     updateItem: deliveries.updateItem,
     validateRun: deliveries.validateRun,

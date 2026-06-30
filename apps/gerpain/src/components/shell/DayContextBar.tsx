@@ -5,6 +5,7 @@ import { useBakery } from '#/lib/bakery-context'
 import { orpc } from '#/lib/orpc-client'
 import { todayIso } from '#/lib/today'
 import { useShellDate } from '#/lib/use-shell-date'
+import { DayStrip } from '#/components/shell/DayStrip'
 
 export function DayContextBar() {
   const { bakery, bakeries, bakeryId, setBakeryId, isLoading, isError } =
@@ -76,13 +77,16 @@ export function DayContextBar() {
   }
 
   const statusMessage =
-    operationalDate === todayIso()
-      ? "Tout est à jour pour aujourd'hui"
-      : 'Tout est à jour pour cette journée'
+    runs.data && runs.data.length === 0
+      ? 'Aucune tournée pour cette journée'
+      : operationalDate === todayIso()
+        ? "Tout est à jour pour aujourd'hui"
+        : 'Tout est à jour pour cette journée'
 
   return (
     <div className="day-context">
-      <div className="day-context__left">
+      <div className="day-context__row">
+        <div className="day-context__left">
         <div className="bakery-picker" ref={menuRef}>
           <button
             type="button"
@@ -171,19 +175,21 @@ export function DayContextBar() {
             </button>
           ) : null}
         </div>
+        </div>
+        <div className="day-context__right">
+          {runs.isLoading || collections.isLoading ? (
+            <p className="day-context__ok">Chargement du jour…</p>
+          ) : alerts.length > 0 ? (
+            <p className="day-context__alerts" role="status">
+              <span className="day-context__alerts-dot" aria-hidden="true" />
+              {alerts.join(' · ')}
+            </p>
+          ) : (
+            <p className="day-context__ok">{statusMessage}</p>
+          )}
+        </div>
       </div>
-      <div className="day-context__right">
-        {runs.isLoading || collections.isLoading ? (
-          <p className="day-context__ok">Chargement du jour…</p>
-        ) : alerts.length > 0 ? (
-          <p className="day-context__alerts" role="status">
-            <span className="day-context__alerts-dot" aria-hidden="true" />
-            {alerts.join(' · ')}
-          </p>
-        ) : (
-          <p className="day-context__ok">{statusMessage}</p>
-        )}
-      </div>
+      <DayStrip selectedDate={urlDate} onSelectDate={setDate} />
     </div>
   )
 }
