@@ -110,6 +110,84 @@ export const employeeProducts = pgTable('employee_products', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const salaryAdvanceStatuses = [
+  'active',
+  'closed',
+  'cancelled',
+] as const
+
+export type SalaryAdvanceStatus = (typeof salaryAdvanceStatuses)[number]
+
+export const salaryAdvanceInstallmentStatuses = [
+  'scheduled',
+  'paid',
+  'rolled_over',
+  'skipped',
+] as const
+
+export type SalaryAdvanceInstallmentStatus =
+  (typeof salaryAdvanceInstallmentStatuses)[number]
+
+export const salaryAdvanceRepaymentMethods = [
+  'payroll_deduction',
+  'cash',
+] as const
+
+export type SalaryAdvanceRepaymentMethod =
+  (typeof salaryAdvanceRepaymentMethods)[number]
+
+export const salaryAdvances = pgTable('salary_advances', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  bakeryId: uuid('bakery_id')
+    .notNull()
+    .references(() => bakeries.id, { onDelete: 'cascade' }),
+  employeeId: uuid('employee_id')
+    .notNull()
+    .references(() => employees.id, { onDelete: 'cascade' }),
+  totalAmount: integer('total_amount').notNull(),
+  installmentCount: integer('installment_count').notNull(),
+  status: text('status').notNull().default('active').$type<SalaryAdvanceStatus>(),
+  notes: text('notes'),
+  grantedAt: timestamp('granted_at').notNull(),
+  createdBy: uuid('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  cancelledAt: timestamp('cancelled_at'),
+  cancelledBy: uuid('cancelled_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const salaryAdvanceInstallments = pgTable(
+  'salary_advance_installments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    organizationId: uuid('organization_id')
+      .notNull()
+      .references(() => organizations.id, { onDelete: 'cascade' }),
+    advanceId: uuid('advance_id')
+      .notNull()
+      .references(() => salaryAdvances.id, { onDelete: 'cascade' }),
+    installmentNumber: integer('installment_number').notNull(),
+    amount: integer('amount').notNull(),
+    duePeriod: text('due_period'),
+    status: text('status')
+      .notNull()
+      .default('scheduled')
+      .$type<SalaryAdvanceInstallmentStatus>(),
+    paymentMethod: text('payment_method').$type<SalaryAdvanceRepaymentMethod>(),
+    paidAt: timestamp('paid_at'),
+    rolledToInstallmentId: uuid('rolled_to_installment_id'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+)
+
 export const leaveRequests = pgTable('leave_requests', {
   id: uuid('id').defaultRandom().primaryKey(),
   organizationId: uuid('organization_id')
@@ -306,7 +384,45 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
   deliveryRuns: many(deliveryRuns),
   cashCollections: many(cashCollections),
   leaveRequests: many(leaveRequests),
+  salaryAdvances: many(salaryAdvances),
 }))
+
+export const salaryAdvancesRelations = relations(
+  salaryAdvances,
+  ({ one, many }) => ({
+    organization: one(organizations, {
+      fields: [salaryAdvances.organizationId],
+      references: [organizations.id],
+    }),
+    bakery: one(bakeries, {
+      fields: [salaryAdvances.bakeryId],
+      references: [bakeries.id],
+    }),
+    employee: one(employees, {
+      fields: [salaryAdvances.employeeId],
+      references: [employees.id],
+    }),
+    creator: one(users, {
+      fields: [salaryAdvances.createdBy],
+      references: [users.id],
+    }),
+    installments: many(salaryAdvanceInstallments),
+  }),
+)
+
+export const salaryAdvanceInstallmentsRelations = relations(
+  salaryAdvanceInstallments,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [salaryAdvanceInstallments.organizationId],
+      references: [organizations.id],
+    }),
+    advance: one(salaryAdvances, {
+      fields: [salaryAdvanceInstallments.advanceId],
+      references: [salaryAdvances.id],
+    }),
+  }),
+)
 
 export const employeeLocationsRelations = relations(employeeLocations, ({ one }) => ({
   employee: one(employees, {
@@ -580,6 +696,12 @@ export type EmployeeProduct = typeof employeeProducts.$inferSelect
 export type NewEmployeeProduct = typeof employeeProducts.$inferInsert
 export type LeaveRequest = typeof leaveRequests.$inferSelect
 export type NewLeaveRequest = typeof leaveRequests.$inferInsert
+export type SalaryAdvance = typeof salaryAdvances.$inferSelect
+export type NewSalaryAdvance = typeof salaryAdvances.$inferInsert
+export type SalaryAdvanceInstallment =
+  typeof salaryAdvanceInstallments.$inferSelect
+export type NewSalaryAdvanceInstallment =
+  typeof salaryAdvanceInstallments.$inferInsert
 export type PricingRule = typeof pricingRules.$inferSelect
 export type NewPricingRule = typeof pricingRules.$inferInsert
 export type InventoryItem = typeof inventoryItems.$inferSelect

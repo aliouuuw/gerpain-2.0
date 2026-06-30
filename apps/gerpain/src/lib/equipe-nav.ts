@@ -21,7 +21,6 @@ export const equipeNavItems = [
     to: '/equipe/avances',
     label: 'Avances',
     hint: 'Avances sur salaire et remboursements',
-    disabled: true,
   },
   {
     to: '/equipe/conges',

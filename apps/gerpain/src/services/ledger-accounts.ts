@@ -8,6 +8,8 @@ export const LEDGER_ACCOUNT_CODES = {
   DRIVER_RECEIVABLE: 'DRIVER_RECEIVABLE',
   CASH_SHORTAGE: 'CASH_SHORTAGE',
   CASH_OVERAGE: 'CASH_OVERAGE',
+  SALARY_ADVANCE_RECEIVABLE: 'SALARY_ADVANCE_RECEIVABLE',
+  PAYROLL_CLEARING: 'PAYROLL_CLEARING',
 } as const
 
 export type LedgerAccountIds = {
@@ -15,6 +17,8 @@ export type LedgerAccountIds = {
   driverReceivable: string
   cashShortage: string
   cashOverage: string
+  salaryAdvanceReceivable: string
+  payrollClearing: string
 }
 
 export class LedgerAccountsError extends Error {
@@ -28,6 +32,8 @@ export async function getLedgerAccountMap(
   db: Database | BocalTx,
   organizationId: string,
 ): Promise<LedgerAccountIds> {
+  await ensureLedgerAccountsForOrg(db as Database, organizationId)
+
   const rows = await db.query.ledgerAccounts.findMany({
     where: eq(ledgerAccounts.organizationId, organizationId),
   })
@@ -38,14 +44,32 @@ export async function getLedgerAccountMap(
   const driverReceivable = byCode.get(LEDGER_ACCOUNT_CODES.DRIVER_RECEIVABLE)
   const cashShortage = byCode.get(LEDGER_ACCOUNT_CODES.CASH_SHORTAGE)
   const cashOverage = byCode.get(LEDGER_ACCOUNT_CODES.CASH_OVERAGE)
+  const salaryAdvanceReceivable = byCode.get(
+    LEDGER_ACCOUNT_CODES.SALARY_ADVANCE_RECEIVABLE,
+  )
+  const payrollClearing = byCode.get(LEDGER_ACCOUNT_CODES.PAYROLL_CLEARING)
 
-  if (!cash || !driverReceivable || !cashShortage || !cashOverage) {
+  if (
+    !cash ||
+    !driverReceivable ||
+    !cashShortage ||
+    !cashOverage ||
+    !salaryAdvanceReceivable ||
+    !payrollClearing
+  ) {
     throw new LedgerAccountsError(
       'Comptes ledger manquants pour cette organisation',
     )
   }
 
-  return { cash, driverReceivable, cashShortage, cashOverage }
+  return {
+    cash,
+    driverReceivable,
+    cashShortage,
+    cashOverage,
+    salaryAdvanceReceivable,
+    payrollClearing,
+  }
 }
 
 export async function ensureLedgerAccountsForOrg(
@@ -72,6 +96,16 @@ export async function ensureLedgerAccountsForOrg(
       code: LEDGER_ACCOUNT_CODES.CASH_OVERAGE,
       name: 'Écarts caisse (excédent)',
       type: 'revenue' as const,
+    },
+    {
+      code: LEDGER_ACCOUNT_CODES.SALARY_ADVANCE_RECEIVABLE,
+      name: 'Avances sur salaire',
+      type: 'asset' as const,
+    },
+    {
+      code: LEDGER_ACCOUNT_CODES.PAYROLL_CLEARING,
+      name: 'Paie en attente de clôture',
+      type: 'liability' as const,
     },
   ]
 

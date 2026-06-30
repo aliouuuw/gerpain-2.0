@@ -415,6 +415,16 @@ const LEDGER_SEED_ACCOUNTS = [
   { code: 'DRIVER_RECEIVABLE', name: 'Créances livreurs', type: 'asset' as const },
   { code: 'CASH_SHORTAGE', name: 'Écarts caisse (manque)', type: 'expense' as const },
   { code: 'CASH_OVERAGE', name: 'Écarts caisse (excédent)', type: 'revenue' as const },
+  {
+    code: 'SALARY_ADVANCE_RECEIVABLE',
+    name: 'Avances sur salaire',
+    type: 'asset' as const,
+  },
+  {
+    code: 'PAYROLL_CLEARING',
+    name: 'Paie en attente de clôture',
+    type: 'liability' as const,
+  },
 ]
 
 async function ensureLedgerAccounts(legacyOrgId: string) {

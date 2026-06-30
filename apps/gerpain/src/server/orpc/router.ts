@@ -9,6 +9,7 @@ import * as leaveRequests from './leave-requests'
 import * as locations from './locations'
 import * as me from './me'
 import * as products from './products'
+import * as salaryAdvances from './salary-advances'
 
 export default {
   health: {
@@ -85,5 +86,13 @@ export default {
     approve: leaveRequests.approve,
     reject: leaveRequests.reject,
     cancel: leaveRequests.cancel,
+  },
+  salaryAdvances: {
+    list: salaryAdvances.list,
+    create: salaryAdvances.create,
+    payInstallment: salaryAdvances.payInstallment,
+    payRemainder: salaryAdvances.payRemainder,
+    rollOverInstallment: salaryAdvances.rollOverInstallment,
+    cancel: salaryAdvances.cancel,
   },
 }
