@@ -41,6 +41,13 @@ function CollectionDetailPage() {
     orpc.collections.get.queryOptions({ input: { collectionId } }),
   )
 
+  const ledgerMovement = useQuery({
+    ...orpc.collections.getLedgerMovement.queryOptions({
+      input: { collectionId },
+    }),
+    enabled: collection.data?.status === 'validated',
+  })
+
   const editable =
     collection.data?.status === 'pending' ||
     collection.data?.status === 'rejected'
@@ -389,6 +396,52 @@ function CollectionDetailPage() {
           {collection.data.rejectionReason ? (
             <p className="mt-6 text-sm text-amber-800">
               Motif du rejet : {collection.data.rejectionReason}
+            </p>
+          ) : null}
+
+          {collection.data.status === 'validated' && ledgerMovement.data ? (
+            <div className="mt-8 space-y-3 rounded-lg border border-neutral-200 bg-white p-6">
+              <h2 className="text-sm font-semibold text-neutral-900">
+                Écriture comptable
+              </h2>
+              <p className="text-xs text-neutral-500">
+                {new Date(ledgerMovement.data.occurredAt).toLocaleString('fr-FR')}
+                {ledgerMovement.data.memo ? ` · ${ledgerMovement.data.memo}` : ''}
+              </p>
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-200 text-neutral-600">
+                    <th className="py-2 font-medium">Compte</th>
+                    <th className="py-2 font-medium">Sens</th>
+                    <th className="py-2 text-right font-medium">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledgerMovement.data.lines.map((line) => (
+                    <tr
+                      key={`${line.accountCode}-${line.direction}-${line.amount}`}
+                      className="border-b border-neutral-100"
+                    >
+                      <td className="py-2">
+                        {line.accountName}
+                        <span className="ml-1 text-xs text-neutral-400">
+                          ({line.accountCode})
+                        </span>
+                      </td>
+                      <td className="py-2 capitalize">
+                        {line.direction === 'debit' ? 'Débit' : 'Crédit'}
+                      </td>
+                      <td className="py-2 text-right font-medium">
+                        {formatXof(line.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : collection.data.status === 'validated' && ledgerMovement.isLoading ? (
+            <p className="mt-6 text-sm text-neutral-500">
+              Chargement de l&apos;écriture comptable…
             </p>
           ) : null}
         </>

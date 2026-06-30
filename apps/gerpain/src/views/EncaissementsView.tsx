@@ -152,6 +152,7 @@ export function EncaissementsView() {
   const customStart = search.start ?? todayIso()
   const customEnd = search.end ?? todayIso()
   const employeeParam = search.employee
+  const includeArchived = search.archived === true
 
   const [error, setError] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -173,6 +174,8 @@ export function EncaissementsView() {
     patchSearch({ end: value, period: 'custom' })
   const setEmployeeId = (value: string) =>
     patchSearch({ employee: value === ALL_EMPLOYEES ? 'all' : value || undefined })
+  const setIncludeArchived = (value: boolean) =>
+    patchSearch({ archived: value || undefined })
 
   const { startDate, endDate } = useMemo(
     () => periodBounds(preset, customStart, customEnd),
@@ -208,6 +211,7 @@ export function EncaissementsView() {
           selectedEmployeeId === ALL_EMPLOYEES
             ? undefined
             : selectedEmployeeId || undefined,
+        includeArchived,
       },
     }),
     enabled:
@@ -257,6 +261,32 @@ export function EncaissementsView() {
         setConfirmCollectionId(null)
         setError(null)
       },
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.collections.list.key(),
+        })
+      },
+      onError: (err) => {
+        setError(formatRpcError(err))
+      },
+    }),
+  )
+
+  const archive = useMutation(
+    orpc.collections.archive.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: orpc.collections.list.key(),
+        })
+      },
+      onError: (err) => {
+        setError(formatRpcError(err))
+      },
+    }),
+  )
+
+  const unarchive = useMutation(
+    orpc.collections.unarchive.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries({
           queryKey: orpc.collections.list.key(),
@@ -327,8 +357,38 @@ export function EncaissementsView() {
     ? rows.find((row) => row.id === confirmCollectionId)
     : undefined
 
+  const canArchivePeriod =
+    canManageCollections &&
+    selectedEmployeeId !== ALL_EMPLOYEES &&
+    Boolean(selectedEmployeeId) &&
+    rows.length > 0 &&
+    rows.every((row) => row.status === 'validated' && row.isSettled && !row.isArchived)
+
+  const canUnarchivePeriod =
+    canManageCollections &&
+    selectedEmployeeId !== ALL_EMPLOYEES &&
+    Boolean(selectedEmployeeId) &&
+    includeArchived &&
+    rows.some((row) => row.isArchived)
+
+  function archiveScope() {
+    if (!bakeryId || selectedEmployeeId === ALL_EMPLOYEES) return
+    return {
+      bakeryId,
+      startDate,
+      endDate,
+      employeeId: selectedEmployeeId,
+    }
+  }
+
   return (
     <main className="page-content">
+      <div className="period-toolbar__actions">
+        <Link to="/reconciliations" className="text-link">
+          Vue réconciliations →
+        </Link>
+      </div>
+
       <section className="period-toolbar" aria-label="Filtres période">
         <div className="period-toolbar__group">
           <span className="period-toolbar__label">Période</span>
@@ -387,6 +447,17 @@ export function EncaissementsView() {
             )}
           </select>
         </div>
+
+        <div className="period-toolbar__group">
+          <label className="period-toolbar__checkbox">
+            <input
+              type="checkbox"
+              checked={includeArchived}
+              onChange={(e) => setIncludeArchived(e.target.checked)}
+            />
+            Inclure les archivés
+          </label>
+        </div>
       </section>
 
       <section className="money-strip" aria-label="Résumé période">
@@ -433,6 +504,38 @@ export function EncaissementsView() {
             : ''}
         . Saisissez les montants reçus, soumettez, puis validez.
       </HelpNote>
+
+      {canArchivePeriod ? (
+        <div className="period-toolbar__actions">
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            disabled={archive.isPending}
+            onClick={() => {
+              const scope = archiveScope()
+              if (scope) void archive.mutate(scope)
+            }}
+          >
+            {archive.isPending ? 'Archivage…' : 'Archiver cette période'}
+          </button>
+        </div>
+      ) : null}
+
+      {canUnarchivePeriod ? (
+        <div className="period-toolbar__actions">
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            disabled={unarchive.isPending}
+            onClick={() => {
+              const scope = archiveScope()
+              if (scope) void unarchive.mutate(scope)
+            }}
+          >
+            {unarchive.isPending ? 'Désarchivage…' : 'Désarchiver cette période'}
+          </button>
+        </div>
+      ) : null}
 
       {error ? (
         <p className="settings-form__error" role="alert">

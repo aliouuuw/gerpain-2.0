@@ -1,0 +1,1 @@
+ALTER TABLE "cash_collections" ADD COLUMN "is_archived" boolean DEFAULT false NOT NULL;

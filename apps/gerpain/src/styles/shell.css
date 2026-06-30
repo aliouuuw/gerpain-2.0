@@ -1206,6 +1206,60 @@
   background: color-mix(in srgb, var(--accent) 6%, var(--surface));
 }
 
+.data-table__row--clickable {
+  cursor: pointer;
+}
+
+.data-table__row--clickable:hover td {
+  background: var(--surface-2);
+}
+
+.data-table__row--total td {
+  font-weight: 600;
+  background: var(--surface-2);
+  border-top: 2px solid var(--border);
+}
+
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.solde-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.period-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.period-toolbar__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.text-link {
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
+
+.money-strip--ledger {
+  margin-top: 12px;
+}
+
 .data-table--expandable .data-table__expand-row td {
   padding: 0;
   background: var(--surface-2);

@@ -54,7 +54,7 @@
       "name": "Deliveries parity",
       "size": "medium",
       "goal": "Daily board, date nav, all agents pre-populated, Matin/Soir on one screen",
-      "status": "in_progress",
+      "status": "done",
       "blocks_daily_ops": "partial"
     },
     {
@@ -62,7 +62,7 @@
       "name": "Collections parity",
       "size": "medium",
       "goal": "Employee period view, reconciliations, archive settled periods",
-      "status": "pending",
+      "status": "done",
       "blocks_daily_ops": "partial"
     },
     {
@@ -70,7 +70,7 @@
       "name": "Ledger & dashboard",
       "size": "small_medium",
       "goal": "KPIs from Bocal balanceOf; movement history; optional receivable on delivery validate",
-      "status": "pending",
+      "status": "in_progress",
       "blocks_daily_ops": false
     },
     {
@@ -460,7 +460,7 @@
       ],
       "files": ["apps/gerpain/src/routes/deliveries.index.tsx"],
       "verification": ["bun run typecheck"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint D — Collections parity",
@@ -478,7 +478,7 @@
         "apps/gerpain/src/routes/collections.index.tsx"
       ],
       "verification": ["Manual: period workflow"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint D — Collections parity",
@@ -492,10 +492,11 @@
       ],
       "files": [
         "apps/gerpain/src/services/collections.ts",
-        "apps/gerpain/src/routes/cash/reconciliations.tsx"
+        "apps/gerpain/src/views/ReconciliationsView.tsx",
+        "apps/gerpain/src/routes/_shell/reconciliations.tsx"
       ],
       "verification": ["bun run typecheck"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint D — Collections parity",
@@ -512,7 +513,7 @@
         "apps/gerpain/src/services/collections.ts"
       ],
       "verification": ["bun run db:migrate", "bun run typecheck"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint E — Ledger & dashboard",
@@ -529,7 +530,7 @@
         "apps/gerpain/src/views/HomeView.tsx"
       ],
       "verification": ["bun run test", "Manual: KPIs match ledger"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint E — Ledger & dashboard",
@@ -545,7 +546,7 @@
         "apps/gerpain/src/routes/collections.$collectionId.tsx"
       ],
       "verification": ["Manual: lines visible after validate"],
-      "passes": false
+      "passes": true
     },
     {
       "group": "Sprint F — Commissions & payroll",

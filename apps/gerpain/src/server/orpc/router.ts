@@ -1,6 +1,7 @@
 import * as bakeries from './bakeries'
 import * as categories from './categories'
 import * as collections from './collections'
+import * as dashboard from './dashboard'
 import * as deliveries from './deliveries'
 import * as employees from './employees'
 import * as health from './health'
@@ -43,11 +44,18 @@ export default {
   collections: {
     list: collections.list,
     get: collections.get,
+    overview: collections.overview,
+    getLedgerMovement: collections.getLedgerMovement,
     update: collections.update,
     submit: collections.submit,
     validate: collections.validate,
     reject: collections.reject,
     settle: collections.settle,
+    archive: collections.archive,
+    unarchive: collections.unarchive,
+  },
+  dashboard: {
+    summary: dashboard.summary,
   },
   deliveries: {
     listRuns: deliveries.listRuns,

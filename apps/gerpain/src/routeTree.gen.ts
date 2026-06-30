@@ -19,6 +19,7 @@ import { Route as ShellIndexRouteImport } from './routes/_shell/index'
 import { Route as DeliveriesRunIdRouteImport } from './routes/deliveries.$runId'
 import { Route as CollectionsCollectionIdRouteImport } from './routes/collections.$collectionId'
 import { Route as ShellStockRouteImport } from './routes/_shell/stock'
+import { Route as ShellReconciliationsRouteImport } from './routes/_shell/reconciliations'
 import { Route as ShellLivraisonsRouteImport } from './routes/_shell/livraisons'
 import { Route as ShellEquipeRouteImport } from './routes/_shell/equipe'
 import { Route as ShellEncaissementsRouteImport } from './routes/_shell/encaissements'
@@ -79,6 +80,11 @@ const CollectionsCollectionIdRoute = CollectionsCollectionIdRouteImport.update({
 const ShellStockRoute = ShellStockRouteImport.update({
   id: '/stock',
   path: '/stock',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellReconciliationsRoute = ShellReconciliationsRouteImport.update({
+  id: '/reconciliations',
+  path: '/reconciliations',
   getParentRoute: () => ShellRoute,
 } as any)
 const ShellLivraisonsRoute = ShellLivraisonsRouteImport.update({
@@ -153,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/encaissements': typeof ShellEncaissementsRoute
   '/equipe': typeof ShellEquipeRoute
   '/livraisons': typeof ShellLivraisonsRoute
+  '/reconciliations': typeof ShellReconciliationsRoute
   '/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/encaissements': typeof ShellEncaissementsRoute
   '/equipe': typeof ShellEquipeRoute
   '/livraisons': typeof ShellLivraisonsRoute
+  '/reconciliations': typeof ShellReconciliationsRoute
   '/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/_shell/encaissements': typeof ShellEncaissementsRoute
   '/_shell/equipe': typeof ShellEquipeRoute
   '/_shell/livraisons': typeof ShellLivraisonsRoute
+  '/_shell/reconciliations': typeof ShellReconciliationsRoute
   '/_shell/stock': typeof ShellStockRoute
   '/collections/$collectionId': typeof CollectionsCollectionIdRoute
   '/deliveries/$runId': typeof DeliveriesRunIdRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/encaissements'
     | '/equipe'
     | '/livraisons'
+    | '/reconciliations'
     | '/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/encaissements'
     | '/equipe'
     | '/livraisons'
+    | '/reconciliations'
     | '/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/_shell/encaissements'
     | '/_shell/equipe'
     | '/_shell/livraisons'
+    | '/_shell/reconciliations'
     | '/_shell/stock'
     | '/collections/$collectionId'
     | '/deliveries/$runId'
@@ -361,6 +373,13 @@ declare module '@tanstack/react-router' {
       path: '/stock'
       fullPath: '/stock'
       preLoaderRoute: typeof ShellStockRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/reconciliations': {
+      id: '/_shell/reconciliations'
+      path: '/reconciliations'
+      fullPath: '/reconciliations'
+      preLoaderRoute: typeof ShellReconciliationsRouteImport
       parentRoute: typeof ShellRoute
     }
     '/_shell/livraisons': {
@@ -476,6 +495,7 @@ interface ShellRouteChildren {
   ShellEncaissementsRoute: typeof ShellEncaissementsRoute
   ShellEquipeRoute: typeof ShellEquipeRoute
   ShellLivraisonsRoute: typeof ShellLivraisonsRoute
+  ShellReconciliationsRoute: typeof ShellReconciliationsRoute
   ShellStockRoute: typeof ShellStockRoute
   ShellIndexRoute: typeof ShellIndexRoute
 }
@@ -485,6 +505,7 @@ const ShellRouteChildren: ShellRouteChildren = {
   ShellEncaissementsRoute: ShellEncaissementsRoute,
   ShellEquipeRoute: ShellEquipeRoute,
   ShellLivraisonsRoute: ShellLivraisonsRoute,
+  ShellReconciliationsRoute: ShellReconciliationsRoute,
   ShellStockRoute: ShellStockRoute,
   ShellIndexRoute: ShellIndexRoute,
 }

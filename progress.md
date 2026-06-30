@@ -1,8 +1,8 @@
 # Gerpain 2.0 — Progress Log
 
-**Last updated:** 2026-06-26  
+**Last updated:** 2026-06-30  
 **Branch:** `main`  
-**Commit:** `2eda1f3` — fix(ui): period view UX/accessibility and row keyboard navigation  
+**Commit:** (pending) — feat(collections): reconciliations, archive, ledger KPIs, movement detail, delivery filters  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -23,7 +23,15 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Sprint C — delivery history filters; Sprint D encaissements period view.
+**Current focus:** Sprint E — ledger KPIs (started); Sprint H cutover when parity checklist is green.
+
+### Sprint D — completed this session
+
+- **Réconciliations** — `/reconciliations` shell route; `collections.overview` oRPC; per-agent aggregates; drill-down to `/encaissements`
+- **Archive periods** — `isArchived` on `cash_collections` (migration `0012`); archive/unarchive oRPC; toggle « Inclure les archivés »
+- **Ledger movement detail** — `collections.getLedgerMovement` on `/collections/$id` after validate
+- **Dashboard KPIs** — `dashboard.summary` with `balanceOf` (Caisse, Créances livreurs) on Accueil
+- **Delivery history filters** — date range, employee, location, status on `/deliveries` with URL params
 
 ---
 
@@ -77,10 +85,23 @@ Architecture steps (`docs/architecture.md`):
 - Settle (validated → `isSettled` for payroll)
 - UI: list, detail, supervisor validate/reject, clôturer validés
 - **Employee-centric period view:** period presets (week/month/15 days/custom) + employee selector + summary cards + inline amount editing per day
+- **URL-driven filters:** `?period=`, `?start=`, `?end=`, `?employee=` on `/encaissements`; deep-link from Livraisons
+- **All-agents mode:** "Tous les agents" aggregates period totals; performance/solde color coding; lock icon on read-only amounts
+- **Day totals strip + human dates** on shell views; operator-friendly copy (no Bocal jargon on detail)
+- **Auth fix:** full-page redirect after login (no empty data until refresh)
+- **Collections robustness:** zero-day dead-end prevented; deduped saves; stale cache/selection fixes
+- **Delivery validate:** aborts when pre-save fails
 
 ### Recent commits (new app)
 
 ```
+ff92fff feat(encaissements): all-agents overview, performance colors, lock affordance
+afe4ab1 feat(deep-link): URL-driven encaissements filters and prominent livraisons link
+0e49cf9 feat(ui): day totals strip, human dates, solde context; drop Bocal jargon on detail
+d5623cd fix(auth): full-page redirect after login to avoid empty data until refresh
+a5995eb fix(deliveries): abort run validation when pre-save fails
+0d3958d fix(collections): prevent zero-day dead-end, dedupe saves, fix stale cache and selection
+3000048 docs(progress): log period view fixes
 2eda1f3 fix(ui): period view UX/accessibility and row keyboard navigation
 1989262 feat(collections): employee-centric period view for encaissements
 afcdc60 feat(deliveries): refine livraisons table IA and product entry cards
@@ -127,8 +148,8 @@ bun run typecheck && bun run test && bun run build
 
 **Still only in legacy (not in shell or thin slice):**
 
-- Employee-centric **period** view for encaissements
-- Reconciliations overview (birds-eye by employee)
+- ~~Employee-centric **period** view for encaissements~~ → **done in shell** (incl. all-agents mode)
+- Reconciliations overview (birds-eye by employee) — legacy has `/cash/reconciliations`; shell has all-agents table but not dedicated réconciliations view
 - Daily delivery board (all agents on one screen)
 - Master data CRUD in new app (locations, products, employees)
 - Dashboard KPIs from Bocal balances
@@ -145,8 +166,8 @@ bun run typecheck && bun run test && bun run build
 | **A** | Platform shell — Ledger IA, bakery selector, roles, `validatedBy` | **Done** |
 | **B** | Master data — bakeries, locations, products, employees | **Done** |
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Done** |
-| **D** | Collections parity — period view, reconciliations, archive | **In progress** |
-| **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | Pending |
+| **D** | Collections parity — period view, reconciliations, archive | **Done** |
+| **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | **In progress** (~KPIs + movement detail done) |
 | **F** | Commissions & payroll | Deferred |
 | **G** | Inventory & POS | Deferred |
 | **H** | Cutover | Pending |
@@ -157,10 +178,10 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **Réconciliations overview** — birds-eye by employee with period totals; drill-down to collections
-2. **Archive settled periods** — add `isArchived` to `cashCollections`, toggle visibility
-3. **Delivery history filters** (optional) — date range, employee, location, status filters on `/deliveries`
-4. **Ledger movement detail** — show Bocal lines on collection detail after validate
+1. **Run migration** — `bun run db:migrate` for `is_archived` column
+2. **Sprint E remainder** — optional receivable posting on delivery validate; movement history page
+3. **Sprint H cutover** — parity checklist vs legacy; CI/CD; retire `gerpain_backend/` + `nextjs_frontend/`
+4. **Push to remote** — branch still ahead of `origin/main`
 
 ---
 

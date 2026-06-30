@@ -6,11 +6,15 @@ import { db, legacyUserIdForEmail } from '@gerpain/db'
 import { getBakeryForOrg } from '#/services/bakeries'
 import {
   CollectionServiceError,
+  archiveCashCollectionsPeriod,
   getCashCollection,
+  getCashCollectionsOverview,
+  getCollectionLedgerMovement,
   listCashCollections,
   rejectCashCollection,
   settleCashCollectionsPeriod,
   submitCashCollection,
+  unarchiveCashCollectionsPeriod,
   updateCashCollection,
   validateCashCollection,
 } from '#/services/collections'
@@ -45,6 +49,7 @@ const listInput = z.object({
   locationId: z.string().uuid().optional(),
   employeeId: z.string().uuid().optional(),
   isSettled: z.boolean().optional(),
+  includeArchived: z.boolean().optional(),
 })
 
 export const list = orgContext.input(listInput).handler(async ({ context, input }) => {
@@ -68,8 +73,58 @@ export const list = orgContext.input(listInput).handler(async ({ context, input 
     locationId: input.locationId,
     employeeId: input.employeeId,
     isSettled: input.isSettled,
+    includeArchived: input.includeArchived,
   })
 })
+
+const overviewInput = z.object({
+  bakeryId: z.string().uuid(),
+  startDate: dateSchema.optional(),
+  endDate: dateSchema.optional(),
+  role: z.enum(['delivery', 'cashier', 'manager', 'baker']).optional(),
+  isSettled: z.boolean().optional(),
+})
+
+export const overview = orgContext.input(overviewInput).handler(async ({ context, input }) => {
+  const bakery = await getBakeryForOrg(
+    db,
+    context.legacyOrganizationId,
+    input.bakeryId,
+  )
+
+  if (!bakery) {
+    throw new ORPCError('NOT_FOUND', { message: 'Boulangerie introuvable' })
+  }
+
+  return getCashCollectionsOverview(db, {
+    organizationId: context.legacyOrganizationId,
+    bakeryId: input.bakeryId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    role: input.role,
+    isSettled: input.isSettled,
+  })
+})
+
+export const getLedgerMovement = orgContext
+  .input(z.object({ collectionId: z.string().uuid() }))
+  .handler(async ({ context, input }) => {
+    const collection = await getCashCollection(
+      db,
+      context.legacyOrganizationId,
+      input.collectionId,
+    )
+
+    if (collection.status !== 'validated') {
+      return null
+    }
+
+    return getCollectionLedgerMovement(
+      db,
+      context.legacyOrganizationId,
+      input.collectionId,
+    )
+  })
 
 export const get = orgContext
   .input(z.object({ collectionId: z.string().uuid() }))
@@ -193,3 +248,52 @@ export const settle = orgContext
       employeeId: input.employeeId,
     })
   })
+
+const archiveInput = z.object({
+  bakeryId: z.string().uuid(),
+  startDate: dateSchema.optional(),
+  endDate: dateSchema.optional(),
+  employeeId: z.string().uuid().optional(),
+})
+
+export const archive = orgContext.input(archiveInput).handler(async ({ context, input }) => {
+  assertManagerRole(context.memberRole)
+  const bakery = await getBakeryForOrg(
+    db,
+    context.legacyOrganizationId,
+    input.bakeryId,
+  )
+
+  if (!bakery) {
+    throw new ORPCError('NOT_FOUND', { message: 'Boulangerie introuvable' })
+  }
+
+  return archiveCashCollectionsPeriod(db, {
+    organizationId: context.legacyOrganizationId,
+    bakeryId: input.bakeryId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    employeeId: input.employeeId,
+  })
+})
+
+export const unarchive = orgContext.input(archiveInput).handler(async ({ context, input }) => {
+  assertManagerRole(context.memberRole)
+  const bakery = await getBakeryForOrg(
+    db,
+    context.legacyOrganizationId,
+    input.bakeryId,
+  )
+
+  if (!bakery) {
+    throw new ORPCError('NOT_FOUND', { message: 'Boulangerie introuvable' })
+  }
+
+  return unarchiveCashCollectionsPeriod(db, {
+    organizationId: context.legacyOrganizationId,
+    bakeryId: input.bakeryId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    employeeId: input.employeeId,
+  })
+})

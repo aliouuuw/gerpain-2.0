@@ -1,20 +1,35 @@
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { formatXof } from '#/lib/format-money'
+import { useBakery } from '#/lib/bakery-context'
+import { orpc } from '#/lib/orpc-client'
 import { useDayData } from '#/lib/use-day-data'
 import { usePermissions } from '#/lib/use-permissions'
+import { todayIso } from '#/lib/today'
 
 export function HomeView() {
   const navigate = useNavigate()
+  const { bakeryId } = useBakery()
   const { stats, tasks, agents, isLoading, isError } = useDayData()
   const { canManageCollections } = usePermissions()
+
+  const dashboard = useQuery({
+    ...orpc.dashboard.summary.queryOptions({
+      input: { bakeryId, date: todayIso() },
+    }),
+    enabled: Boolean(bakeryId),
+  })
 
   const visibleTasks = tasks.filter(
     (task) => !task.id.startsWith('c-') || canManageCollections,
   )
+
+  const ledger = dashboard.data?.ledger
+  const today = dashboard.data?.today
 
   return (
     <main className="page-content">
@@ -35,6 +50,31 @@ export function HomeView() {
           <span className="money-strip__label">Reste à encaisser</span>
           <span className="money-strip__value money-strip__value--warn">
             {isLoading ? '…' : formatXof(stats.remaining)}
+          </span>
+        </div>
+      </section>
+
+      <section className="money-strip money-strip--ledger" aria-label="Soldes caisse">
+        <div className="money-strip__item">
+          <span className="money-strip__label">Caisse (ledger)</span>
+          <span className="money-strip__value">
+            {dashboard.isLoading ? '…' : formatXof(ledger?.cashBalance ?? 0)}
+          </span>
+        </div>
+        <div className="money-strip__item">
+          <span className="money-strip__label">Créances livreurs</span>
+          <span className="money-strip__value money-strip__value--warn">
+            {dashboard.isLoading
+              ? '…'
+              : formatXof(ledger?.driverReceivableBalance ?? 0)}
+          </span>
+        </div>
+        <div className="money-strip__item">
+          <span className="money-strip__label">Validés non clôturés</span>
+          <span className="money-strip__value">
+            {dashboard.isLoading
+              ? '…'
+              : `${today?.unsettledValidatedCount ?? 0} · ${formatXof(today?.unsettledValidatedAmount ?? 0)}`}
           </span>
         </div>
       </section>

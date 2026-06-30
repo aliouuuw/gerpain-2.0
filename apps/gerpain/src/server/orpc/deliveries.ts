@@ -31,8 +31,11 @@ function mapDeliveryError(error: unknown): never {
 const listRunsInput = z.object({
   bakeryId: z.string().uuid(),
   date: dateSchema.optional(),
+  startDate: dateSchema.optional(),
+  endDate: dateSchema.optional(),
   employeeId: z.string().uuid().optional(),
   locationId: z.string().uuid().optional(),
+  status: z.enum(['draft', 'submitted', 'validated', 'rejected']).optional(),
 })
 
 export const listRuns = orgContext
@@ -54,8 +57,11 @@ export const listRuns = orgContext
       organizationId: context.legacyOrganizationId,
       bakeryId: input.bakeryId,
       date: input.date,
+      startDate: input.startDate,
+      endDate: input.endDate,
       employeeId: input.employeeId,
       locationId: input.locationId,
+      status: input.status,
     })
   })
 

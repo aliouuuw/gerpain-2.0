@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, lte } from 'drizzle-orm'
 
 import {
   type Database,
@@ -64,8 +64,11 @@ export type ListDeliveryRunsInput = {
   organizationId: string
   bakeryId: string
   date?: string
+  startDate?: string
+  endDate?: string
   employeeId?: string
   locationId?: string
+  status?: string
 }
 
 const RUN_PERIODS = ['Matin', 'Soir'] as const
@@ -315,9 +318,10 @@ export async function listDeliveryRuns(
   db: Database,
   input: ListDeliveryRunsInput,
 ): Promise<DeliveryRunDetail[]> {
-  const { organizationId, bakeryId, date, employeeId, locationId } = input
+  const { organizationId, bakeryId, date, startDate, endDate, employeeId, locationId, status } =
+    input
 
-  if (date) {
+  if (date && !startDate && !endDate) {
     await ensureDraftRunsForDate(db, { organizationId, bakeryId, date })
   }
 
@@ -329,11 +333,20 @@ export async function listDeliveryRuns(
   if (date) {
     conditions.push(eq(deliveryRuns.date, date))
   }
+  if (startDate) {
+    conditions.push(gte(deliveryRuns.date, startDate))
+  }
+  if (endDate) {
+    conditions.push(lte(deliveryRuns.date, endDate))
+  }
   if (employeeId) {
     conditions.push(eq(deliveryRuns.employeeId, employeeId))
   }
   if (locationId) {
     conditions.push(eq(deliveryRuns.locationId, locationId))
+  }
+  if (status) {
+    conditions.push(eq(deliveryRuns.status, status))
   }
 
   const filtered = await db

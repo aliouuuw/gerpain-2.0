@@ -174,6 +174,7 @@ export const cashCollections = pgTable('cash_collections', {
   variance: integer('variance'),
   status: text('status').notNull().default('pending'),
   isSettled: boolean('is_settled').default(false).notNull(),
+  isArchived: boolean('is_archived').default(false).notNull(),
   period: text('period'),
   notes: text('notes'),
   submittedAt: timestamp('submitted_at'),

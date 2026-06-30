@@ -18,6 +18,10 @@ export const shellPageMeta: Record<string, ShellPageMeta> = {
     title: 'Encaissements',
     subtitle: 'Argent reçu par rapport à ce qui était attendu',
   },
+  '/reconciliations': {
+    title: 'Réconciliations',
+    subtitle: 'Vue d’ensemble par agent sur la période',
+  },
   '/stock': {
     title: 'Stock',
     subtitle: 'Quantités en dépôt',

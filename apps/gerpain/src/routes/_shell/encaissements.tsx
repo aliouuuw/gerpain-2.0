@@ -14,6 +14,7 @@ const encaissementsSearchSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
+  archived: z.boolean().optional(),
 })
 
 export const Route = createFileRoute('/_shell/encaissements')({

@@ -1,12 +1,32 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { z } from 'zod'
 
 import { useBakery } from '#/lib/bakery-context'
 import { orpc } from '#/lib/orpc-client'
 import { todayIso } from '#/lib/today'
 
+const deliveriesSearchSchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  startDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  endDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  employeeId: z.string().uuid().optional(),
+  locationId: z.string().uuid().optional(),
+  status: z.enum(['draft', 'submitted', 'validated', 'rejected']).optional(),
+})
+
 export const Route = createFileRoute('/deliveries/')({
+  validateSearch: deliveriesSearchSchema,
   component: DeliveriesPage,
 })
 
@@ -21,13 +41,46 @@ function formatStatus(status: string): string {
 }
 
 function DeliveriesPage() {
-  const [date, setDate] = useState(todayIso)
+  const search = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const date = search.date ?? todayIso()
+  const useRange = Boolean(search.startDate || search.endDate)
+
   const { bakery, bakeryId, bakeries, isLoading: bakeryLoading, isError: bakeryError } =
     useBakery()
 
+  const employees = useQuery({
+    ...orpc.employees.list.queryOptions({
+      input: { bakeryId, status: 'active', role: 'delivery' },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const locations = useQuery({
+    ...orpc.locations.list.queryOptions({
+      input: { bakeryId },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
   const runs = useQuery({
     ...orpc.deliveries.listRuns.queryOptions({
-      input: { bakeryId, date },
+      input: useRange
+        ? {
+            bakeryId,
+            startDate: search.startDate,
+            endDate: search.endDate,
+            employeeId: search.employeeId,
+            locationId: search.locationId,
+            status: search.status,
+          }
+        : {
+            bakeryId,
+            date,
+            employeeId: search.employeeId,
+            locationId: search.locationId,
+            status: search.status,
+          },
     }),
     enabled: Boolean(bakeryId),
   })
@@ -36,6 +89,26 @@ function DeliveriesPage() {
     () => runs.data?.reduce((sum, run) => sum + run.items.length, 0) ?? 0,
     [runs.data],
   )
+
+  const hasFilters =
+    Boolean(search.employeeId) ||
+    Boolean(search.locationId) ||
+    Boolean(search.status) ||
+    useRange
+
+  function patchSearch(patch: Partial<typeof search>) {
+    void navigate({
+      search: (prev) => ({ ...prev, ...patch }),
+      replace: true,
+    })
+  }
+
+  function clearFilters() {
+    void navigate({
+      search: { date },
+      replace: true,
+    })
+  }
 
   return (
     <div className="mx-auto max-w-4xl p-8">
@@ -59,16 +132,116 @@ function DeliveriesPage() {
       <div className="mt-8 flex flex-wrap items-end gap-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
         <div className="space-y-1">
           <label htmlFor="date" className="text-sm font-medium text-neutral-700">
-            Date
+            {useRange ? 'Date (mode plage)' : 'Date'}
           </label>
           <input
             id="date"
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            disabled={useRange}
+            onChange={(e) => patchSearch({ date: e.target.value })}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm disabled:opacity-50"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="startDate" className="text-sm font-medium text-neutral-700">
+            Du
+          </label>
+          <input
+            id="startDate"
+            type="date"
+            value={search.startDate ?? ''}
+            onChange={(e) =>
+              patchSearch({ startDate: e.target.value || undefined })
+            }
             className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
           />
         </div>
+        <div className="space-y-1">
+          <label htmlFor="endDate" className="text-sm font-medium text-neutral-700">
+            Au
+          </label>
+          <input
+            id="endDate"
+            type="date"
+            value={search.endDate ?? ''}
+            onChange={(e) => patchSearch({ endDate: e.target.value || undefined })}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="employee" className="text-sm font-medium text-neutral-700">
+            Livreur
+          </label>
+          <select
+            id="employee"
+            value={search.employeeId ?? ''}
+            onChange={(e) =>
+              patchSearch({ employeeId: e.target.value || undefined })
+            }
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          >
+            <option value="">Tous</option>
+            {employees.data?.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.firstName} {employee.lastName}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="location" className="text-sm font-medium text-neutral-700">
+            Point de vente
+          </label>
+          <select
+            id="location"
+            value={search.locationId ?? ''}
+            onChange={(e) =>
+              patchSearch({ locationId: e.target.value || undefined })
+            }
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          >
+            <option value="">Tous</option>
+            {locations.data?.map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="status" className="text-sm font-medium text-neutral-700">
+            Statut
+          </label>
+          <select
+            id="status"
+            value={search.status ?? ''}
+            onChange={(e) =>
+              patchSearch({
+                status: (e.target.value || undefined) as
+                  | 'draft'
+                  | 'submitted'
+                  | 'validated'
+                  | 'rejected'
+                  | undefined,
+              })
+            }
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          >
+            <option value="">Tous</option>
+            <option value="draft">Brouillon</option>
+            <option value="validated">Validé</option>
+          </select>
+        </div>
+        {hasFilters ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700"
+          >
+            Effacer les filtres
+          </button>
+        ) : null}
         {bakeries.length > 0 && bakery ? (
           <div className="space-y-1">
             <p className="text-sm font-medium text-neutral-700">Boulangerie</p>
@@ -106,6 +279,7 @@ function DeliveriesPage() {
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-neutral-200 bg-neutral-50">
                   <tr>
+                    <th className="px-4 py-3 font-medium text-neutral-700">Date</th>
                     <th className="px-4 py-3 font-medium text-neutral-700">
                       Livreur
                     </th>
@@ -123,6 +297,7 @@ function DeliveriesPage() {
                 <tbody className="divide-y divide-neutral-100 bg-white">
                   {runs.data.map((run) => (
                     <tr key={run.id}>
+                      <td className="px-4 py-3 text-neutral-600">{run.date}</td>
                       <td className="px-4 py-3">
                         <Link
                           to="/deliveries/$runId"
@@ -158,7 +333,7 @@ function DeliveriesPage() {
             </div>
           ) : (
             <p className="mt-8 rounded-lg border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-500">
-              Aucune tournée pour cette date.
+              Aucune tournée pour ces filtres.
             </p>
           )}
         </>
