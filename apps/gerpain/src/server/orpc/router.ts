@@ -39,6 +39,7 @@ export default {
     get: products.get,
     create: products.create,
     update: products.update,
+    reorder: products.reorder,
     deactivate: products.deactivate,
   },
   collections: {
@@ -70,6 +71,7 @@ export default {
     get: employees.get,
     create: employees.create,
     update: employees.update,
+    reorder: employees.reorder,
     listProducts: employees.listProducts,
     setProducts: employees.setProducts,
   },

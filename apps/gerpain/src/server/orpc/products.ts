@@ -10,6 +10,7 @@ import {
   getProduct,
   listProducts,
   ProductServiceError,
+  reorderProducts,
   updateProduct,
 } from '#/services/products'
 import { assertManagerRole } from '#/server/permissions'
@@ -139,6 +140,26 @@ export const update = orgContext
     } catch (error) {
       mapProductError(error)
     }
+  })
+
+export const reorder = orgContext
+  .input(
+    bakeryIdInput.extend({
+      orderedIds: z.array(z.string().uuid()).min(1),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    await reorderProducts(
+      db,
+      context.legacyOrganizationId,
+      input.bakeryId,
+      input.orderedIds,
+    )
+
+    return { ok: true }
   })
 
 export const deactivate = orgContext

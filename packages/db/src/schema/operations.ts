@@ -54,6 +54,7 @@ export const products = pgTable('products', {
   name: text('name').notNull(),
   unitPrice: integer('unit_price').notNull(),
   description: text('description'),
+  sortOrder: integer('sort_order').default(0),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -413,6 +414,7 @@ export const insertProductSchema = z.object({
   name: z.string().min(1).max(255),
   unitPrice: z.number().int().positive(),
   description: z.string().optional(),
+  sortOrder: z.number().int().default(0),
   isActive: z.boolean().optional(),
 })
 

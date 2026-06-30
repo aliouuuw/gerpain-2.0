@@ -347,6 +347,47 @@ export async function listEmployeeProducts(
     }))
 }
 
+export async function reorderEmployees(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  orderedIds: string[],
+): Promise<void> {
+  if (orderedIds.length === 0) return
+
+  await db.transaction(async (tx) => {
+    const owned = await tx
+      .select({ id: employees.id })
+      .from(employees)
+      .where(
+        and(
+          inArray(employees.id, orderedIds),
+          eq(employees.organizationId, organizationId),
+          eq(employees.bakeryId, bakeryId),
+        ),
+      )
+
+    const ownedIds = new Set(owned.map((row) => row.id))
+    const now = new Date()
+
+    let position = 0
+    for (const id of orderedIds) {
+      if (!ownedIds.has(id)) continue
+      await tx
+        .update(employees)
+        .set({ sortOrder: position, updatedAt: now })
+        .where(
+          and(
+            eq(employees.id, id),
+            eq(employees.organizationId, organizationId),
+            eq(employees.bakeryId, bakeryId),
+          ),
+        )
+      position += 1
+    }
+  })
+}
+
 export type EmployeeProductInput = {
   productId: string
   commissionPerUnit?: number

@@ -7,6 +7,7 @@ export type PeriodDraft = {
 export type ProductDeliveryRow = {
   productId: string
   productName: string
+  productSortOrder: number
   unitPrice: number
   matin: PeriodDraft | null
   soir: PeriodDraft | null
@@ -16,6 +17,7 @@ type DeliveryItemLike = {
   id: string
   productId: string
   productName: string
+  productSortOrder?: number
   unitPrice: number
   period: string
   quantityEntrusted: number
@@ -33,6 +35,7 @@ export function groupDeliveryItemsByProduct(
       row = {
         productId: item.productId,
         productName: item.productName,
+        productSortOrder: item.productSortOrder ?? 0,
         unitPrice: item.unitPrice,
         matin: null,
         soir: null,
@@ -54,9 +57,12 @@ export function groupDeliveryItemsByProduct(
     }
   }
 
-  return [...byProduct.values()].sort((a, b) =>
-    a.productName.localeCompare(b.productName, 'fr'),
-  )
+  return [...byProduct.values()].sort((a, b) => {
+    if (a.productSortOrder !== b.productSortOrder) {
+      return a.productSortOrder - b.productSortOrder
+    }
+    return a.productName.localeCompare(b.productName, 'fr')
+  })
 }
 
 export function soldQty(draft: PeriodDraft | null): number {

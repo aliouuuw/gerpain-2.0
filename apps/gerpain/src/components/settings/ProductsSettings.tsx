@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -103,6 +104,30 @@ export function ProductsSettings() {
       onSuccess: () => products.refetch(),
     }),
   )
+
+  const reorderMutation = useMutation(
+    orpc.products.reorder.mutationOptions({
+      onSuccess: () => products.refetch(),
+    }),
+  )
+
+  // Reordering writes a global sort order, so only allow it on the full,
+  // unfiltered list to avoid clobbering the order of hidden products.
+  const canReorder =
+    canManage && !filterCategoryId && !showInactive && !formVisible
+
+  function moveProduct(index: number, direction: -1 | 1) {
+    if (!bakeryId) return
+    const list = products.data ?? []
+    const target = index + direction
+    if (target < 0 || target >= list.length) return
+
+    const orderedIds = list.map((p) => p.id)
+    const [moved] = orderedIds.splice(index, 1)
+    orderedIds.splice(target, 0, moved!)
+
+    reorderMutation.mutate({ bakeryId, orderedIds })
+  }
 
   function startEdit(product: {
     id: string
@@ -277,6 +302,13 @@ export function ProductsSettings() {
         </label>
       </div>
 
+      {canManage && !canReorder && (products.data?.length ?? 0) > 1 ? (
+        <p className="settings-form__hint">
+          Pour réordonner les produits, retirez le filtre catégorie et masquez
+          les produits inactifs.
+        </p>
+      ) : null}
+
       {bakeryLoading || products.isLoading ? (
         <p className="settings-form__hint">Chargement des produits…</p>
       ) : products.isError ? (
@@ -288,6 +320,7 @@ export function ProductsSettings() {
           <table className="data-table">
             <thead>
               <tr>
+                {canReorder ? <th aria-label="Ordre" /> : null}
                 <th>Produit</th>
                 <th>Catégorie</th>
                 <th>Prix</th>
@@ -296,8 +329,33 @@ export function ProductsSettings() {
               </tr>
             </thead>
             <tbody>
-              {products.data?.map((product) => (
+              {products.data?.map((product, index) => (
                 <tr key={product.id}>
+                  {canReorder ? (
+                    <td className="reorder-cell">
+                      <button
+                        type="button"
+                        className="reorder-btn"
+                        aria-label="Monter"
+                        disabled={index === 0 || reorderMutation.isPending}
+                        onClick={() => moveProduct(index, -1)}
+                      >
+                        <ChevronUp size={16} aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        className="reorder-btn"
+                        aria-label="Descendre"
+                        disabled={
+                          index === (products.data?.length ?? 0) - 1 ||
+                          reorderMutation.isPending
+                        }
+                        onClick={() => moveProduct(index, 1)}
+                      >
+                        <ChevronDown size={16} aria-hidden="true" />
+                      </button>
+                    </td>
+                  ) : null}
                   <td>{product.name}</td>
                   <td>{product.categoryName ?? '—'}</td>
                   <td className="cell-money">{formatXof(product.unitPrice)}</td>

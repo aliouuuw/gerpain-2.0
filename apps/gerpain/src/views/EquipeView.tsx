@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -117,6 +118,25 @@ export function EquipeView() {
     }),
   )
 
+  const reorderEmployees = useMutation(
+    orpc.employees.reorder.mutationOptions({
+      onSuccess: () => employees.refetch(),
+    }),
+  )
+
+  function moveEmployee(index: number, direction: -1 | 1) {
+    if (!bakeryId) return
+    const list = employees.data ?? []
+    const target = index + direction
+    if (target < 0 || target >= list.length) return
+
+    const orderedIds = list.map((e) => e.id)
+    const [moved] = orderedIds.splice(index, 1)
+    orderedIds.splice(target, 0, moved!)
+
+    reorderEmployees.mutate({ bakeryId, orderedIds })
+  }
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!bakeryId) return
@@ -165,7 +185,8 @@ export function EquipeView() {
     <main className="page-content">
       <HelpNote>
         Assignez les produits que chaque livreur peut vendre. Ces produits
-        apparaissent automatiquement sur leurs tournées du jour.
+        apparaissent automatiquement sur leurs tournées du jour. Utilisez les
+        flèches pour définir l&apos;ordre de passage des agents.
       </HelpNote>
 
       {canManage ? (
@@ -260,7 +281,7 @@ export function EquipeView() {
         <p className="settings-form__hint">Aucun employé pour cette boulangerie.</p>
       ) : (
         <section className="cards-grid">
-          {employees.data?.map((employee) => (
+          {employees.data?.map((employee, index) => (
             <Card key={employee.id}>
               <div className="agent-card">
                 <div className="avatar agent-avatar-lg">
@@ -285,6 +306,31 @@ export function EquipeView() {
                     )}
                   </div>
                   <div className="agent-card-actions">
+                    {canManage ? (
+                      <span className="reorder-cell" aria-label="Ordre de passage">
+                        <button
+                          type="button"
+                          className="reorder-btn"
+                          aria-label="Monter"
+                          disabled={index === 0 || reorderEmployees.isPending}
+                          onClick={() => moveEmployee(index, -1)}
+                        >
+                          <ChevronUp size={16} aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="reorder-btn"
+                          aria-label="Descendre"
+                          disabled={
+                            index === (employees.data?.length ?? 0) - 1 ||
+                            reorderEmployees.isPending
+                          }
+                          onClick={() => moveEmployee(index, 1)}
+                        >
+                          <ChevronDown size={16} aria-hidden="true" />
+                        </button>
+                      </span>
+                    ) : null}
                     <button
                       type="button"
                       className={`table-action${selectedId === employee.id ? ' table-action--primary' : ''}`}

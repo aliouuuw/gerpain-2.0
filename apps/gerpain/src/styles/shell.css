@@ -1246,6 +1246,40 @@
   margin-top: 10px;
 }
 
+.reorder-cell {
+  display: inline-flex;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.reorder-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border, #d4d4d8);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #52525b);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.reorder-btn:hover:not(:disabled) {
+  background: var(--surface-hover, #f4f4f5);
+  color: var(--text, #18181b);
+}
+
+.reorder-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .location-checkboxes {
   margin-top: 12px;
 }

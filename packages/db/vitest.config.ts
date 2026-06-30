@@ -7,5 +7,10 @@ export default defineConfig({
     // (and now trips the bakeries(org, code) unique constraint), so force them
     // to run one file at a time.
     fileParallelism: false,
+    env: {
+      // Never TRUNCATE the developer's local DB when running tests — seed is
+      // idempotent without truncate (see seed-core bakery guard).
+      SEED_TRUNCATE_DOMAIN: 'false',
+    },
   },
 })

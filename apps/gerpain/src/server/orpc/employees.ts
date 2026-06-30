@@ -9,6 +9,7 @@ import {
   getEmployee,
   listEmployeeProducts,
   listEmployees,
+  reorderEmployees,
   setEmployeeProducts,
   EmployeeServiceError,
   updateEmployee,
@@ -149,6 +150,26 @@ export const update = orgContext
     } catch (error) {
       mapEmployeeError(error)
     }
+  })
+
+export const reorder = orgContext
+  .input(
+    bakeryIdInput.extend({
+      orderedIds: z.array(z.string().uuid()).min(1),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    await reorderEmployees(
+      db,
+      context.legacyOrganizationId,
+      input.bakeryId,
+      input.orderedIds,
+    )
+
+    return { ok: true }
   })
 
 export const listProducts = orgContext

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm'
 
 import { type Database, products } from '@gerpain/db'
 
@@ -30,6 +30,7 @@ export type ProductListItem = {
   name: string
   unitPrice: number
   description: string | null
+  sortOrder: number | null
   isActive: boolean | null
   bakeryId: string | null
   categoryId: string | null
@@ -52,7 +53,7 @@ export async function listProducts(
   const rows = await db.query.products.findMany({
     where: bakeryScope(organizationId, bakeryId),
     with: { category: true },
-    orderBy: [asc(products.name)],
+    orderBy: [asc(products.sortOrder), asc(products.name)],
   })
 
   let filtered = rows
@@ -68,6 +69,7 @@ export async function listProducts(
     name: row.name,
     unitPrice: row.unitPrice,
     description: row.description,
+    sortOrder: row.sortOrder,
     isActive: row.isActive,
     bakeryId: row.bakeryId,
     categoryId: row.categoryId,
@@ -95,6 +97,7 @@ export async function getProduct(
     name: row.name,
     unitPrice: row.unitPrice,
     description: row.description,
+    sortOrder: row.sortOrder,
     isActive: row.isActive,
     bakeryId: row.bakeryId,
     categoryId: row.categoryId,
@@ -189,5 +192,45 @@ export async function deactivateProduct(
 ) {
   return updateProduct(db, organizationId, bakeryId, productId, {
     isActive: false,
+  })
+}
+
+export async function reorderProducts(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  orderedIds: string[],
+): Promise<void> {
+  if (orderedIds.length === 0) return
+
+  await db.transaction(async (tx) => {
+    const owned = await tx
+      .select({ id: products.id })
+      .from(products)
+      .where(
+        and(
+          inArray(products.id, orderedIds),
+          eq(products.organizationId, organizationId),
+          or(isNull(products.bakeryId), eq(products.bakeryId, bakeryId)),
+        ),
+      )
+
+    const ownedIds = new Set(owned.map((row) => row.id))
+    const now = new Date()
+
+    let position = 0
+    for (const id of orderedIds) {
+      if (!ownedIds.has(id)) continue
+      await tx
+        .update(products)
+        .set({ sortOrder: position, updatedAt: now })
+        .where(
+          and(
+            eq(products.id, id),
+            eq(products.organizationId, organizationId),
+          ),
+        )
+      position += 1
+    }
   })
 }

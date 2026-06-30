@@ -41,6 +41,7 @@ export type DeliveryItemDetail = {
   createdAt: Date
   updatedAt: Date
   productName: string
+  productSortOrder: number
   quantitySold: number
 }
 
@@ -469,6 +470,7 @@ export async function listDeliveryRuns(
       return {
         ...item,
         productName: product?.name ?? 'Inconnu',
+        productSortOrder: product?.sortOrder ?? 0,
         quantitySold: item.quantityEntrusted - item.quantityReturned,
       }
     })
@@ -557,6 +559,7 @@ export async function getDeliveryRun(
     return {
       ...item,
       productName: product?.name ?? 'Inconnu',
+      productSortOrder: product?.sortOrder ?? 0,
       quantitySold: item.quantityEntrusted - item.quantityReturned,
     }
   })
@@ -643,6 +646,7 @@ export async function updateDeliveryItem(
   return {
     ...updated!,
     productName: product?.name ?? 'Inconnu',
+    productSortOrder: product?.sortOrder ?? 0,
     quantitySold: updated!.quantityEntrusted - updated!.quantityReturned,
   }
 }
