@@ -690,6 +690,51 @@
   color: var(--text-3);
 }
 
+.prepare-day-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 32px 24px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.prepare-day-cta__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.prepare-day-cta__hint {
+  margin: 0;
+  max-width: 36ch;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.prepare-day-cta__btn {
+  margin-top: 4px;
+  padding: 12px 22px;
+  font-size: 14px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.prepare-day-cta__btn:hover:not(:disabled) {
+  opacity: 1;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.prepare-day-cta__btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* === Mini lists === */
 .mini-agent-list,
 .steps-list {

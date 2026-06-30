@@ -146,10 +146,10 @@ export function LivraisonsView() {
         ) : runs.isError ? (
           <p className="empty-state">Impossible de charger les livraisons.</p>
         ) : !runs.data || runs.data.length === 0 ? (
-          <div className="empty-state empty-state--action">
-            <p>Aucune tournée pour cette journée.</p>
-            <p className="empty-state__hint">
-              Préparez la journée pour créer une ligne par livreur actif.
+          <div className="prepare-day-cta" role="status">
+            <p className="prepare-day-cta__title">Aucune tournée pour cette journée</p>
+            <p className="prepare-day-cta__hint">
+              Créez une ligne par livreur actif pour commencer la saisie Matin / Soir.
             </p>
             {prepareError ? (
               <p className="form-error" role="alert">
@@ -158,7 +158,7 @@ export function LivraisonsView() {
             ) : null}
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn-primary prepare-day-cta__btn"
               disabled={!bakeryId || prepareDay.isPending}
               onClick={() => {
                 if (!bakeryId) return
