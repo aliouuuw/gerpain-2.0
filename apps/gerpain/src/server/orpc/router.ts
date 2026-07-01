@@ -79,6 +79,7 @@ export default {
     reorder: employees.reorder,
     listProducts: employees.listProducts,
     setProducts: employees.setProducts,
+    periodCommissions: employees.periodCommissions,
   },
   leaveRequests: {
     list: leaveRequests.list,

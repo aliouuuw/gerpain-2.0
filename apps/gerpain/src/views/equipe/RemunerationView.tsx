@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -12,8 +12,17 @@ import {
 } from '#/lib/employee-labels'
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
+import {
+  formatPeriodLabel,
+  periodBounds,
+  presetLabel,
+  type PeriodPreset,
+} from '#/lib/period'
+import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 import { AffectationsView } from '#/views/equipe/AffectationsView'
+
+const routeApi = getRouteApi('/_shell/equipe/remuneration')
 
 type PayDraft = {
   baseSalary: string
@@ -26,13 +35,46 @@ export function RemunerationView({
 } = {}) {
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const search = routeApi.useSearch()
+  const patchNavigate = routeApi.useNavigate()
   const [drafts, setDrafts] = useState<Record<string, PayDraft>>({})
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const preset: PeriodPreset = search.period ?? 'month'
+  const customStart = search.start ?? todayIso()
+  const customEnd = search.end ?? todayIso()
+
+  const patchSearch = (patch: Partial<typeof search>) => {
+    void patchNavigate({
+      search: (prev) => ({ ...prev, ...patch }),
+      replace: true,
+    })
+  }
+
+  const { startDate, endDate } = useMemo(
+    () => periodBounds(preset, customStart, customEnd),
+    [preset, customStart, customEnd],
+  )
 
   const employees = useQuery({
     ...orpc.employees.list.queryOptions({ input: { bakeryId } }),
     enabled: Boolean(bakeryId),
   })
+
+  const periodCommissions = useQuery({
+    ...orpc.employees.periodCommissions.queryOptions({
+      input: { bakeryId, startDate, endDate },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const commissionByEmployee = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const row of periodCommissions.data ?? []) {
+      map.set(row.employeeId, row.commissionDue)
+    }
+    return map
+  }, [periodCommissions.data])
 
   const activeEmployees = useMemo(
     () => (employees.data ?? []).filter((e) => e.status === 'active'),
@@ -65,6 +107,10 @@ export function RemunerationView({
       withSalary.length > 0
         ? Math.round(monthlyPayroll / withSalary.length)
         : 0
+    const periodCommissionTotal = (periodCommissions.data ?? []).reduce(
+      (sum, row) => sum + row.commissionDue,
+      0,
+    )
     return {
       monthlyPayroll,
       avgSalary,
@@ -75,8 +121,9 @@ export function RemunerationView({
       deliveryWithProducts: deliveryWithProducts.length,
       deliveryMissingProducts:
         deliveryAgents.length - deliveryWithProducts.length,
+      periodCommissionTotal,
     }
-  }, [activeEmployees])
+  }, [activeEmployees, periodCommissions.data])
 
   const isDirty = useMemo(() => {
     return activeEmployees.some((employee) => {
@@ -131,9 +178,49 @@ export function RemunerationView({
     <div className="section-stack">
       <HelpNote>
         Le salaire de base se configure dans la grille. Pour les livreurs, la
-        rémunération variable vient des commissions unitaires par produit
-        vendu — définies dans « Commissions par produit » ci-dessous.
+        rémunération variable vient des commissions unitaires par produit vendu
+        (tournées validées) — définies dans « Commissions par produit »
+        ci-dessous.
       </HelpNote>
+
+      <section className="period-toolbar" aria-label="Période commission">
+        <div className="period-toolbar__group">
+          <span className="period-toolbar__label">Période</span>
+          <div className="period-toolbar__presets">
+            {(['week', 'month', 'last15', 'custom'] as PeriodPreset[]).map(
+              (p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`preset-btn${preset === p ? ' preset-btn--active' : ''}`}
+                  onClick={() => patchSearch({ period: p })}
+                >
+                  {presetLabel(p)}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+        {preset === 'custom' ? (
+          <div className="period-toolbar__custom">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(e) => patchSearch({ start: e.target.value })}
+            />
+            <span>→</span>
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(e) => patchSearch({ end: e.target.value })}
+            />
+          </div>
+        ) : (
+          <span className="period-toolbar__range">
+            {formatPeriodLabel(startDate, endDate)}
+          </span>
+        )}
+      </section>
 
       <section className="stats-grid" aria-label="Synthèse rémunération">
         <dl className="stats-grid__col">
@@ -155,13 +242,12 @@ export function RemunerationView({
         </dl>
         <dl className="stats-grid__col">
           <div className="stats-lines__row">
-            <dt>Livreurs avec produits</dt>
+            <dt>Commissions / période</dt>
             <dd>
-              {summary.deliveryWithProducts}
-              <span className="stats-lines__meta">
-                sur {summary.deliveryAgents} livreur
-                {summary.deliveryAgents > 1 ? 's' : ''}
-              </span>
+              {summary.periodCommissionTotal > 0
+                ? formatXof(summary.periodCommissionTotal)
+                : '—'}
+              <span className="stats-lines__meta">tournées validées</span>
             </dd>
           </div>
         </dl>
@@ -236,6 +322,7 @@ export function RemunerationView({
                     <th>Rôle</th>
                     <th className="num">Salaire / mois</th>
                     <th className="num">Produits</th>
+                    <th className="num">Commission période</th>
                     <th aria-label="Actions" />
                   </tr>
                 </thead>
@@ -284,12 +371,28 @@ export function RemunerationView({
                             formatXof(employee.baseSalary ?? 0)
                           )}
                         </td>
-                        <td className="num">{employee.productCount}</td>
+                        <td className="num">
+                          {employee.role === 'delivery'
+                            ? employee.productCount
+                            : '—'}
+                        </td>
+                        <td className="num">
+                          {employee.role === 'delivery'
+                            ? formatXof(commissionByEmployee.get(employee.id) ?? 0)
+                            : '—'}
+                        </td>
                         <td>
                           {employee.role === 'delivery' ? (
                             <Link
                               to="/equipe/remuneration"
-                              search={{ employee: employee.id }}
+                              search={{
+                                employee: employee.id,
+                                period: preset,
+                                start:
+                                  preset === 'custom' ? customStart : undefined,
+                                end:
+                                  preset === 'custom' ? customEnd : undefined,
+                              }}
                               className="table-action"
                             >
                               Commissions / u

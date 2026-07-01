@@ -159,6 +159,18 @@ export function FicheAgentView() {
     enabled: Boolean(bakeryId && employeeId),
   })
 
+  const periodCommission = useQuery({
+    ...orpc.employees.periodCommissions.queryOptions({
+      input: {
+        bakeryId,
+        employeeId,
+        startDate,
+        endDate,
+      },
+    }),
+    enabled: Boolean(bakeryId && employeeId),
+  })
+
   const advances = useQuery({
     ...orpc.salaryAdvances.list.queryOptions({
       input: { bakeryId, employeeId },
@@ -193,46 +205,24 @@ export function FicheAgentView() {
       0,
     )
     const validatedRuns = runRows.filter((r) => r.status === 'validated')
-    const unitsSold = runRows.reduce(
-      (sum, run) => sum + runSoldUnits(run.items),
-      0,
-    )
     const revenue = runRows.reduce((sum, run) => sum + runRevenue(run.items), 0)
-    const activeProducts = (products.data ?? []).filter(
-      (p) => p.isActive !== false,
-    )
-    const estimatedCommission = runRows.reduce((sum, run) => {
-      const commissionByProduct = new Map(
-        activeProducts.map((p) => [p.productId, p.commissionPerUnit]),
-      )
-      return (
-        sum +
-        run.items.reduce((runSum, item) => {
-          const sold = Math.max(
-            0,
-            item.quantityEntrusted - item.quantityReturned,
-          )
-          const rate = commissionByProduct.get(item.productId) ?? 0
-          return runSum + sold * rate
-        }, 0)
-      )
-    }, 0)
+    const commissionRow = periodCommission.data?.[0]
 
     return {
       tournees: runRows.length,
-      validatedTournees: validatedRuns.length,
+      validatedTournees: commissionRow?.validatedRuns ?? validatedRuns.length,
       encaissements: collectionRows.length,
       totalExpected,
       totalCollected,
       solde: totalCollected - totalExpected,
-      unitsSold,
+      unitsSold: commissionRow?.unitsSold ?? 0,
       revenue,
-      estimatedCommission,
+      commissionDue: commissionRow?.commissionDue ?? 0,
       unsettled: collectionRows.filter(
         (r) => r.status === 'validated' && !r.isSettled,
       ).length,
     }
-  }, [collections.data, runs.data, products.data])
+  }, [collections.data, runs.data, periodCommission.data])
 
   const activeAssignments = useMemo(
     () => (products.data ?? []).filter((p) => p.isActive !== false),
@@ -587,8 +577,11 @@ export function FicheAgentView() {
                 <dd>{formatXof(periodStats.revenue)}</dd>
               </div>
               <div className="stats-lines__row">
-                <dt>Commission estimée</dt>
-                <dd>{formatXof(periodStats.estimatedCommission)}</dd>
+                <dt>Commission due</dt>
+                <dd>
+                  {formatXof(periodStats.commissionDue)}
+                  <span className="stats-lines__meta">tournées validées</span>
+                </dd>
               </div>
             </dl>
             <dl className="stats-grid__col">
