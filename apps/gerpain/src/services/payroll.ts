@@ -77,6 +77,85 @@ export type PayrollLinePreview = {
   advanceInstallmentIds: string[]
 }
 
+/** Frozen at close — commission/cash detail for audit without recomputing. */
+export type PayrollLineSnapshot = {
+  commissionUnitsSold: number
+  commissionUnitsCommissioned: number
+  commissionValidatedRuns: number
+  commissionProducts: PayrollCommissionProductPreview[]
+  advanceInstallments: PayrollAdvanceInstallmentPreview[]
+  collectionBalance: PayrollCollectionBalancePreview | null
+  advanceInstallmentIds: string[]
+}
+
+function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapshot {
+  return {
+    commissionUnitsSold: line.commissionUnitsSold,
+    commissionUnitsCommissioned: line.commissionUnitsCommissioned,
+    commissionValidatedRuns: line.commissionValidatedRuns,
+    commissionProducts: line.commissionProducts,
+    advanceInstallments: line.advanceInstallments,
+    collectionBalance: line.collectionBalance,
+    advanceInstallmentIds: line.advanceInstallmentIds,
+  }
+}
+
+function parseLineSnapshot(raw: unknown): PayrollLineSnapshot | null {
+  if (!raw || typeof raw !== 'object') return null
+  return raw as PayrollLineSnapshot
+}
+
+function snapshotFields(
+  snapshot: PayrollLineSnapshot | null,
+): Pick<
+  PayrollLinePreview,
+  | 'commissionUnitsSold'
+  | 'commissionUnitsCommissioned'
+  | 'commissionValidatedRuns'
+  | 'commissionProducts'
+  | 'advanceInstallments'
+  | 'collectionBalance'
+  | 'advanceInstallmentIds'
+> {
+  if (!snapshot) {
+    return {
+      commissionUnitsSold: 0,
+      commissionUnitsCommissioned: 0,
+      commissionValidatedRuns: 0,
+      commissionProducts: [],
+      advanceInstallments: [],
+      collectionBalance: null,
+      advanceInstallmentIds: [],
+    }
+  }
+  return {
+    commissionUnitsSold: snapshot.commissionUnitsSold,
+    commissionUnitsCommissioned: snapshot.commissionUnitsCommissioned,
+    commissionValidatedRuns: snapshot.commissionValidatedRuns,
+    commissionProducts: snapshot.commissionProducts,
+    advanceInstallments: snapshot.advanceInstallments,
+    collectionBalance: snapshot.collectionBalance,
+    advanceInstallmentIds: snapshot.advanceInstallmentIds,
+  }
+}
+
+function totalsFromLines(
+  lines: PayrollLinePreview[],
+  totals?: { gross?: number; net?: number },
+): PayrollPreview['totals'] {
+  return {
+    gross:
+      totals?.gross ??
+      lines.reduce((sum, line) => sum + line.grossAmount, 0),
+    net: totals?.net ?? lines.reduce((sum, line) => sum + line.netAmount, 0),
+    commission: lines.reduce((sum, line) => sum + line.commissionAmount, 0),
+    advanceDeduction: lines.reduce(
+      (sum, line) => sum + line.advanceDeduction,
+      0,
+    ),
+  }
+}
+
 export type PayrollPreview = {
   startDate: string
   endDate: string
@@ -317,8 +396,6 @@ export async function previewPayroll(
   db: Database,
   input: PayrollPeriodInput,
 ): Promise<PayrollPreview> {
-  const { periodLabel, lines, totals } = await buildPayrollLines(db, input)
-
   const [closedRun] = await db
     .select({ id: payrollRuns.id })
     .from(payrollRuns)
@@ -333,12 +410,35 @@ export async function previewPayroll(
     )
     .limit(1)
 
+  if (closedRun) {
+    const detail = await getPayrollRun(
+      db,
+      input.organizationId,
+      input.bakeryId,
+      closedRun.id,
+    )
+    return {
+      startDate: detail.startDate,
+      endDate: detail.endDate,
+      periodLabel: detail.periodLabel,
+      isClosed: true,
+      closedRunId: detail.id,
+      lines: detail.lines,
+      totals: totalsFromLines(detail.lines, {
+        gross: detail.totalGross,
+        net: detail.totalNet,
+      }),
+    }
+  }
+
+  const { periodLabel, lines, totals } = await buildPayrollLines(db, input)
+
   return {
     startDate: input.startDate,
     endDate: input.endDate,
     periodLabel,
-    isClosed: Boolean(closedRun),
-    closedRunId: closedRun?.id ?? null,
+    isClosed: false,
+    closedRunId: null,
     lines,
     totals,
   }
@@ -413,16 +513,10 @@ export async function getPayrollRun(
     role: line.employee.role,
     baseSalary: line.baseSalary,
     commissionAmount: line.commissionAmount,
-    commissionUnitsSold: 0,
-    commissionUnitsCommissioned: 0,
-    commissionValidatedRuns: 0,
-    commissionProducts: [],
     advanceDeduction: line.advanceDeduction,
-    advanceInstallments: [],
-    collectionBalance: null,
     grossAmount: line.grossAmount,
     netAmount: line.netAmount,
-    advanceInstallmentIds: [],
+    ...snapshotFields(parseLineSnapshot(line.detailSnapshot)),
   }))
 
   return {
@@ -531,6 +625,7 @@ export async function closePayroll(
           advanceDeduction: line.advanceDeduction,
           grossAmount: line.grossAmount,
           netAmount: line.netAmount,
+          detailSnapshot: snapshotFromPreview(line),
           createdAt: now,
         })),
       )

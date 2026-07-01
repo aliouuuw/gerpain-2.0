@@ -1,0 +1,1 @@
+ALTER TABLE "payroll_run_lines" ADD COLUMN "detail_snapshot" jsonb;

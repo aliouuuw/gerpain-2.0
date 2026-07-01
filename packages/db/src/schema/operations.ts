@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -252,6 +253,7 @@ export const payrollRunLines = pgTable('payroll_run_lines', {
   advanceDeduction: integer('advance_deduction').notNull().default(0),
   grossAmount: integer('gross_amount').notNull().default(0),
   netAmount: integer('net_amount').notNull().default(0),
+  detailSnapshot: jsonb('detail_snapshot').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

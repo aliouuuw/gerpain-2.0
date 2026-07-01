@@ -376,7 +376,8 @@ export function PaieView() {
             aria-hidden="true"
             style={{ verticalAlign: 'text-bottom', marginRight: '0.35rem' }}
           />
-          Période clôturée. Consultez l&apos;historique ci-dessous.
+          Période clôturée — bulletin figé au moment de la clôture. Consultez
+          l&apos;historique pour rouvrir une période passée.
         </p>
       ) : null}
 
@@ -517,7 +518,7 @@ export function PaieView() {
           <p className="empty-state">Aucune clôture enregistrée.</p>
         ) : (
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table data-table--expandable">
               <thead>
                 <tr>
                   <th>Période</th>
@@ -529,30 +530,65 @@ export function PaieView() {
                 </tr>
               </thead>
               <tbody>
-                {history.data.map((run) => (
-                  <tr key={run.id}>
-                    <td>
-                      {formatPeriodLabel(run.startDate, run.endDate)}
-                    </td>
-                    <td>{run.periodLabel}</td>
-                    <td className="num">{run.employeeCount}</td>
-                    <td className="num">{formatXof(run.totalGross)}</td>
-                    <td className="num">{formatXof(run.totalNet)}</td>
-                    <td>
-                      {run.closedAt
-                        ? new Intl.DateTimeFormat('fr-FR', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          }).format(new Date(run.closedAt))
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
+                {history.data.map((run) => {
+                  const isSelected = search.runId === run.id
+                  return (
+                    <tr
+                      key={run.id}
+                      className={`data-table__row--clickable${isSelected ? ' data-table__row--selected' : ''}`}
+                      onClick={() => {
+                        void patchNavigate({
+                          search: {
+                            period: 'custom',
+                            start: run.startDate,
+                            end: run.endDate,
+                            runId: run.id,
+                          },
+                          replace: true,
+                        })
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          void patchNavigate({
+                            search: {
+                              period: 'custom',
+                              start: run.startDate,
+                              end: run.endDate,
+                              runId: run.id,
+                            },
+                            replace: true,
+                          })
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-current={isSelected ? 'true' : undefined}
+                    >
+                      <td>{formatPeriodLabel(run.startDate, run.endDate)}</td>
+                      <td>{run.periodLabel}</td>
+                      <td className="num">{run.employeeCount}</td>
+                      <td className="num">{formatXof(run.totalGross)}</td>
+                      <td className="num">{formatXof(run.totalNet)}</td>
+                      <td>
+                        {run.closedAt
+                          ? new Intl.DateTimeFormat('fr-FR', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            }).format(new Date(run.closedAt))
+                          : '—'}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
+        <p className="settings-form__hint" style={{ marginTop: '0.75rem' }}>
+          Cliquez sur une ligne pour afficher le bulletin figé de la clôture.
+        </p>
       </Card>
     </div>
   )
