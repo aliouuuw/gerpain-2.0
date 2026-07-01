@@ -13,13 +13,17 @@ import {
 import { formatXof } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { usePermissions } from '#/lib/use-permissions'
+import { AffectationsView } from '#/views/equipe/AffectationsView'
 
 type PayDraft = {
   baseSalary: string
-  commissionRate: string
 }
 
-export function RemunerationView() {
+export function RemunerationView({
+  employeeId,
+}: {
+  employeeId?: string
+} = {}) {
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
   const [drafts, setDrafts] = useState<Record<string, PayDraft>>({})
@@ -42,7 +46,6 @@ export function RemunerationView() {
       if (employee.status !== 'active') continue
       next[employee.id] = {
         baseSalary: String(employee.baseSalary ?? 0),
-        commissionRate: String(employee.commissionRate ?? 0),
       }
     }
     setDrafts(next)
@@ -54,27 +57,24 @@ export function RemunerationView() {
       0,
     )
     const withSalary = activeEmployees.filter((e) => (e.baseSalary ?? 0) > 0)
-    const withCommission = activeEmployees.filter(
-      (e) => (e.commissionRate ?? 0) > 0,
+    const deliveryAgents = activeEmployees.filter((e) => e.role === 'delivery')
+    const deliveryWithProducts = deliveryAgents.filter(
+      (e) => e.productCount > 0,
     )
     const avgSalary =
       withSalary.length > 0
         ? Math.round(monthlyPayroll / withSalary.length)
         : 0
-    const avgCommission =
-      withCommission.length > 0
-        ? Math.round(
-            withCommission.reduce((sum, e) => sum + (e.commissionRate ?? 0), 0) /
-              withCommission.length,
-          )
-        : 0
     return {
       monthlyPayroll,
       avgSalary,
       withSalary: withSalary.length,
-      withCommission: withCommission.length,
       total: activeEmployees.length,
       missingSalary: activeEmployees.length - withSalary.length,
+      deliveryAgents: deliveryAgents.length,
+      deliveryWithProducts: deliveryWithProducts.length,
+      deliveryMissingProducts:
+        deliveryAgents.length - deliveryWithProducts.length,
     }
   }, [activeEmployees])
 
@@ -83,11 +83,7 @@ export function RemunerationView() {
       const draft = drafts[employee.id]
       if (!draft) return false
       const baseSalary = Number.parseInt(draft.baseSalary, 10) || 0
-      const commissionRate = Number.parseInt(draft.commissionRate, 10) || 0
-      return (
-        baseSalary !== (employee.baseSalary ?? 0) ||
-        commissionRate !== (employee.commissionRate ?? 0)
-      )
+      return baseSalary !== (employee.baseSalary ?? 0)
     })
   }, [activeEmployees, drafts])
 
@@ -98,10 +94,7 @@ export function RemunerationView() {
     }),
   )
 
-  function updateDraft(
-    employeeId: string,
-    patch: Partial<PayDraft>,
-  ) {
+  function updateDraft(employeeId: string, patch: Partial<PayDraft>) {
     setDrafts((current) => ({
       ...current,
       [employeeId]: { ...current[employeeId]!, ...patch },
@@ -117,11 +110,7 @@ export function RemunerationView() {
       const draft = drafts[employee.id]
       if (!draft) return false
       const baseSalary = Number.parseInt(draft.baseSalary, 10) || 0
-      const commissionRate = Number.parseInt(draft.commissionRate, 10) || 0
-      return (
-        baseSalary !== (employee.baseSalary ?? 0) ||
-        commissionRate !== (employee.commissionRate ?? 0)
-      )
+      return baseSalary !== (employee.baseSalary ?? 0)
     })
 
     try {
@@ -131,10 +120,6 @@ export function RemunerationView() {
           bakeryId,
           employeeId: employee.id,
           baseSalary: Number.parseInt(draft.baseSalary, 10) || 0,
-          commissionRate: Math.min(
-            100,
-            Math.max(0, Number.parseInt(draft.commissionRate, 10) || 0),
-          ),
         })
       }
     } catch {
@@ -145,12 +130,9 @@ export function RemunerationView() {
   return (
     <div className="section-stack">
       <HelpNote>
-        Configurez le salaire de base et le taux de commission global par agent.
-        Les commissions unitaires par produit se règlent dans{' '}
-        <Link to="/equipe/affectations" className="text-link">
-          Affectations
-        </Link>
-        . Les primes récurrentes arrivent prochainement.
+        Le salaire de base se configure dans la grille. Pour les livreurs, la
+        rémunération variable vient des commissions unitaires par produit
+        vendu — définies dans « Commissions par produit » ci-dessous.
       </HelpNote>
 
       <section className="stats-grid" aria-label="Synthèse rémunération">
@@ -173,12 +155,12 @@ export function RemunerationView() {
         </dl>
         <dl className="stats-grid__col">
           <div className="stats-lines__row">
-            <dt>Commission moyenne</dt>
+            <dt>Livreurs avec produits</dt>
             <dd>
-              {summary.avgCommission > 0 ? `${summary.avgCommission} %` : '—'}
+              {summary.deliveryWithProducts}
               <span className="stats-lines__meta">
-                {summary.withCommission} agent
-                {summary.withCommission > 1 ? 's' : ''}
+                sur {summary.deliveryAgents} livreur
+                {summary.deliveryAgents > 1 ? 's' : ''}
               </span>
             </dd>
           </div>
@@ -190,6 +172,16 @@ export function RemunerationView() {
               <dd>
                 {summary.missingSalary} agent
                 {summary.missingSalary > 1 ? 's' : ''}
+              </dd>
+            </div>
+          </dl>
+        ) : summary.deliveryMissingProducts > 0 ? (
+          <dl className="stats-grid__col">
+            <div className="stats-lines__row stats-lines__row--warn">
+              <dt>Livreurs sans produit</dt>
+              <dd>
+                {summary.deliveryMissingProducts} livreur
+                {summary.deliveryMissingProducts > 1 ? 's' : ''}
               </dd>
             </div>
           </dl>
@@ -243,17 +235,13 @@ export function RemunerationView() {
                     <th>Agent</th>
                     <th>Rôle</th>
                     <th className="num">Salaire / mois</th>
-                    <th className="num">Commission %</th>
                     <th className="num">Produits</th>
                     <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {activeEmployees.map((employee) => {
-                    const draft = drafts[employee.id] ?? {
-                      baseSalary: '0',
-                      commissionRate: '0',
-                    }
+                    const draft = drafts[employee.id] ?? { baseSalary: '0' }
                     return (
                       <tr key={employee.id}>
                         <td>
@@ -296,34 +284,19 @@ export function RemunerationView() {
                             formatXof(employee.baseSalary ?? 0)
                           )}
                         </td>
-                        <td className="num">
-                          {canManage ? (
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              className="pay-grid-input pay-grid-input--narrow"
-                              value={draft.commissionRate}
-                              onChange={(e) =>
-                                updateDraft(employee.id, {
-                                  commissionRate: e.target.value,
-                                })
-                              }
-                              aria-label={`Commission ${employee.fullName}`}
-                            />
-                          ) : (
-                            `${employee.commissionRate ?? 0} %`
-                          )}
-                        </td>
                         <td className="num">{employee.productCount}</td>
                         <td>
-                          <Link
-                            to="/equipe/affectations"
-                            search={{ employee: employee.id }}
-                            className="table-action"
-                          >
-                            Commissions / u
-                          </Link>
+                          {employee.role === 'delivery' ? (
+                            <Link
+                              to="/equipe/remuneration"
+                              search={{ employee: employee.id }}
+                              className="table-action"
+                            >
+                              Commissions / u
+                            </Link>
+                          ) : (
+                            <span className="settings-form__hint">—</span>
+                          )}
                         </td>
                       </tr>
                     )
@@ -338,12 +311,17 @@ export function RemunerationView() {
         )}
       </Card>
 
-      <Card title="Primes">
-        <p className="settings-form__hint settings-coming-soon">
-          Primes récurrentes et bonus exceptionnels — configuration à venir
-          dans une prochaine version (avant clôture de paie).
+      <section
+        className="section-stack__subsection"
+        aria-label="Commissions par produit"
+      >
+        <h2 className="section-subhead">Commissions par produit</h2>
+        <p className="settings-form__hint">
+          Sélectionnez un livreur pour définir les produits qu&apos;il peut
+          vendre et la commission unitaire (XOF / unité vendue).
         </p>
-      </Card>
+        <AffectationsView employeeId={employeeId} embedded />
+      </section>
     </div>
   )
 }

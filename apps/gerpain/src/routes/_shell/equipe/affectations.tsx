@@ -1,7 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { z } from 'zod'
-
-import { AffectationsView } from '#/views/equipe/AffectationsView'
 
 const affectationsSearchSchema = z.object({
   employee: z.string().uuid().optional(),
@@ -9,10 +7,10 @@ const affectationsSearchSchema = z.object({
 
 export const Route = createFileRoute('/_shell/equipe/affectations')({
   validateSearch: affectationsSearchSchema,
-  component: AffectationsRoute,
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: '/equipe/remuneration',
+      search: search.employee ? { employee: search.employee } : {},
+    })
+  },
 })
-
-function AffectationsRoute() {
-  const { employee } = Route.useSearch()
-  return <AffectationsView employeeId={employee} />
-}

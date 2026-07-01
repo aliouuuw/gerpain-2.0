@@ -333,7 +333,7 @@ export function DeliveryRunPanel({
           {rows.length === 0 ? (
             <p className="settings-form__hint">
               Aucun produit assigné à cet agent.{' '}
-              <Link to="/equipe/affectations" className="text-link">
+              <Link to="/equipe/remuneration" className="text-link">
                 Configurer dans Équipe →
               </Link>
             </p>

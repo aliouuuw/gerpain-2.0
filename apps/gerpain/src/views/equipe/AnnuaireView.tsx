@@ -23,7 +23,6 @@ type EmployeeForm = {
   role: EmployeeRole
   phone: string
   baseSalary: string
-  commissionRate: string
   locationIds: string[]
 }
 
@@ -33,7 +32,6 @@ const emptyEmployeeForm = (): EmployeeForm => ({
   role: 'delivery',
   phone: '',
   baseSalary: '',
-  commissionRate: '',
   locationIds: [],
 })
 
@@ -72,7 +70,6 @@ export function AnnuaireView() {
       role: employee.role,
       status: employee.status,
       baseSalary: employee.baseSalary,
-      commissionRate: employee.commissionRate,
       productCount: employee.productCount,
       locationLabel:
         employee.locationIds.length > 0
@@ -92,7 +89,6 @@ export function AnnuaireView() {
       0,
     )
     const withSalary = active.filter((e) => (e.baseSalary ?? 0) > 0)
-    const withCommission = active.filter((e) => (e.commissionRate ?? 0) > 0)
     const withLocation = active.filter((e) => e.locationIds.length > 0)
     const withPhone = active.filter((e) => Boolean(e.phone?.trim()))
     const deliveryReady = deliveryActive.filter((e) => e.productCount > 0)
@@ -103,13 +99,6 @@ export function AnnuaireView() {
     const avgSalary =
       withSalary.length > 0
         ? Math.round(monthlyPayroll / withSalary.length)
-        : 0
-    const avgCommissionRate =
-      withCommission.length > 0
-        ? Math.round(
-            withCommission.reduce((sum, e) => sum + (e.commissionRate ?? 0), 0) /
-              withCommission.length,
-          )
         : 0
     const assignedProducts = active.reduce(
       (sum, e) => sum + e.productCount,
@@ -141,8 +130,6 @@ export function AnnuaireView() {
           : 0,
       deliveryReady: deliveryReady.length,
       deliveryReadyPct,
-      withCommission: withCommission.length,
-      avgCommissionRate,
       withLocation: withLocation.length,
       withPhone: withPhone.length,
       missingSalary: active.length - withSalary.length,
@@ -205,7 +192,6 @@ export function AnnuaireView() {
     if (!bakeryId) return
 
     const baseSalary = Number.parseInt(form.baseSalary, 10)
-    const commissionRate = Number.parseInt(form.commissionRate, 10)
 
     createEmployee.mutate({
       bakeryId,
@@ -214,9 +200,6 @@ export function AnnuaireView() {
       role: form.role,
       phone: form.phone.trim() || undefined,
       baseSalary: Number.isFinite(baseSalary) ? baseSalary : undefined,
-      commissionRate: Number.isFinite(commissionRate)
-        ? commissionRate
-        : undefined,
       locationIds: form.locationIds.length > 0 ? form.locationIds : undefined,
     })
   }
@@ -238,10 +221,10 @@ export function AnnuaireView() {
   return (
     <div className="section-stack">
       <HelpNote>
-        Vue d&apos;ensemble du personnel. Configurez les produits vendus par
-        chaque agent dans{' '}
-        <Link to="/equipe/affectations" className="text-link">
-          Affectations
+        Vue d&apos;ensemble du personnel. Configurez le salaire et les produits
+        vendus par chaque agent dans{' '}
+        <Link to="/equipe/remuneration" className="text-link">
+          Rémunération
         </Link>
         .
       </HelpNote>
@@ -301,7 +284,7 @@ export function AnnuaireView() {
       <Modal
         open={addOpen}
         title="Ajouter un membre"
-        description="Renseignez les informations de base. Le salaire et la commission peuvent être ajustés plus tard."
+        description="Renseignez les informations de base. Le salaire et les commissions par produit se configurent dans Rémunération."
         size="lg"
         onClose={() => setAddOpen(false)}
         footer={
@@ -387,19 +370,6 @@ export function AnnuaireView() {
                 value={form.baseSalary}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, baseSalary: e.target.value }))
-                }
-                placeholder="0"
-              />
-            </label>
-            <label className="settings-form__field">
-              <span>Commission (%)</span>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={form.commissionRate}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, commissionRate: e.target.value }))
                 }
                 placeholder="0"
               />

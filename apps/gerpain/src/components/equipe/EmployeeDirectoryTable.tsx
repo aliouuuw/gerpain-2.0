@@ -28,7 +28,6 @@ export type EmployeeDirectoryRow = {
   role: string
   status: string
   baseSalary: number | null
-  commissionRate: number | null
   productCount: number
   locationLabel: string
 }
@@ -41,7 +40,7 @@ type EmployeeDirectoryTableProps = {
 }
 
 const PAGE_SIZES = [10, 25, 50] as const
-const NUM_COLUMNS = new Set(['baseSalary', 'commissionRate', 'productCount'])
+const NUM_COLUMNS = new Set(['baseSalary', 'productCount'])
 
 function SortHeader({
   label,
@@ -137,18 +136,11 @@ export function EmployeeDirectoryTable({
         },
       },
       {
-        id: 'commissionRate',
-        accessorKey: 'commissionRate',
-        header: 'Comm.',
-        cell: ({ getValue }) => {
-          const value = getValue<number | null>()
-          return value ? `${value} %` : '—'
-        },
-      },
-      {
         id: 'productCount',
         accessorKey: 'productCount',
         header: 'Produits',
+        cell: ({ row }) =>
+          row.original.role === 'delivery' ? row.original.productCount : '—',
       },
       {
         id: 'status',
@@ -171,11 +163,11 @@ export function EmployeeDirectoryTable({
         cell: ({ row }) => (
           <div className="table-actions">
             <Link
-              to="/equipe/affectations"
+              to="/equipe/remuneration"
               search={{ employee: row.original.id }}
               className="table-action"
             >
-              Affectations
+              Rémunération
             </Link>
             {row.original.status === 'active' ? (
               <button

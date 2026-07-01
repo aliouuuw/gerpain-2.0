@@ -10,8 +10,10 @@ import { usePermissions } from '#/lib/use-permissions'
 
 export function AffectationsView({
   employeeId,
+  embedded = false,
 }: {
   employeeId: string | undefined
+  embedded?: boolean
 }) {
   const navigate = useNavigate()
   const { bakeryId } = useBakery()
@@ -84,7 +86,7 @@ export function AffectationsView({
   function handleEmployeeChange(id: string) {
     setSelectedId(id || null)
     void navigate({
-      to: '/equipe/affectations',
+      to: '/equipe/remuneration',
       search: id ? { employee: id } : {},
       replace: true,
     })
@@ -110,11 +112,13 @@ export function AffectationsView({
 
   return (
     <div className="section-stack">
-      <HelpNote>
-        Assignez les produits que chaque livreur peut vendre et leur commission
-        unitaire. Ces produits apparaissent automatiquement sur leurs tournées du
-        jour.
-      </HelpNote>
+      {embedded ? null : (
+        <HelpNote>
+          Assignez les produits que chaque livreur peut vendre et leur commission
+          unitaire. Ces produits apparaissent automatiquement sur leurs tournées
+          du jour.
+        </HelpNote>
+      )}
 
       <Card title="Agent">
         {employees.isLoading ? (

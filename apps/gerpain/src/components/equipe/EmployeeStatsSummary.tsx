@@ -17,8 +17,6 @@ export type EmployeeStats = {
   avgProductsPerDelivery: number
   deliveryReady: number
   deliveryReadyPct: number
-  withCommission: number
-  avgCommissionRate: number
   withLocation: number
   withPhone: number
   missingSalary: number
@@ -95,19 +93,6 @@ export function EmployeeStatsSummary({ stats }: EmployeeStatsSummaryProps) {
           meta={
             stats.salaryCoveragePct > 0
               ? `${stats.salaryCoveragePct} % renseignés`
-              : undefined
-          }
-        />
-        <StatLine
-          label="Commission moyenne"
-          value={
-            stats.avgCommissionRate > 0
-              ? `${stats.avgCommissionRate} %`
-              : '—'
-          }
-          meta={
-            stats.withCommission > 0
-              ? `${stats.withCommission} agent${stats.withCommission > 1 ? 's' : ''}`
               : undefined
           }
         />

@@ -3,35 +3,35 @@ import type { SectionNavItem } from '#/components/layout/SectionNavLayout'
 export const equipeNavItems = [
   {
     to: '/equipe/annuaire',
-    label: 'Annuaire',
-    hint: 'Effectif, contacts et statuts',
+    label: 'Effectif',
+    hint: 'Agents, contacts et statuts',
     matchPath: '/equipe/agents',
-  },
-  {
-    to: '/equipe/affectations',
-    label: 'Affectations',
-    hint: 'Produits et commissions par agent',
+    group: 'Effectif',
   },
   {
     to: '/equipe/remuneration',
     label: 'Rémunération',
-    hint: 'Salaire de base, grilles et primes',
+    hint: 'Salaire de base et commissions par produit',
+    group: 'Paie & rémunération',
   },
   {
     to: '/equipe/avances',
     label: 'Avances',
     hint: 'Avances sur salaire et remboursements',
+    group: 'Paie & rémunération',
   },
   {
     to: '/equipe/conges',
     label: 'Congés',
     hint: 'Demandes et absences',
+    group: 'Paie & rémunération',
   },
   {
     to: '/equipe/paie',
     label: 'Paie',
     hint: 'Bulletins et clôture de période',
     disabled: true,
+    group: 'Clôture',
   },
 ] as const satisfies readonly SectionNavItem[]
 
@@ -41,19 +41,15 @@ export const equipeSectionMeta: Record<
 > = {
   '/equipe/annuaire': {
     title: 'Personnel & paie',
-    subtitle: 'Annuaire — effectif et contacts',
+    subtitle: 'Effectif — agents et contacts',
   },
   '/equipe/agents': {
     title: 'Personnel & paie',
     subtitle: 'Fiche agent',
   },
-  '/equipe/affectations': {
-    title: 'Personnel & paie',
-    subtitle: 'Affectations — produits et commissions',
-  },
   '/equipe/remuneration': {
     title: 'Personnel & paie',
-    subtitle: 'Rémunération — salaire, grilles et primes',
+    subtitle: 'Rémunération — salaire et commissions par produit',
   },
   '/equipe/avances': {
     title: 'Personnel & paie',

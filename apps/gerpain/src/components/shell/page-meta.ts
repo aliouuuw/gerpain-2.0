@@ -29,7 +29,7 @@ export const shellPageMeta: Record<string, ShellPageMeta> = {
   },
   '/equipe': {
     title: 'Personnel & paie',
-    subtitle: 'Effectif, affectations et paie',
+    subtitle: 'Effectif, rémunération et paie',
   },
   '/reglages': {
     title: 'Réglages',

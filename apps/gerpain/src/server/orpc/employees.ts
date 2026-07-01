@@ -30,7 +30,6 @@ const employeeFieldsSchema = z.object({
   email: z.string().email().optional(),
   phone: z.string().max(50).optional(),
   baseSalary: z.number().int().min(0).optional(),
-  commissionRate: z.number().int().min(0).max(100).optional(),
   hireDate: z.string().optional(),
   locationIds: z.array(z.string().uuid()).optional(),
 })
@@ -126,7 +125,6 @@ export const update = orgContext
       email: z.string().email().optional(),
       phone: z.string().max(50).optional(),
       baseSalary: z.number().int().min(0).optional(),
-      commissionRate: z.number().int().min(0).max(100).optional(),
       hireDate: z.string().optional(),
       locationIds: z.array(z.string().uuid()).optional(),
       status: z.enum(['active', 'inactive']).optional(),

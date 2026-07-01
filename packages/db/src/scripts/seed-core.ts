@@ -344,7 +344,6 @@ async function seedLegacyDomain(legacyOrgId: string, truncate: boolean) {
         organizationId: legacyOrgId,
         bakeryId: bakery!.id,
         status: 'active' as const,
-        commissionRate: 0,
         hireDate: '2025-01-01',
       })),
     )

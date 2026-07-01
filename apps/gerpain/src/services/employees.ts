@@ -29,7 +29,6 @@ export type EmployeeInput = {
   email?: string
   phone?: string
   baseSalary?: number
-  commissionRate?: number
   hireDate?: string
   locationIds?: string[]
 }
@@ -49,7 +48,6 @@ export type EmployeeListItem = {
   role: string
   status: string
   baseSalary: number | null
-  commissionRate: number | null
   sortOrder: number | null
   productCount: number
   locationIds: string[]
@@ -145,7 +143,6 @@ export async function listEmployees(
     role: row.role,
     status: row.status,
     baseSalary: row.baseSalary,
-    commissionRate: row.commissionRate,
     sortOrder: row.sortOrder,
     productCount: productCounts.get(row.id) ?? 0,
     locationIds: locationsByEmployee.get(row.id) ?? [],
@@ -185,7 +182,6 @@ export async function getEmployee(
     role: row.role,
     status: row.status,
     baseSalary: row.baseSalary,
-    commissionRate: row.commissionRate,
     hireDate: row.hireDate,
     sortOrder: row.sortOrder,
     productCount,
@@ -257,7 +253,6 @@ export async function createEmployee(
       email: input.email?.trim() || null,
       phone: input.phone?.trim() || null,
       baseSalary: input.baseSalary ?? 0,
-      commissionRate: input.commissionRate ?? 0,
       hireDate: input.hireDate ?? null,
       status: 'active',
     })
@@ -298,9 +293,6 @@ export async function updateEmployee(
   if (input.email !== undefined) patch.email = input.email.trim() || null
   if (input.phone !== undefined) patch.phone = input.phone.trim() || null
   if (input.baseSalary !== undefined) patch.baseSalary = input.baseSalary
-  if (input.commissionRate !== undefined) {
-    patch.commissionRate = input.commissionRate
-  }
   if (input.hireDate !== undefined) patch.hireDate = input.hireDate || null
   if (input.status !== undefined) patch.status = input.status
   if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder
