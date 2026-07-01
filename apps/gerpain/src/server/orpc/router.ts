@@ -8,6 +8,7 @@ import * as health from './health'
 import * as leaveRequests from './leave-requests'
 import * as locations from './locations'
 import * as me from './me'
+import * as payroll from './payroll'
 import * as products from './products'
 import * as salaryAdvances from './salary-advances'
 
@@ -80,6 +81,7 @@ export default {
     listProducts: employees.listProducts,
     setProducts: employees.setProducts,
     periodCommissions: employees.periodCommissions,
+    periodCommissionBreakdown: employees.periodCommissionBreakdown,
   },
   leaveRequests: {
     list: leaveRequests.list,
@@ -95,5 +97,11 @@ export default {
     payRemainder: salaryAdvances.payRemainder,
     rollOverInstallment: salaryAdvances.rollOverInstallment,
     cancel: salaryAdvances.cancel,
+  },
+  payroll: {
+    preview: payroll.preview,
+    list: payroll.list,
+    get: payroll.get,
+    close: payroll.close,
   },
 }

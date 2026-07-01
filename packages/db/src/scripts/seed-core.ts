@@ -424,6 +424,11 @@ const LEDGER_SEED_ACCOUNTS = [
     name: 'Paie en attente de clôture',
     type: 'liability' as const,
   },
+  {
+    code: 'SALARY_EXPENSE',
+    name: 'Charges salariales',
+    type: 'expense' as const,
+  },
 ]
 
 async function ensureLedgerAccounts(legacyOrgId: string) {

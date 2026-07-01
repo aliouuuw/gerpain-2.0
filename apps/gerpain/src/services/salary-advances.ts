@@ -346,6 +346,79 @@ async function assertInstallmentRepaymentNotPosted(
   }
 }
 
+export async function paySalaryAdvanceInstallmentInTx(
+  tx: Parameters<Parameters<Database['transaction']>[0]>[0],
+  organizationId: string,
+  bakeryId: string,
+  installmentId: string,
+  method: SalaryAdvanceRepaymentMethod,
+  createdByUserId?: string,
+): Promise<void> {
+  const installment = await tx.query.salaryAdvanceInstallments.findFirst({
+    where: and(
+      eq(salaryAdvanceInstallments.id, installmentId),
+      eq(salaryAdvanceInstallments.organizationId, organizationId),
+    ),
+  })
+
+  if (!installment) {
+    throw new SalaryAdvanceServiceError('NOT_FOUND', 'Échéance introuvable')
+  }
+
+  if (installment.status !== 'scheduled') {
+    throw new SalaryAdvanceServiceError(
+      'INVALID_STATE',
+      'Seules les échéances planifiées peuvent être remboursées',
+    )
+  }
+
+  const advance = await getAdvanceRow(
+    tx,
+    organizationId,
+    bakeryId,
+    installment.advanceId,
+  )
+
+  if (advance.status !== 'active') {
+    throw new SalaryAdvanceServiceError(
+      'INVALID_STATE',
+      'Cette avance n\'est plus active',
+    )
+  }
+
+  await assertInstallmentRepaymentNotPosted(tx, organizationId, installmentId)
+
+  const accounts = await assertLedgerReady(tx, organizationId)
+  const now = new Date()
+  const lines = buildAdvanceRepaymentLines(
+    accounts,
+    installment.amount,
+    method,
+  )
+
+  await post(tx, {
+    organizationId,
+    occurredAt: now,
+    memo: `Remboursement avance — échéance ${installment.installmentNumber}`,
+    sourceType: 'salary_advance_installment',
+    sourceId: installmentId,
+    lines,
+    createdBy: createdByUserId,
+  })
+
+  await tx
+    .update(salaryAdvanceInstallments)
+    .set({
+      status: 'paid',
+      paymentMethod: method,
+      paidAt: now,
+      updatedAt: now,
+    })
+    .where(eq(salaryAdvanceInstallments.id, installmentId))
+
+  await closeAdvanceIfComplete(tx, advance.id)
+}
+
 export async function paySalaryAdvanceInstallment(
   db: Database,
   organizationId: string,
@@ -355,82 +428,27 @@ export async function paySalaryAdvanceInstallment(
   createdByUserId?: string,
 ): Promise<SalaryAdvanceListItem> {
   return db.transaction(async (tx) => {
-    const installment = await tx.query.salaryAdvanceInstallments.findFirst({
-      where: and(
-        eq(salaryAdvanceInstallments.id, installmentId),
-        eq(salaryAdvanceInstallments.organizationId, organizationId),
-      ),
-    })
-
-    if (!installment) {
-      throw new SalaryAdvanceServiceError(
-        'NOT_FOUND',
-        'Échéance introuvable',
-      )
-    }
-
-    if (installment.status !== 'scheduled') {
-      throw new SalaryAdvanceServiceError(
-        'INVALID_STATE',
-        'Seules les échéances planifiées peuvent être remboursées',
-      )
-    }
-
-    const advance = await getAdvanceRow(
+    await paySalaryAdvanceInstallmentInTx(
       tx,
       organizationId,
       bakeryId,
-      installment.advanceId,
-    )
-
-    if (advance.status !== 'active') {
-      throw new SalaryAdvanceServiceError(
-        'INVALID_STATE',
-        'Cette avance n\'est plus active',
-      )
-    }
-
-    await assertInstallmentRepaymentNotPosted(
-      tx,
-      organizationId,
       installmentId,
-    )
-
-    const accounts = await assertLedgerReady(tx, organizationId)
-    const now = new Date()
-    const lines = buildAdvanceRepaymentLines(
-      accounts,
-      installment.amount,
       method,
+      createdByUserId,
     )
 
-    await post(tx, {
-      organizationId,
-      occurredAt: now,
-      memo: `Remboursement avance — échéance ${installment.installmentNumber}`,
-      sourceType: 'salary_advance_installment',
-      sourceId: installmentId,
-      lines,
-      createdBy: createdByUserId,
+    const installment = await tx.query.salaryAdvanceInstallments.findFirst({
+      where: eq(salaryAdvanceInstallments.id, installmentId),
     })
-
-    await tx
-      .update(salaryAdvanceInstallments)
-      .set({
-        status: 'paid',
-        paymentMethod: method,
-        paidAt: now,
-        updatedAt: now,
-      })
-      .where(eq(salaryAdvanceInstallments.id, installmentId))
-
-    await closeAdvanceIfComplete(tx, advance.id)
+    if (!installment) {
+      throw new SalaryAdvanceServiceError('NOT_FOUND', 'Échéance introuvable')
+    }
 
     const refreshed = await getAdvanceRow(
       tx,
       organizationId,
       bakeryId,
-      advance.id,
+      installment.advanceId,
     )
     return mapAdvanceListItem(
       refreshed,

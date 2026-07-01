@@ -80,21 +80,6 @@ export function ReconciliationsView() {
     enabled: Boolean(bakeryId),
   })
 
-  const periodCommissions = useQuery({
-    ...orpc.employees.periodCommissions.queryOptions({
-      input: { bakeryId, startDate, endDate },
-    }),
-    enabled: Boolean(bakeryId),
-  })
-
-  const commissionByEmployee = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const row of periodCommissions.data ?? []) {
-      map.set(row.employeeId, row.commissionDue)
-    }
-    return map
-  }, [periodCommissions.data])
-
   const totals = useMemo(() => {
     const rows = overview.data ?? []
     return {
@@ -102,12 +87,8 @@ export function ReconciliationsView() {
       totalExpected: rows.reduce((sum, row) => sum + row.totalExpected, 0),
       totalCollected: rows.reduce((sum, row) => sum + row.totalCollected, 0),
       solde: rows.reduce((sum, row) => sum + row.solde, 0),
-      commissionDue: (periodCommissions.data ?? []).reduce(
-        (sum, row) => sum + row.commissionDue,
-        0,
-      ),
     }
-  }, [overview.data, periodCommissions.data])
+  }, [overview.data])
 
   function handleRowClick(employeeId: string) {
     void navigate({
@@ -203,9 +184,13 @@ export function ReconciliationsView() {
       </section>
 
       <HelpNote>
-        Vue d&apos;ensemble : {formatPeriodLabel(startDate, endDate)}. Caisse
-        (attendu / collecté / solde) et commission due (tournées validées).
-        Cliquez sur un agent pour le détail des encaissements.
+        Vue d&apos;ensemble caisse : {formatPeriodLabel(startDate, endDate)}.
+        Attendu, collecté et solde par agent. Cliquez sur un agent pour le
+        détail des encaissements. Pour le net à payer, voir{' '}
+        <Link to="/equipe/paie" className="text-link">
+          Paie
+        </Link>
+        .
       </HelpNote>
 
       <Card title="Récapitulatif par agent">
@@ -227,7 +212,6 @@ export function ReconciliationsView() {
                 <th className="num">Attendu</th>
                 <th className="num">Collecté</th>
                 <th className="num">Solde</th>
-                <th className="num">Commission</th>
                 <th aria-hidden="true" />
               </tr>
             </thead>
@@ -267,11 +251,6 @@ export function ReconciliationsView() {
                       {row.solde < 0 ? ' (doit)' : row.solde > 0 ? ' (excès)' : ''}
                     </span>
                   </td>
-                  <td className="num">
-                    {row.role === 'delivery'
-                      ? formatXof(commissionByEmployee.get(row.employeeId) ?? 0)
-                      : '—'}
-                  </td>
                   <td>
                     <ArrowRight size={16} aria-hidden="true" />
                   </td>
@@ -285,7 +264,6 @@ export function ReconciliationsView() {
                 <td className={`num ${soldeClass(totals.solde)}`}>
                   {formatXof(Math.abs(totals.solde))}
                 </td>
-                <td className="num">{formatXof(totals.commissionDue)}</td>
                 <td />
               </tr>
             </tbody>

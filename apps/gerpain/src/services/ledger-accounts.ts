@@ -10,6 +10,7 @@ export const LEDGER_ACCOUNT_CODES = {
   CASH_OVERAGE: 'CASH_OVERAGE',
   SALARY_ADVANCE_RECEIVABLE: 'SALARY_ADVANCE_RECEIVABLE',
   PAYROLL_CLEARING: 'PAYROLL_CLEARING',
+  SALARY_EXPENSE: 'SALARY_EXPENSE',
 } as const
 
 export type LedgerAccountIds = {
@@ -19,6 +20,7 @@ export type LedgerAccountIds = {
   cashOverage: string
   salaryAdvanceReceivable: string
   payrollClearing: string
+  salaryExpense: string
 }
 
 export class LedgerAccountsError extends Error {
@@ -48,6 +50,7 @@ export async function getLedgerAccountMap(
     LEDGER_ACCOUNT_CODES.SALARY_ADVANCE_RECEIVABLE,
   )
   const payrollClearing = byCode.get(LEDGER_ACCOUNT_CODES.PAYROLL_CLEARING)
+  const salaryExpense = byCode.get(LEDGER_ACCOUNT_CODES.SALARY_EXPENSE)
 
   if (
     !cash ||
@@ -55,7 +58,8 @@ export async function getLedgerAccountMap(
     !cashShortage ||
     !cashOverage ||
     !salaryAdvanceReceivable ||
-    !payrollClearing
+    !payrollClearing ||
+    !salaryExpense
   ) {
     throw new LedgerAccountsError(
       'Comptes ledger manquants pour cette organisation',
@@ -69,6 +73,7 @@ export async function getLedgerAccountMap(
     cashOverage,
     salaryAdvanceReceivable,
     payrollClearing,
+    salaryExpense,
   }
 }
 
@@ -106,6 +111,11 @@ export async function ensureLedgerAccountsForOrg(
       code: LEDGER_ACCOUNT_CODES.PAYROLL_CLEARING,
       name: 'Paie en attente de clôture',
       type: 'liability' as const,
+    },
+    {
+      code: LEDGER_ACCOUNT_CODES.SALARY_EXPENSE,
+      name: 'Charges salariales',
+      type: 'expense' as const,
     },
   ]
 

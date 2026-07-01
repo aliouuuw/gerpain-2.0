@@ -11,7 +11,7 @@ export const equipeNavItems = [
   {
     to: '/equipe/remuneration',
     label: 'Rémunération',
-    hint: 'Salaire de base et commissions par produit',
+    hint: 'Règles de paie — base et commissions / u',
     group: 'Paie & rémunération',
   },
   {
@@ -29,8 +29,7 @@ export const equipeNavItems = [
   {
     to: '/equipe/paie',
     label: 'Paie',
-    hint: 'Bulletins et clôture de période',
-    disabled: true,
+    hint: 'Aperçu, détail et clôture de période',
     group: 'Clôture',
   },
 ] as const satisfies readonly SectionNavItem[]
@@ -49,7 +48,7 @@ export const equipeSectionMeta: Record<
   },
   '/equipe/remuneration': {
     title: 'Personnel & paie',
-    subtitle: 'Rémunération — salaire et commissions par produit',
+    subtitle: 'Rémunération — règles de paie',
   },
   '/equipe/avances': {
     title: 'Personnel & paie',
@@ -61,6 +60,6 @@ export const equipeSectionMeta: Record<
   },
   '/equipe/paie': {
     title: 'Personnel & paie',
-    subtitle: 'Paie — bulletins et clôture',
+    subtitle: 'Paie — aperçu, détail et clôture',
   },
 }

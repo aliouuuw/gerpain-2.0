@@ -1104,6 +1104,43 @@
   color: var(--text);
 }
 
+.fiche-details__row--emphasis dt,
+.fiche-details__row--emphasis dd {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.pay-formula-cell {
+  font-size: 13px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-breakdown__installments {
+  margin: 8px 0 12px;
+  padding-left: 0;
+}
+
+.pay-breakdown__links {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.pay-breakdown__info-row dd {
+  color: var(--text-2);
+}
+
+.pay-breakdown__muted {
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.data-table--compact th,
+.data-table--compact td {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
 /* === Modal === */
 
 .modal-backdrop {

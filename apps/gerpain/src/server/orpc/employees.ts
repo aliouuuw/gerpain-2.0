@@ -14,7 +14,7 @@ import {
   EmployeeServiceError,
   updateEmployee,
 } from '#/services/employees'
-import { getPeriodCommissions } from '#/services/employee-commission'
+import { getPeriodCommissionBreakdown, getPeriodCommissions } from '#/services/employee-commission'
 import { assertManagerRole } from '#/server/permissions'
 import { orgContext } from './context'
 
@@ -238,6 +238,26 @@ export const periodCommissions = orgContext
     await assertBakery(context.legacyOrganizationId, input.bakeryId)
 
     return getPeriodCommissions(db, {
+      organizationId: context.legacyOrganizationId,
+      bakeryId: input.bakeryId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      employeeId: input.employeeId,
+    })
+  })
+
+export const periodCommissionBreakdown = orgContext
+  .input(
+    bakeryIdInput.extend({
+      startDate: periodDateSchema,
+      endDate: periodDateSchema,
+      employeeId: z.string().uuid().optional(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    return getPeriodCommissionBreakdown(db, {
       organizationId: context.legacyOrganizationId,
       bakeryId: input.bakeryId,
       startDate: input.startDate,

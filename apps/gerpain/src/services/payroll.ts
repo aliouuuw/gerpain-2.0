@@ -1,0 +1,573 @@
+import { and, asc, desc, eq, isNull, or } from 'drizzle-orm'
+
+import { post } from '@gerpain/bocal'
+import {
+  type Database,
+  payrollRunLines,
+  payrollRuns,
+  salaryAdvanceInstallments,
+  salaryAdvances,
+} from '@gerpain/db'
+
+import { getPeriodCommissionBreakdown, getPeriodCommissions } from '#/services/employee-commission'
+import { getPeriodCollectionBalancesByEmployee } from '#/services/collections'
+import { listEmployees } from '#/services/employees'
+import {
+  ensureLedgerAccountsForOrg,
+  getLedgerAccountMap,
+} from '#/services/ledger-accounts'
+import { buildPayrollPayoutLines } from '#/services/payroll-posting'
+import { paySalaryAdvanceInstallmentInTx } from '#/services/salary-advances'
+import { periodLabelFromEndDate } from '#/lib/period'
+
+export class PayrollServiceError extends Error {
+  constructor(
+    public code: 'NOT_FOUND' | 'ALREADY_CLOSED' | 'INVALID_STATE' | 'LEDGER_NOT_CONFIGURED',
+    message: string,
+  ) {
+    super(message)
+    this.name = 'PayrollServiceError'
+  }
+}
+
+export type PayrollPeriodInput = {
+  organizationId: string
+  bakeryId: string
+  startDate: string
+  endDate: string
+}
+
+export type PayrollAdvanceInstallmentPreview = {
+  id: string
+  amount: number
+  installmentNumber: number
+  duePeriod: string | null
+}
+
+export type PayrollCommissionProductPreview = {
+  productId: string
+  productName: string
+  unitsSold: number
+  commissionPerUnit: number
+  commissionAmount: number
+}
+
+export type PayrollCollectionBalancePreview = {
+  totalExpected: number
+  totalCollected: number
+  solde: number
+  collectionCount: number
+}
+
+export type PayrollLinePreview = {
+  employeeId: string
+  employeeName: string
+  role: string
+  baseSalary: number
+  commissionAmount: number
+  commissionUnitsSold: number
+  commissionUnitsCommissioned: number
+  commissionValidatedRuns: number
+  commissionProducts: PayrollCommissionProductPreview[]
+  advanceDeduction: number
+  advanceInstallments: PayrollAdvanceInstallmentPreview[]
+  collectionBalance: PayrollCollectionBalancePreview | null
+  grossAmount: number
+  netAmount: number
+  advanceInstallmentIds: string[]
+}
+
+export type PayrollPreview = {
+  startDate: string
+  endDate: string
+  periodLabel: string
+  isClosed: boolean
+  closedRunId: string | null
+  lines: PayrollLinePreview[]
+  totals: {
+    gross: number
+    net: number
+    commission: number
+    advanceDeduction: number
+  }
+}
+
+export type PayrollRunSummary = {
+  id: string
+  startDate: string
+  endDate: string
+  periodLabel: string
+  status: string
+  totalGross: number
+  totalNet: number
+  closedAt: Date | null
+  employeeCount: number
+}
+
+export type PayrollRunDetail = PayrollRunSummary & {
+  lines: PayrollLinePreview[]
+}
+
+type AdvanceInstallmentDue = {
+  id: string
+  employeeId: string
+  amount: number
+  installmentNumber: number
+  duePeriod: string | null
+}
+
+async function listDueAdvanceInstallments(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  periodLabel: string,
+): Promise<AdvanceInstallmentDue[]> {
+  const rows = await db
+    .select({
+      id: salaryAdvanceInstallments.id,
+      employeeId: salaryAdvances.employeeId,
+      amount: salaryAdvanceInstallments.amount,
+      installmentNumber: salaryAdvanceInstallments.installmentNumber,
+      duePeriod: salaryAdvanceInstallments.duePeriod,
+      advanceId: salaryAdvances.id,
+    })
+    .from(salaryAdvanceInstallments)
+    .innerJoin(
+      salaryAdvances,
+      eq(salaryAdvanceInstallments.advanceId, salaryAdvances.id),
+    )
+    .where(
+      and(
+        eq(salaryAdvanceInstallments.organizationId, organizationId),
+        eq(salaryAdvances.bakeryId, bakeryId),
+        eq(salaryAdvances.status, 'active'),
+        eq(salaryAdvanceInstallments.status, 'scheduled'),
+        or(
+          eq(salaryAdvanceInstallments.duePeriod, periodLabel),
+          isNull(salaryAdvanceInstallments.duePeriod),
+        ),
+      ),
+    )
+    .orderBy(
+      asc(salaryAdvances.employeeId),
+      asc(salaryAdvanceInstallments.installmentNumber),
+    )
+
+  const seenAdvanceWithoutPeriod = new Set<string>()
+  const due: AdvanceInstallmentDue[] = []
+
+  for (const row of rows) {
+    if (row.duePeriod === periodLabel) {
+      due.push({
+        id: row.id,
+        employeeId: row.employeeId,
+        amount: row.amount,
+        installmentNumber: row.installmentNumber,
+        duePeriod: row.duePeriod,
+      })
+      continue
+    }
+
+    if (!row.duePeriod && !seenAdvanceWithoutPeriod.has(row.advanceId)) {
+      seenAdvanceWithoutPeriod.add(row.advanceId)
+      due.push({
+        id: row.id,
+        employeeId: row.employeeId,
+        amount: row.amount,
+        installmentNumber: row.installmentNumber,
+        duePeriod: row.duePeriod,
+      })
+    }
+  }
+
+  return due
+}
+
+async function buildPayrollLines(
+  db: Database,
+  input: PayrollPeriodInput,
+): Promise<{
+  periodLabel: string
+  lines: PayrollLinePreview[]
+  totals: PayrollPreview['totals']
+}> {
+  const periodLabel = periodLabelFromEndDate(input.endDate)
+
+  const [activeEmployees, commissions, commissionBreakdown, collectionBalances, dueInstallments] =
+    await Promise.all([
+    listEmployees(db, input.organizationId, input.bakeryId, {
+      status: 'active',
+    }),
+    getPeriodCommissions(db, input),
+    getPeriodCommissionBreakdown(db, input),
+    getPeriodCollectionBalancesByEmployee(db, input),
+    listDueAdvanceInstallments(
+      db,
+      input.organizationId,
+      input.bakeryId,
+      periodLabel,
+    ),
+  ])
+
+  const commissionByEmployee = new Map(
+    commissions.map((row) => [row.employeeId, row]),
+  )
+
+  const commissionProductsByEmployee = new Map<
+    string,
+    PayrollCommissionProductPreview[]
+  >()
+  for (const row of commissionBreakdown) {
+    const list = commissionProductsByEmployee.get(row.employeeId) ?? []
+    list.push({
+      productId: row.productId,
+      productName: row.productName,
+      unitsSold: row.unitsSold,
+      commissionPerUnit: row.commissionPerUnit,
+      commissionAmount: row.commissionDue,
+    })
+    commissionProductsByEmployee.set(row.employeeId, list)
+  }
+
+  const collectionBalanceByEmployee = new Map(
+    collectionBalances.map((row) => [row.employeeId, row]),
+  )
+
+  const installmentsByEmployee = new Map<string, AdvanceInstallmentDue[]>()
+  for (const installment of dueInstallments) {
+    const list = installmentsByEmployee.get(installment.employeeId) ?? []
+    list.push(installment)
+    installmentsByEmployee.set(installment.employeeId, list)
+  }
+
+  const lines: PayrollLinePreview[] = activeEmployees.map((employee) => {
+    const baseSalary = employee.baseSalary ?? 0
+    const commissionRow = commissionByEmployee.get(employee.id)
+    const commissionAmount =
+      employee.role === 'delivery' ? (commissionRow?.commissionDue ?? 0) : 0
+    const commissionUnitsSold =
+      employee.role === 'delivery' ? (commissionRow?.unitsSold ?? 0) : 0
+    const commissionValidatedRuns =
+      employee.role === 'delivery' ? (commissionRow?.validatedRuns ?? 0) : 0
+    const commissionProducts =
+      employee.role === 'delivery'
+        ? (commissionProductsByEmployee.get(employee.id) ?? [])
+        : []
+    const commissionUnitsCommissioned = commissionProducts.reduce(
+      (sum, row) =>
+        row.commissionPerUnit > 0 ? sum + row.unitsSold : sum,
+      0,
+    )
+    const collectionRow = collectionBalanceByEmployee.get(employee.id)
+    const collectionBalance =
+      employee.role === 'delivery' && collectionRow
+        ? {
+            totalExpected: collectionRow.totalExpected,
+            totalCollected: collectionRow.totalCollected,
+            solde: collectionRow.solde,
+            collectionCount: collectionRow.collectionCount,
+          }
+        : null
+    const employeeInstallments = installmentsByEmployee.get(employee.id) ?? []
+    const advanceDeduction = employeeInstallments.reduce(
+      (sum, row) => sum + row.amount,
+      0,
+    )
+    const grossAmount = baseSalary + commissionAmount
+    const netAmount = Math.max(grossAmount - advanceDeduction, 0)
+
+    return {
+      employeeId: employee.id,
+      employeeName: employee.fullName,
+      role: employee.role,
+      baseSalary,
+      commissionAmount,
+      commissionUnitsSold,
+      commissionUnitsCommissioned,
+      commissionValidatedRuns,
+      commissionProducts,
+      advanceDeduction,
+      advanceInstallments: employeeInstallments.map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        installmentNumber: row.installmentNumber,
+        duePeriod: row.duePeriod,
+      })),
+      collectionBalance,
+      grossAmount,
+      netAmount,
+      advanceInstallmentIds: employeeInstallments.map((row) => row.id),
+    }
+  })
+
+  const totals = lines.reduce(
+    (acc, line) => ({
+      gross: acc.gross + line.grossAmount,
+      net: acc.net + line.netAmount,
+      commission: acc.commission + line.commissionAmount,
+      advanceDeduction: acc.advanceDeduction + line.advanceDeduction,
+    }),
+    { gross: 0, net: 0, commission: 0, advanceDeduction: 0 },
+  )
+
+  return { periodLabel, lines, totals }
+}
+
+export async function previewPayroll(
+  db: Database,
+  input: PayrollPeriodInput,
+): Promise<PayrollPreview> {
+  const { periodLabel, lines, totals } = await buildPayrollLines(db, input)
+
+  const [closedRun] = await db
+    .select({ id: payrollRuns.id })
+    .from(payrollRuns)
+    .where(
+      and(
+        eq(payrollRuns.organizationId, input.organizationId),
+        eq(payrollRuns.bakeryId, input.bakeryId),
+        eq(payrollRuns.startDate, input.startDate),
+        eq(payrollRuns.endDate, input.endDate),
+        eq(payrollRuns.status, 'closed'),
+      ),
+    )
+    .limit(1)
+
+  return {
+    startDate: input.startDate,
+    endDate: input.endDate,
+    periodLabel,
+    isClosed: Boolean(closedRun),
+    closedRunId: closedRun?.id ?? null,
+    lines,
+    totals,
+  }
+}
+
+export async function listPayrollRuns(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+): Promise<PayrollRunSummary[]> {
+  const runs = await db.query.payrollRuns.findMany({
+    where: and(
+      eq(payrollRuns.organizationId, organizationId),
+      eq(payrollRuns.bakeryId, bakeryId),
+      eq(payrollRuns.status, 'closed'),
+    ),
+    orderBy: [desc(payrollRuns.endDate)],
+    with: {
+      lines: {
+        columns: { id: true },
+      },
+    },
+  })
+
+  return runs.map((run) => ({
+    id: run.id,
+    startDate: run.startDate,
+    endDate: run.endDate,
+    periodLabel: run.periodLabel,
+    status: run.status,
+    totalGross: run.totalGross,
+    totalNet: run.totalNet,
+    closedAt: run.closedAt,
+    employeeCount: run.lines.length,
+  }))
+}
+
+export async function getPayrollRun(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  runId: string,
+): Promise<PayrollRunDetail> {
+  const run = await db.query.payrollRuns.findFirst({
+    where: and(
+      eq(payrollRuns.id, runId),
+      eq(payrollRuns.organizationId, organizationId),
+      eq(payrollRuns.bakeryId, bakeryId),
+    ),
+    with: {
+      lines: {
+        with: {
+          employee: {
+            columns: {
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!run) {
+    throw new PayrollServiceError('NOT_FOUND', 'Clôture de paie introuvable')
+  }
+
+  const lines: PayrollLinePreview[] = run.lines.map((line) => ({
+    employeeId: line.employeeId,
+    employeeName: `${line.employee.firstName} ${line.employee.lastName}`,
+    role: line.employee.role,
+    baseSalary: line.baseSalary,
+    commissionAmount: line.commissionAmount,
+    commissionUnitsSold: 0,
+    commissionUnitsCommissioned: 0,
+    commissionValidatedRuns: 0,
+    commissionProducts: [],
+    advanceDeduction: line.advanceDeduction,
+    advanceInstallments: [],
+    collectionBalance: null,
+    grossAmount: line.grossAmount,
+    netAmount: line.netAmount,
+    advanceInstallmentIds: [],
+  }))
+
+  return {
+    id: run.id,
+    startDate: run.startDate,
+    endDate: run.endDate,
+    periodLabel: run.periodLabel,
+    status: run.status,
+    totalGross: run.totalGross,
+    totalNet: run.totalNet,
+    closedAt: run.closedAt,
+    employeeCount: lines.length,
+    lines,
+  }
+}
+
+export async function closePayroll(
+  db: Database,
+  input: PayrollPeriodInput,
+  closedByUserId?: string,
+): Promise<PayrollRunDetail> {
+  const preview = await previewPayroll(db, input)
+  if (preview.isClosed) {
+    throw new PayrollServiceError(
+      'ALREADY_CLOSED',
+      'Cette période est déjà clôturée',
+    )
+  }
+
+  const payableLines = preview.lines.filter((line) => line.netAmount > 0)
+  const hasAdvanceDeductions = preview.totals.advanceDeduction > 0
+
+  if (
+    preview.lines.length === 0 ||
+    (payableLines.length === 0 && !hasAdvanceDeductions)
+  ) {
+    throw new PayrollServiceError(
+      'INVALID_STATE',
+      'Aucun montant à payer pour cette période',
+    )
+  }
+
+  try {
+    await ensureLedgerAccountsForOrg(db, input.organizationId)
+  } catch {
+    throw new PayrollServiceError(
+      'LEDGER_NOT_CONFIGURED',
+      'Comptes ledger manquants pour cette organisation',
+    )
+  }
+
+  const now = new Date()
+
+  return db.transaction(async (tx) => {
+    const [existingClosed] = await tx
+      .select({ id: payrollRuns.id })
+      .from(payrollRuns)
+      .where(
+        and(
+          eq(payrollRuns.organizationId, input.organizationId),
+          eq(payrollRuns.bakeryId, input.bakeryId),
+          eq(payrollRuns.startDate, input.startDate),
+          eq(payrollRuns.endDate, input.endDate),
+          eq(payrollRuns.status, 'closed'),
+        ),
+      )
+      .limit(1)
+
+    if (existingClosed) {
+      throw new PayrollServiceError(
+        'ALREADY_CLOSED',
+        'Cette période est déjà clôturée',
+      )
+    }
+
+    const [run] = await tx
+      .insert(payrollRuns)
+      .values({
+        organizationId: input.organizationId,
+        bakeryId: input.bakeryId,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        periodLabel: preview.periodLabel,
+        status: 'closed',
+        totalGross: preview.totals.gross,
+        totalNet: preview.totals.net,
+        closedAt: now,
+        closedBy: closedByUserId ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning()
+
+    if (!run) {
+      throw new Error('Failed to create payroll run')
+    }
+
+    if (preview.lines.length > 0) {
+      await tx.insert(payrollRunLines).values(
+        preview.lines.map((line) => ({
+          organizationId: input.organizationId,
+          payrollRunId: run.id,
+          employeeId: line.employeeId,
+          baseSalary: line.baseSalary,
+          commissionAmount: line.commissionAmount,
+          advanceDeduction: line.advanceDeduction,
+          grossAmount: line.grossAmount,
+          netAmount: line.netAmount,
+          createdAt: now,
+        })),
+      )
+    }
+
+    for (const line of preview.lines) {
+      for (const installmentId of line.advanceInstallmentIds) {
+        await paySalaryAdvanceInstallmentInTx(
+          tx,
+          input.organizationId,
+          input.bakeryId,
+          installmentId,
+          'payroll_deduction',
+          closedByUserId,
+        )
+      }
+    }
+
+    const totalNetPayout = payableLines.reduce(
+      (sum, line) => sum + line.netAmount,
+      0,
+    )
+
+    if (totalNetPayout > 0) {
+      const accounts = await getLedgerAccountMap(tx, input.organizationId)
+      const lines = buildPayrollPayoutLines(accounts, totalNetPayout)
+      await post(tx, {
+        organizationId: input.organizationId,
+        occurredAt: now,
+        memo: `Paie — ${preview.periodLabel}`,
+        sourceType: 'payroll_run',
+        sourceId: run.id,
+        lines,
+        createdBy: closedByUserId,
+      })
+    }
+
+    return getPayrollRun(tx, input.organizationId, input.bakeryId, run.id)
+  })
+}

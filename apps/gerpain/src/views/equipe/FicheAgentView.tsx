@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { HelpNote } from '#/components/ui/HelpNote'
 import { advanceStatusLabel } from '#/lib/advance-labels'
 import { useBakery } from '#/lib/bakery-context'
 import {
@@ -168,7 +169,19 @@ export function FicheAgentView() {
         endDate,
       },
     }),
-    enabled: Boolean(bakeryId && employeeId),
+    enabled: Boolean(bakeryId && employeeId && tab === 'activite'),
+  })
+
+  const periodCommissionBreakdown = useQuery({
+    ...orpc.employees.periodCommissionBreakdown.queryOptions({
+      input: {
+        bakeryId,
+        employeeId,
+        startDate,
+        endDate,
+      },
+    }),
+    enabled: Boolean(bakeryId && employeeId && tab === 'activite'),
   })
 
   const advances = useQuery({
@@ -207,6 +220,11 @@ export function FicheAgentView() {
     const validatedRuns = runRows.filter((r) => r.status === 'validated')
     const revenue = runRows.reduce((sum, run) => sum + runRevenue(run.items), 0)
     const commissionRow = periodCommission.data?.[0]
+    const breakdownRows = periodCommissionBreakdown.data ?? []
+    const unitsCommissioned = breakdownRows.reduce(
+      (sum, row) => (row.commissionPerUnit > 0 ? sum + row.unitsSold : sum),
+      0,
+    )
 
     return {
       tournees: runRows.length,
@@ -216,17 +234,24 @@ export function FicheAgentView() {
       totalCollected,
       solde: totalCollected - totalExpected,
       unitsSold: commissionRow?.unitsSold ?? 0,
+      unitsCommissioned,
       revenue,
       commissionDue: commissionRow?.commissionDue ?? 0,
       unsettled: collectionRows.filter(
         (r) => r.status === 'validated' && !r.isSettled,
       ).length,
     }
-  }, [collections.data, runs.data, periodCommission.data])
+  }, [collections.data, runs.data, periodCommission.data, periodCommissionBreakdown.data])
 
   const activeAssignments = useMemo(
     () => (products.data ?? []).filter((p) => p.isActive !== false),
     [products.data],
+  )
+
+  const commissionedProductCount = useMemo(
+    () =>
+      activeAssignments.filter((row) => row.commissionPerUnit > 0).length,
+    [activeAssignments],
   )
 
   if (employee.isLoading) {
@@ -362,18 +387,11 @@ export function FicheAgentView() {
                 <dt>Produits assignés</dt>
                 <dd>{activeAssignments.length}</dd>
               </div>
-              {activeAssignments.length > 0 ? (
+              {commissionedProductCount > 0 ? (
                 <div className="fiche-details__row">
-                  <dt>Commission / u (moy.)</dt>
+                  <dt>Produits commissionnés</dt>
                   <dd>
-                    {formatXof(
-                      Math.round(
-                        activeAssignments.reduce(
-                          (sum, row) => sum + row.commissionPerUnit,
-                          0,
-                        ) / activeAssignments.length,
-                      ),
-                    )}
+                    {commissionedProductCount} sur {activeAssignments.length}
                   </dd>
                 </div>
               ) : null}
@@ -568,7 +586,15 @@ export function FicheAgentView() {
               </div>
               <div className="stats-lines__row">
                 <dt>Unités vendues</dt>
-                <dd>{periodStats.unitsSold}</dd>
+                <dd>
+                  {periodStats.unitsSold}
+                  {periodStats.unitsSold > periodStats.unitsCommissioned ? (
+                    <span className="stats-lines__meta">
+                      dont {periodStats.unitsCommissioned} commissionnée
+                      {periodStats.unitsCommissioned > 1 ? 's' : ''}
+                    </span>
+                  ) : null}
+                </dd>
               </div>
             </dl>
             <dl className="stats-grid__col">
@@ -622,6 +648,45 @@ export function FicheAgentView() {
               </div>
             </dl>
           </section>
+
+          <HelpNote>
+            La commission est calculée produit par produit (tournées validées).
+            Le solde encaissements reflète l&apos;écart caisse ; il n&apos;est
+            pas déduit automatiquement de la paie. Consultez{' '}
+            <Link to="/equipe/paie" className="text-link">
+              Paie
+            </Link>{' '}
+            pour le bulletin.
+          </HelpNote>
+
+          {(periodCommissionBreakdown.data?.length ?? 0) > 0 ? (
+            <Card title="Détail commissions par produit">
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Produit</th>
+                      <th className="num">Vendu</th>
+                      <th className="num">Commission / u</th>
+                      <th className="num">Sous-total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {periodCommissionBreakdown.data?.map((row) => (
+                      <tr key={row.productId}>
+                        <td>{row.productName}</td>
+                        <td className="num">{row.unitsSold}</td>
+                        <td className="num">
+                          {formatXof(row.commissionPerUnit)}
+                        </td>
+                        <td className="num">{formatXof(row.commissionDue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          ) : null}
 
           <Card title="Tournées sur la période">
             {runs.isLoading ? (

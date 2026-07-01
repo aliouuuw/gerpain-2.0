@@ -212,6 +212,49 @@ export const leaveRequests = pgTable('leave_requests', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+export const payrollRunStatuses = ['draft', 'closed'] as const
+
+export type PayrollRunStatus = (typeof payrollRunStatuses)[number]
+
+export const payrollRuns = pgTable('payroll_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  bakeryId: uuid('bakery_id')
+    .notNull()
+    .references(() => bakeries.id, { onDelete: 'cascade' }),
+  startDate: date('start_date').notNull(),
+  endDate: date('end_date').notNull(),
+  periodLabel: text('period_label').notNull(),
+  status: text('status').notNull().default('draft').$type<PayrollRunStatus>(),
+  totalGross: integer('total_gross').notNull().default(0),
+  totalNet: integer('total_net').notNull().default(0),
+  closedAt: timestamp('closed_at'),
+  closedBy: uuid('closed_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const payrollRunLines = pgTable('payroll_run_lines', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  payrollRunId: uuid('payroll_run_id')
+    .notNull()
+    .references(() => payrollRuns.id, { onDelete: 'cascade' }),
+  employeeId: uuid('employee_id')
+    .notNull()
+    .references(() => employees.id, { onDelete: 'cascade' }),
+  baseSalary: integer('base_salary').notNull().default(0),
+  commissionAmount: integer('commission_amount').notNull().default(0),
+  advanceDeduction: integer('advance_deduction').notNull().default(0),
+  grossAmount: integer('gross_amount').notNull().default(0),
+  netAmount: integer('net_amount').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 export const deliveryRuns = pgTable('delivery_runs', {
   id: uuid('id').defaultRandom().primaryKey(),
   organizationId: uuid('organization_id')
@@ -384,6 +427,38 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
   cashCollections: many(cashCollections),
   leaveRequests: many(leaveRequests),
   salaryAdvances: many(salaryAdvances),
+  payrollRunLines: many(payrollRunLines),
+}))
+
+export const payrollRunsRelations = relations(payrollRuns, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [payrollRuns.organizationId],
+    references: [organizations.id],
+  }),
+  bakery: one(bakeries, {
+    fields: [payrollRuns.bakeryId],
+    references: [bakeries.id],
+  }),
+  closer: one(users, {
+    fields: [payrollRuns.closedBy],
+    references: [users.id],
+  }),
+  lines: many(payrollRunLines),
+}))
+
+export const payrollRunLinesRelations = relations(payrollRunLines, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [payrollRunLines.organizationId],
+    references: [organizations.id],
+  }),
+  payrollRun: one(payrollRuns, {
+    fields: [payrollRunLines.payrollRunId],
+    references: [payrollRuns.id],
+  }),
+  employee: one(employees, {
+    fields: [payrollRunLines.employeeId],
+    references: [employees.id],
+  }),
 }))
 
 export const salaryAdvancesRelations = relations(
@@ -700,6 +775,10 @@ export type SalaryAdvanceInstallment =
   typeof salaryAdvanceInstallments.$inferSelect
 export type NewSalaryAdvanceInstallment =
   typeof salaryAdvanceInstallments.$inferInsert
+export type PayrollRun = typeof payrollRuns.$inferSelect
+export type NewPayrollRun = typeof payrollRuns.$inferInsert
+export type PayrollRunLine = typeof payrollRunLines.$inferSelect
+export type NewPayrollRunLine = typeof payrollRunLines.$inferInsert
 export type PricingRule = typeof pricingRules.$inferSelect
 export type NewPricingRule = typeof pricingRules.$inferInsert
 export type InventoryItem = typeof inventoryItems.$inferSelect

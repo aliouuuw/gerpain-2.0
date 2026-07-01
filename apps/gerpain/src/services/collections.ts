@@ -610,6 +610,62 @@ export type CollectionsOverviewInput = {
   isSettled?: boolean
 }
 
+export type EmployeeCollectionBalance = {
+  employeeId: string
+  totalExpected: number
+  totalCollected: number
+  solde: number
+  collectionCount: number
+}
+
+export type CollectionBalanceInput = {
+  organizationId: string
+  bakeryId: string
+  startDate: string
+  endDate: string
+  employeeId?: string
+}
+
+export async function getPeriodCollectionBalancesByEmployee(
+  db: Database,
+  input: CollectionBalanceInput,
+): Promise<EmployeeCollectionBalance[]> {
+  const conditions = [
+    eq(cashCollections.organizationId, input.organizationId),
+    eq(cashCollections.bakeryId, input.bakeryId),
+    eq(cashCollections.isArchived, false),
+    gte(cashCollections.date, input.startDate),
+    lte(cashCollections.date, input.endDate),
+  ]
+
+  if (input.employeeId) {
+    conditions.push(eq(cashCollections.employeeId, input.employeeId))
+  }
+
+  const rows = await db
+    .select({
+      employeeId: cashCollections.employeeId,
+      totalExpected: sql<number>`COALESCE(SUM(${cashCollections.expectedAmount}), 0)`,
+      totalCollected: sql<number>`COALESCE(SUM(COALESCE(${cashCollections.actualAmount}, 0)), 0)`,
+      collectionCount: sql<number>`COUNT(${cashCollections.id})`,
+    })
+    .from(cashCollections)
+    .where(and(...conditions))
+    .groupBy(cashCollections.employeeId)
+
+  return rows.map((row) => {
+    const totalExpected = Number(row.totalExpected) || 0
+    const totalCollected = Number(row.totalCollected) || 0
+    return {
+      employeeId: row.employeeId,
+      totalExpected,
+      totalCollected,
+      solde: totalCollected - totalExpected,
+      collectionCount: Number(row.collectionCount) || 0,
+    }
+  })
+}
+
 export async function getCashCollectionsOverview(
   db: Database,
   input: CollectionsOverviewInput,

@@ -101,3 +101,8 @@ function monthName(month: number): string {
   ]
   return names[month - 1] ?? ''
 }
+
+/** YYYY-MM label for advance due periods and payroll close. */
+export function periodLabelFromEndDate(endDate: string): string {
+  return endDate.slice(0, 7)
+}
