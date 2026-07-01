@@ -13,9 +13,11 @@ import { orpc } from '#/lib/orpc-client'
 import {
   formatPeriodLabel,
   periodBounds,
+  periodLabelFromEndDate,
   presetLabel,
   type PeriodPreset,
 } from '#/lib/period'
+import { downloadPayrollCsv } from '#/lib/payroll-csv'
 import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 
@@ -44,12 +46,20 @@ type PayrollLine = {
     installmentNumber: number
     duePeriod: string | null
   }>
+  bonusAmount: number
+  bonuses: Array<{
+    id: string
+    amount: number
+    reason: string | null
+    duePeriod: string
+  }>
   collectionBalance: {
     totalExpected: number
     totalCollected: number
     solde: number
     collectionCount: number
   } | null
+  collectionDeduction: number
   grossAmount: number
   netAmount: number
 }
@@ -68,11 +78,17 @@ function soldeClass(solde: number): string {
 
 function formulaSummary(line: PayrollLine): string {
   const parts = [formatXof(line.baseSalary)]
+  if (line.bonusAmount > 0) {
+    parts.push(`+ ${formatXof(line.bonusAmount)}`)
+  }
   if (line.role === 'delivery' && line.commissionAmount > 0) {
     parts.push(`+ ${formatXof(line.commissionAmount)}`)
   }
   if (line.advanceDeduction > 0) {
     parts.push(`− ${formatXof(line.advanceDeduction)}`)
+  }
+  if (line.collectionDeduction > 0) {
+    parts.push(`− ${formatXof(line.collectionDeduction)}`)
   }
   return parts.join(' ')
 }
@@ -140,6 +156,39 @@ function PayrollLineBreakdown({
           </table>
         </div>
       ) : null}
+      {line.bonusAmount > 0 ? (
+        <div className="fiche-details__row">
+          <dt>Primes</dt>
+          <dd className="num">
+            + {formatXof(line.bonusAmount)}
+            <span className="stats-lines__meta">
+              {line.bonuses.length} prime{line.bonuses.length > 1 ? 's' : ''}
+            </span>
+          </dd>
+        </div>
+      ) : null}
+      {line.bonuses.length > 0 ? (
+        <div className="pay-breakdown__installments">
+          <table className="data-table data-table--compact">
+            <thead>
+              <tr>
+                <th>Période due</th>
+                <th>Motif</th>
+                <th className="num">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              {line.bonuses.map((bonus) => (
+                <tr key={bonus.id}>
+                  <td>{bonus.duePeriod}</td>
+                  <td>{bonus.reason ?? '—'}</td>
+                  <td className="num">{formatXof(bonus.amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       {line.advanceDeduction > 0 ? (
         <div className="fiche-details__row">
           <dt>Retenues avances</dt>
@@ -180,19 +229,27 @@ function PayrollLineBreakdown({
         </div>
       ) : null}
       {line.role === 'delivery' && line.collectionBalance ? (
-        <div className="fiche-details__row pay-breakdown__info-row">
-          <dt>Solde encaissements</dt>
+        <div className="fiche-details__row">
+          <dt>
+            {line.collectionDeduction > 0
+              ? 'Retenue caisse (manque)'
+              : 'Solde encaissements'}
+          </dt>
           <dd className="num">
-            <span className={soldeClass(line.collectionBalance.solde)}>
-              {formatXof(Math.abs(line.collectionBalance.solde))}
-              {line.collectionBalance.solde !== 0
-                ? ` (${soldeLabel(line.collectionBalance.solde)})`
-                : ''}
-            </span>
+            {line.collectionDeduction > 0 ? (
+              <>− {formatXof(line.collectionDeduction)}</>
+            ) : (
+              <span className={soldeClass(line.collectionBalance.solde)}>
+                {formatXof(Math.abs(line.collectionBalance.solde))}
+                {line.collectionBalance.solde !== 0
+                  ? ` (${soldeLabel(line.collectionBalance.solde)})`
+                  : ''}
+              </span>
+            )}
             <span className="stats-lines__meta">
               {formatXof(line.collectionBalance.totalCollected)} collecté sur{' '}
-              {formatXof(line.collectionBalance.totalExpected)} · non déduit de
-              la paie
+              {formatXof(line.collectionBalance.totalExpected)}
+              {line.collectionDeduction > 0 ? ' · déduit du net' : ''}
             </span>
           </dd>
         </div>
@@ -364,9 +421,9 @@ export function PaieView() {
 
       <HelpNote>
         Aperçu paie : {formatPeriodLabel(startDate, endDate)}. Net = salaire de
-        base + commissions (détail par produit sur tournées validées) −
-        retenues avances. Le solde encaissements est informatif et n&apos;est
-        pas déduit du net en v1. Cliquez sur un agent pour le détail.
+        base + commissions + primes − retenues avances − manque caisse (si
+        applicable). À la clôture, les encaissements validés sont marqués réglés.
+        Cliquez sur un agent pour le détail.
       </HelpNote>
 
       {isClosed ? (
@@ -407,34 +464,57 @@ export function PaieView() {
               <dd>{formatXof(totals.advanceDeduction)}</dd>
             </div>
           </dl>
+          <dl className="stats-grid__col">
+            <div className="stats-lines__row">
+              <dt>Retenues caisse</dt>
+              <dd>{formatXof(totals.collectionDeduction)}</dd>
+            </div>
+          </dl>
         </section>
       ) : null}
 
       <Card
         title="Bulletin par agent"
         actions={
-          canManage && !isClosed ? (
-            <button
-              type="button"
-              className="btn-primary btn-sm"
-              disabled={
-                !bakeryId ||
-                preview.isLoading ||
-                closePayroll.isPending ||
-                lines.length === 0
-              }
-              onClick={() => {
-                if (!bakeryId) return
-                closePayroll.mutate({ bakeryId, startDate, endDate })
-              }}
-            >
-              {closePayroll.isPending ? 'Clôture…' : 'Clôturer la période'}
-            </button>
-          ) : isClosed ? (
-            <span className="settings-form__hint">
-              <Lock size={14} aria-hidden="true" /> Clôturée
-            </span>
-          ) : undefined
+          <div className="card-actions-row">
+            {preview.data && lines.length > 0 ? (
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  if (!preview.data) return
+                  downloadPayrollCsv(
+                    preview.data,
+                    `paie-${periodLabelFromEndDate(endDate)}.csv`,
+                  )
+                }}
+              >
+                Exporter CSV
+              </button>
+            ) : null}
+            {canManage && !isClosed ? (
+              <button
+                type="button"
+                className="btn-primary btn-sm"
+                disabled={
+                  !bakeryId ||
+                  preview.isLoading ||
+                  closePayroll.isPending ||
+                  lines.length === 0
+                }
+                onClick={() => {
+                  if (!bakeryId) return
+                  closePayroll.mutate({ bakeryId, startDate, endDate })
+                }}
+              >
+                {closePayroll.isPending ? 'Clôture…' : 'Clôturer la période'}
+              </button>
+            ) : isClosed ? (
+              <span className="settings-form__hint">
+                <Lock size={14} aria-hidden="true" /> Clôturée
+              </span>
+            ) : null}
+          </div>
         }
       >
         {!bakeryId || bakeryLoading || preview.isLoading ? (

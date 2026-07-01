@@ -10,14 +10,20 @@ import {
 } from '@gerpain/db'
 
 import { getPeriodCommissionBreakdown, getPeriodCommissions } from '#/services/employee-commission'
-import { getPeriodCollectionBalancesByEmployee } from '#/services/collections'
+import { getPeriodCollectionBalancesByEmployee, settleCashCollectionsPeriod } from '#/services/collections'
 import { listEmployees } from '#/services/employees'
 import {
   ensureLedgerAccountsForOrg,
   getLedgerAccountMap,
 } from '#/services/ledger-accounts'
 import { buildPayrollPayoutLines } from '#/services/payroll-posting'
+import { collectionShortfallDeduction } from '#/services/payroll-deductions'
 import { paySalaryAdvanceInstallmentInTx } from '#/services/salary-advances'
+import {
+  type DueSalaryBonus,
+  listDueSalaryBonuses,
+  markSalaryBonusesPaidInTx,
+} from '#/services/salary-bonuses'
 import { periodLabelFromEndDate } from '#/lib/period'
 
 export class PayrollServiceError extends Error {
@@ -42,6 +48,13 @@ export type PayrollAdvanceInstallmentPreview = {
   amount: number
   installmentNumber: number
   duePeriod: string | null
+}
+
+export type PayrollBonusPreview = {
+  id: string
+  amount: number
+  reason: string | null
+  duePeriod: string
 }
 
 export type PayrollCommissionProductPreview = {
@@ -69,12 +82,16 @@ export type PayrollLinePreview = {
   commissionUnitsCommissioned: number
   commissionValidatedRuns: number
   commissionProducts: PayrollCommissionProductPreview[]
+  bonusAmount: number
+  bonuses: PayrollBonusPreview[]
   advanceDeduction: number
   advanceInstallments: PayrollAdvanceInstallmentPreview[]
   collectionBalance: PayrollCollectionBalancePreview | null
+  collectionDeduction: number
   grossAmount: number
   netAmount: number
   advanceInstallmentIds: string[]
+  bonusIds: string[]
 }
 
 /** Frozen at close — commission/cash detail for audit without recomputing. */
@@ -83,9 +100,11 @@ export type PayrollLineSnapshot = {
   commissionUnitsCommissioned: number
   commissionValidatedRuns: number
   commissionProducts: PayrollCommissionProductPreview[]
+  bonuses: PayrollBonusPreview[]
   advanceInstallments: PayrollAdvanceInstallmentPreview[]
   collectionBalance: PayrollCollectionBalancePreview | null
   advanceInstallmentIds: string[]
+  bonusIds: string[]
 }
 
 function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapshot {
@@ -94,9 +113,11 @@ function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapshot {
     commissionUnitsCommissioned: line.commissionUnitsCommissioned,
     commissionValidatedRuns: line.commissionValidatedRuns,
     commissionProducts: line.commissionProducts,
+    bonuses: line.bonuses,
     advanceInstallments: line.advanceInstallments,
     collectionBalance: line.collectionBalance,
     advanceInstallmentIds: line.advanceInstallmentIds,
+    bonusIds: line.bonusIds,
   }
 }
 
@@ -113,9 +134,11 @@ function snapshotFields(
   | 'commissionUnitsCommissioned'
   | 'commissionValidatedRuns'
   | 'commissionProducts'
+  | 'bonuses'
   | 'advanceInstallments'
   | 'collectionBalance'
   | 'advanceInstallmentIds'
+  | 'bonusIds'
 > {
   if (!snapshot) {
     return {
@@ -123,9 +146,11 @@ function snapshotFields(
       commissionUnitsCommissioned: 0,
       commissionValidatedRuns: 0,
       commissionProducts: [],
+      bonuses: [],
       advanceInstallments: [],
       collectionBalance: null,
       advanceInstallmentIds: [],
+      bonusIds: [],
     }
   }
   return {
@@ -133,9 +158,11 @@ function snapshotFields(
     commissionUnitsCommissioned: snapshot.commissionUnitsCommissioned,
     commissionValidatedRuns: snapshot.commissionValidatedRuns,
     commissionProducts: snapshot.commissionProducts,
+    bonuses: snapshot.bonuses,
     advanceInstallments: snapshot.advanceInstallments,
     collectionBalance: snapshot.collectionBalance,
     advanceInstallmentIds: snapshot.advanceInstallmentIds,
+    bonusIds: snapshot.bonusIds,
   }
 }
 
@@ -149,8 +176,13 @@ function totalsFromLines(
       lines.reduce((sum, line) => sum + line.grossAmount, 0),
     net: totals?.net ?? lines.reduce((sum, line) => sum + line.netAmount, 0),
     commission: lines.reduce((sum, line) => sum + line.commissionAmount, 0),
+    bonus: lines.reduce((sum, line) => sum + line.bonusAmount, 0),
     advanceDeduction: lines.reduce(
       (sum, line) => sum + line.advanceDeduction,
+      0,
+    ),
+    collectionDeduction: lines.reduce(
+      (sum, line) => sum + line.collectionDeduction,
       0,
     ),
   }
@@ -167,7 +199,9 @@ export type PayrollPreview = {
     gross: number
     net: number
     commission: number
+    bonus: number
     advanceDeduction: number
+    collectionDeduction: number
   }
 }
 
@@ -272,7 +306,7 @@ async function buildPayrollLines(
 }> {
   const periodLabel = periodLabelFromEndDate(input.endDate)
 
-  const [activeEmployees, commissions, commissionBreakdown, collectionBalances, dueInstallments] =
+  const [activeEmployees, commissions, commissionBreakdown, collectionBalances, dueInstallments, dueBonuses] =
     await Promise.all([
     listEmployees(db, input.organizationId, input.bakeryId, {
       status: 'active',
@@ -281,6 +315,12 @@ async function buildPayrollLines(
     getPeriodCommissionBreakdown(db, input),
     getPeriodCollectionBalancesByEmployee(db, input),
     listDueAdvanceInstallments(
+      db,
+      input.organizationId,
+      input.bakeryId,
+      periodLabel,
+    ),
+    listDueSalaryBonuses(
       db,
       input.organizationId,
       input.bakeryId,
@@ -319,6 +359,13 @@ async function buildPayrollLines(
     installmentsByEmployee.set(installment.employeeId, list)
   }
 
+  const bonusesByEmployee = new Map<string, DueSalaryBonus[]>()
+  for (const bonus of dueBonuses) {
+    const list = bonusesByEmployee.get(bonus.employeeId) ?? []
+    list.push(bonus)
+    bonusesByEmployee.set(bonus.employeeId, list)
+  }
+
   const lines: PayrollLinePreview[] = activeEmployees.map((employee) => {
     const baseSalary = employee.baseSalary ?? 0
     const commissionRow = commissionByEmployee.get(employee.id)
@@ -352,8 +399,14 @@ async function buildPayrollLines(
       (sum, row) => sum + row.amount,
       0,
     )
-    const grossAmount = baseSalary + commissionAmount
-    const netAmount = Math.max(grossAmount - advanceDeduction, 0)
+    const employeeBonuses = bonusesByEmployee.get(employee.id) ?? []
+    const bonusAmount = employeeBonuses.reduce((sum, row) => sum + row.amount, 0)
+    const collectionDeduction = collectionShortfallDeduction(collectionBalance)
+    const grossAmount = baseSalary + commissionAmount + bonusAmount
+    const netAmount = Math.max(
+      grossAmount - advanceDeduction - collectionDeduction,
+      0,
+    )
 
     return {
       employeeId: employee.id,
@@ -365,6 +418,13 @@ async function buildPayrollLines(
       commissionUnitsCommissioned,
       commissionValidatedRuns,
       commissionProducts,
+      bonusAmount,
+      bonuses: employeeBonuses.map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        reason: row.reason,
+        duePeriod: row.duePeriod,
+      })),
       advanceDeduction,
       advanceInstallments: employeeInstallments.map((row) => ({
         id: row.id,
@@ -373,9 +433,11 @@ async function buildPayrollLines(
         duePeriod: row.duePeriod,
       })),
       collectionBalance,
+      collectionDeduction,
       grossAmount,
       netAmount,
       advanceInstallmentIds: employeeInstallments.map((row) => row.id),
+      bonusIds: employeeBonuses.map((row) => row.id),
     }
   })
 
@@ -384,9 +446,18 @@ async function buildPayrollLines(
       gross: acc.gross + line.grossAmount,
       net: acc.net + line.netAmount,
       commission: acc.commission + line.commissionAmount,
+      bonus: acc.bonus + line.bonusAmount,
       advanceDeduction: acc.advanceDeduction + line.advanceDeduction,
+      collectionDeduction: acc.collectionDeduction + line.collectionDeduction,
     }),
-    { gross: 0, net: 0, commission: 0, advanceDeduction: 0 },
+    {
+      gross: 0,
+      net: 0,
+      commission: 0,
+      bonus: 0,
+      advanceDeduction: 0,
+      collectionDeduction: 0,
+    },
   )
 
   return { periodLabel, lines, totals }
@@ -513,7 +584,9 @@ export async function getPayrollRun(
     role: line.employee.role,
     baseSalary: line.baseSalary,
     commissionAmount: line.commissionAmount,
+    bonusAmount: line.bonusAmount,
     advanceDeduction: line.advanceDeduction,
+    collectionDeduction: line.collectionDeduction,
     grossAmount: line.grossAmount,
     netAmount: line.netAmount,
     ...snapshotFields(parseLineSnapshot(line.detailSnapshot)),
@@ -547,11 +620,16 @@ export async function closePayroll(
   }
 
   const payableLines = preview.lines.filter((line) => line.netAmount > 0)
-  const hasAdvanceDeductions = preview.totals.advanceDeduction > 0
+  const hasSideEffects =
+    preview.totals.advanceDeduction > 0 ||
+    preview.totals.collectionDeduction > 0 ||
+    preview.totals.bonus > 0
 
   if (
     preview.lines.length === 0 ||
-    (payableLines.length === 0 && !hasAdvanceDeductions)
+    (payableLines.length === 0 &&
+      !hasSideEffects &&
+      preview.totals.gross === 0)
   ) {
     throw new PayrollServiceError(
       'INVALID_STATE',
@@ -622,7 +700,9 @@ export async function closePayroll(
           employeeId: line.employeeId,
           baseSalary: line.baseSalary,
           commissionAmount: line.commissionAmount,
+          bonusAmount: line.bonusAmount,
           advanceDeduction: line.advanceDeduction,
+          collectionDeduction: line.collectionDeduction,
           grossAmount: line.grossAmount,
           netAmount: line.netAmount,
           detailSnapshot: snapshotFromPreview(line),
@@ -630,6 +710,15 @@ export async function closePayroll(
         })),
       )
     }
+
+    const allBonusIds = preview.lines.flatMap((line) => line.bonusIds)
+    await markSalaryBonusesPaidInTx(
+      tx,
+      input.organizationId,
+      allBonusIds,
+      run.id,
+      now,
+    )
 
     for (const line of preview.lines) {
       for (const installmentId of line.advanceInstallmentIds) {
@@ -662,6 +751,13 @@ export async function closePayroll(
         createdBy: closedByUserId,
       })
     }
+
+    await settleCashCollectionsPeriod(tx, {
+      organizationId: input.organizationId,
+      bakeryId: input.bakeryId,
+      startDate: input.startDate,
+      endDate: input.endDate,
+    })
 
     return getPayrollRun(tx, input.organizationId, input.bakeryId, run.id)
   })

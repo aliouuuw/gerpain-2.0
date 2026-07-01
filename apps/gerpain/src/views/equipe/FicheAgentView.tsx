@@ -651,8 +651,8 @@ export function FicheAgentView() {
 
           <HelpNote>
             La commission est calculée produit par produit (tournées validées).
-            Le solde encaissements reflète l&apos;écart caisse ; il n&apos;est
-            pas déduit automatiquement de la paie. Consultez{' '}
+            Le manque caisse sur la période est retenu sur la paie ; l&apos;excédent
+            est informatif. Consultez{' '}
             <Link to="/equipe/paie" className="text-link">
               Paie
             </Link>{' '}

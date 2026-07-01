@@ -250,11 +250,46 @@ export const payrollRunLines = pgTable('payroll_run_lines', {
     .references(() => employees.id, { onDelete: 'cascade' }),
   baseSalary: integer('base_salary').notNull().default(0),
   commissionAmount: integer('commission_amount').notNull().default(0),
+  bonusAmount: integer('bonus_amount').notNull().default(0),
   advanceDeduction: integer('advance_deduction').notNull().default(0),
+  collectionDeduction: integer('collection_deduction').notNull().default(0),
   grossAmount: integer('gross_amount').notNull().default(0),
   netAmount: integer('net_amount').notNull().default(0),
   detailSnapshot: jsonb('detail_snapshot').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const salaryBonusStatuses = ['scheduled', 'paid', 'cancelled'] as const
+
+export type SalaryBonusStatus = (typeof salaryBonusStatuses)[number]
+
+export const salaryBonuses = pgTable('salary_bonuses', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  bakeryId: uuid('bakery_id')
+    .notNull()
+    .references(() => bakeries.id, { onDelete: 'cascade' }),
+  employeeId: uuid('employee_id')
+    .notNull()
+    .references(() => employees.id, { onDelete: 'cascade' }),
+  amount: integer('amount').notNull(),
+  reason: text('reason'),
+  duePeriod: text('due_period').notNull(),
+  status: text('status')
+    .notNull()
+    .default('scheduled')
+    .$type<SalaryBonusStatus>(),
+  payrollRunId: uuid('payroll_run_id').references(() => payrollRuns.id, {
+    onDelete: 'set null',
+  }),
+  paidAt: timestamp('paid_at'),
+  createdBy: uuid('created_by').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
 export const deliveryRuns = pgTable('delivery_runs', {
@@ -429,6 +464,7 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
   cashCollections: many(cashCollections),
   leaveRequests: many(leaveRequests),
   salaryAdvances: many(salaryAdvances),
+  salaryBonuses: many(salaryBonuses),
   payrollRunLines: many(payrollRunLines),
 }))
 
@@ -499,6 +535,29 @@ export const salaryAdvanceInstallmentsRelations = relations(
     }),
   }),
 )
+
+export const salaryBonusesRelations = relations(salaryBonuses, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [salaryBonuses.organizationId],
+    references: [organizations.id],
+  }),
+  bakery: one(bakeries, {
+    fields: [salaryBonuses.bakeryId],
+    references: [bakeries.id],
+  }),
+  employee: one(employees, {
+    fields: [salaryBonuses.employeeId],
+    references: [employees.id],
+  }),
+  payrollRun: one(payrollRuns, {
+    fields: [salaryBonuses.payrollRunId],
+    references: [payrollRuns.id],
+  }),
+  creator: one(users, {
+    fields: [salaryBonuses.createdBy],
+    references: [users.id],
+  }),
+}))
 
 export const employeeLocationsRelations = relations(employeeLocations, ({ one }) => ({
   employee: one(employees, {
@@ -781,6 +840,8 @@ export type PayrollRun = typeof payrollRuns.$inferSelect
 export type NewPayrollRun = typeof payrollRuns.$inferInsert
 export type PayrollRunLine = typeof payrollRunLines.$inferSelect
 export type NewPayrollRunLine = typeof payrollRunLines.$inferInsert
+export type SalaryBonus = typeof salaryBonuses.$inferSelect
+export type NewSalaryBonus = typeof salaryBonuses.$inferInsert
 export type PricingRule = typeof pricingRules.$inferSelect
 export type NewPricingRule = typeof pricingRules.$inferInsert
 export type InventoryItem = typeof inventoryItems.$inferSelect

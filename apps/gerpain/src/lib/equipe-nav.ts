@@ -21,6 +21,12 @@ export const equipeNavItems = [
     group: 'Paie & rémunération',
   },
   {
+    to: '/equipe/bonuses',
+    label: 'Primes',
+    hint: 'Primes ponctuelles pour la clôture de paie',
+    group: 'Paie & rémunération',
+  },
+  {
     to: '/equipe/conges',
     label: 'Congés',
     hint: 'Demandes et absences',
@@ -53,6 +59,10 @@ export const equipeSectionMeta: Record<
   '/equipe/avances': {
     title: 'Personnel & paie',
     subtitle: 'Avances sur salaire',
+  },
+  '/equipe/bonuses': {
+    title: 'Personnel & paie',
+    subtitle: 'Primes ponctuelles',
   },
   '/equipe/conges': {
     title: 'Personnel & paie',

@@ -11,6 +11,7 @@ import * as me from './me'
 import * as payroll from './payroll'
 import * as products from './products'
 import * as salaryAdvances from './salary-advances'
+import * as salaryBonuses from './salary-bonuses'
 
 export default {
   health: {
@@ -97,6 +98,10 @@ export default {
     payRemainder: salaryAdvances.payRemainder,
     rollOverInstallment: salaryAdvances.rollOverInstallment,
     cancel: salaryAdvances.cancel,
+  },
+  salaryBonuses: {
+    list: salaryBonuses.list,
+    create: salaryBonuses.create,
   },
   payroll: {
     preview: payroll.preview,

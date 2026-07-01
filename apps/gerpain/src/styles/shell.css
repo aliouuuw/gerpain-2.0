@@ -1135,6 +1135,13 @@
   color: var(--text-3);
 }
 
+.card-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .data-table--compact th,
 .data-table--compact td {
   padding: 6px 10px;

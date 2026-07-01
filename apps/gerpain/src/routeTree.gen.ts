@@ -36,6 +36,7 @@ import { Route as ShellReglagesBoulangerieRouteImport } from './routes/_shell/re
 import { Route as ShellEquipeRemunerationRouteImport } from './routes/_shell/equipe/remuneration'
 import { Route as ShellEquipePaieRouteImport } from './routes/_shell/equipe/paie'
 import { Route as ShellEquipeCongesRouteImport } from './routes/_shell/equipe/conges'
+import { Route as ShellEquipeBonusesRouteImport } from './routes/_shell/equipe/bonuses'
 import { Route as ShellEquipeAvancesRouteImport } from './routes/_shell/equipe/avances'
 import { Route as ShellEquipeAnnuaireRouteImport } from './routes/_shell/equipe/annuaire'
 import { Route as ShellEquipeAffectationsRouteImport } from './routes/_shell/equipe/affectations'
@@ -177,6 +178,11 @@ const ShellEquipeCongesRoute = ShellEquipeCongesRouteImport.update({
   path: '/conges',
   getParentRoute: () => ShellEquipeRouteRoute,
 } as any)
+const ShellEquipeBonusesRoute = ShellEquipeBonusesRouteImport.update({
+  id: '/bonuses',
+  path: '/bonuses',
+  getParentRoute: () => ShellEquipeRouteRoute,
+} as any)
 const ShellEquipeAvancesRoute = ShellEquipeAvancesRouteImport.update({
   id: '/avances',
   path: '/avances',
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/equipe/affectations': typeof ShellEquipeAffectationsRoute
   '/equipe/annuaire': typeof ShellEquipeAnnuaireRoute
   '/equipe/avances': typeof ShellEquipeAvancesRoute
+  '/equipe/bonuses': typeof ShellEquipeBonusesRoute
   '/equipe/conges': typeof ShellEquipeCongesRoute
   '/equipe/paie': typeof ShellEquipePaieRoute
   '/equipe/remuneration': typeof ShellEquipeRemunerationRoute
@@ -245,6 +252,7 @@ export interface FileRoutesByTo {
   '/equipe/affectations': typeof ShellEquipeAffectationsRoute
   '/equipe/annuaire': typeof ShellEquipeAnnuaireRoute
   '/equipe/avances': typeof ShellEquipeAvancesRoute
+  '/equipe/bonuses': typeof ShellEquipeBonusesRoute
   '/equipe/conges': typeof ShellEquipeCongesRoute
   '/equipe/paie': typeof ShellEquipePaieRoute
   '/equipe/remuneration': typeof ShellEquipeRemunerationRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/_shell/equipe/affectations': typeof ShellEquipeAffectationsRoute
   '/_shell/equipe/annuaire': typeof ShellEquipeAnnuaireRoute
   '/_shell/equipe/avances': typeof ShellEquipeAvancesRoute
+  '/_shell/equipe/bonuses': typeof ShellEquipeBonusesRoute
   '/_shell/equipe/conges': typeof ShellEquipeCongesRoute
   '/_shell/equipe/paie': typeof ShellEquipePaieRoute
   '/_shell/equipe/remuneration': typeof ShellEquipeRemunerationRoute
@@ -313,6 +322,7 @@ export interface FileRouteTypes {
     | '/equipe/affectations'
     | '/equipe/annuaire'
     | '/equipe/avances'
+    | '/equipe/bonuses'
     | '/equipe/conges'
     | '/equipe/paie'
     | '/equipe/remuneration'
@@ -341,6 +351,7 @@ export interface FileRouteTypes {
     | '/equipe/affectations'
     | '/equipe/annuaire'
     | '/equipe/avances'
+    | '/equipe/bonuses'
     | '/equipe/conges'
     | '/equipe/paie'
     | '/equipe/remuneration'
@@ -374,6 +385,7 @@ export interface FileRouteTypes {
     | '/_shell/equipe/affectations'
     | '/_shell/equipe/annuaire'
     | '/_shell/equipe/avances'
+    | '/_shell/equipe/bonuses'
     | '/_shell/equipe/conges'
     | '/_shell/equipe/paie'
     | '/_shell/equipe/remuneration'
@@ -589,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShellEquipeCongesRouteImport
       parentRoute: typeof ShellEquipeRouteRoute
     }
+    '/_shell/equipe/bonuses': {
+      id: '/_shell/equipe/bonuses'
+      path: '/bonuses'
+      fullPath: '/equipe/bonuses'
+      preLoaderRoute: typeof ShellEquipeBonusesRouteImport
+      parentRoute: typeof ShellEquipeRouteRoute
+    }
     '/_shell/equipe/avances': {
       id: '/_shell/equipe/avances'
       path: '/avances'
@@ -624,6 +643,7 @@ interface ShellEquipeRouteRouteChildren {
   ShellEquipeAffectationsRoute: typeof ShellEquipeAffectationsRoute
   ShellEquipeAnnuaireRoute: typeof ShellEquipeAnnuaireRoute
   ShellEquipeAvancesRoute: typeof ShellEquipeAvancesRoute
+  ShellEquipeBonusesRoute: typeof ShellEquipeBonusesRoute
   ShellEquipeCongesRoute: typeof ShellEquipeCongesRoute
   ShellEquipePaieRoute: typeof ShellEquipePaieRoute
   ShellEquipeRemunerationRoute: typeof ShellEquipeRemunerationRoute
@@ -635,6 +655,7 @@ const ShellEquipeRouteRouteChildren: ShellEquipeRouteRouteChildren = {
   ShellEquipeAffectationsRoute: ShellEquipeAffectationsRoute,
   ShellEquipeAnnuaireRoute: ShellEquipeAnnuaireRoute,
   ShellEquipeAvancesRoute: ShellEquipeAvancesRoute,
+  ShellEquipeBonusesRoute: ShellEquipeBonusesRoute,
   ShellEquipeCongesRoute: ShellEquipeCongesRoute,
   ShellEquipePaieRoute: ShellEquipePaieRoute,
   ShellEquipeRemunerationRoute: ShellEquipeRemunerationRoute,

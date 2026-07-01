@@ -21,22 +21,31 @@ immutable record.
 
 - **`payroll_runs`** — period header: bakery, date range, period label
   (`YYYY-MM` from end date), status (`closed`), totals, closed timestamp.
-- **`payroll_run_lines`** — per employee: base, commission, advance
-  deduction, gross, net.
+- **`payroll_run_lines`** — per employee: base, commission, bonus, advance
+  deduction, collection shortfall deduction, gross, net; `detail_snapshot`
+  json for commission/cash audit.
 
 One closed run per bakery + `startDate` + `endDate`.
 
-## Net pay formula (v1)
+## Net pay formula (v2)
 
 ```
-gross = baseSalary + commissionDue (validated runs, per-product rates)
-net   = max(gross − advanceInstallmentsDue, 0)
+gross               = baseSalary + commissionDue + bonusDue
+collectionShortfall = max(expectedCollected − actualCollected, 0)  // manque caisse only
+net                 = max(gross − advanceInstallmentsDue − collectionShortfall, 0)
 ```
 
 Advance installments due: status `scheduled` and `duePeriod` matches the
 payroll period label, or next scheduled installment when `duePeriod` is null.
 
-Bonuses and collection-remainder deductions are deferred.
+**Collection shortfall** uses the same period encaissement totals as the
+agent activity view (non-archived collections in range). Only a **manque**
+reduces net pay; a surplus (excédent) is shown for information and does not
+increase net.
+
+Bonuses due for the payroll `periodLabel` (`scheduled` status) add to gross.
+
+On close, validated encaissements in the period are marked `isSettled`.
 
 ## Ledger accounts
 
