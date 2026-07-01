@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { db, closeDatabase } from '@gerpain/db'
-import { bakeries, employees, organizations } from '@gerpain/db/schema'
+import { bakeries, employees, organizations, payrollRuns } from '@gerpain/db/schema'
 
 import {
   closePayroll,
@@ -50,8 +50,31 @@ describe.skipIf(!dbReady || !seeded)('payroll close integration', () => {
   })
 
   it('previews and closes an isolated payroll period with bonus', async () => {
-    const startDate = '2099-03-01'
-    const endDate = '2099-03-15'
+    let periodIndex = 4
+    let startDate = ''
+    let endDate = ''
+    let duePeriod = ''
+
+    while (periodIndex < 20) {
+      const month = String(periodIndex).padStart(2, '0')
+      startDate = `2099-${month}-01`
+      endDate = `2099-${month}-15`
+      duePeriod = `2099-${month}`
+
+      const existing = await db.query.payrollRuns.findFirst({
+        where: and(
+          eq(payrollRuns.organizationId, organizationId),
+          eq(payrollRuns.bakeryId, bakeryId),
+          eq(payrollRuns.startDate, startDate),
+          eq(payrollRuns.endDate, endDate),
+        ),
+      })
+
+      if (!existing) break
+      periodIndex += 1
+    }
+
+    expect(periodIndex).toBeLessThan(20)
 
     const staff = await db.query.employees.findMany({
       where: eq(employees.bakeryId, bakeryId),
@@ -62,7 +85,7 @@ describe.skipIf(!dbReady || !seeded)('payroll close integration', () => {
     await createSalaryBonus(db, organizationId, bakeryId, {
       employeeId: staff[0]!.id,
       amount: 1_000,
-      duePeriod: '2099-03',
+      duePeriod,
       reason: 'Test prime',
     })
 
