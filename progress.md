@@ -36,14 +36,14 @@ Architecture steps (`docs/architecture.md`):
 - **Leave requests** — congés workflow; block prepare-day when agent on leave
 - **Integration test** — payroll close with bonus (`payroll.integration.test.ts`)
 
-### Sprint F+ — Paie admin UX (next)
+### Sprint F+ — Paie admin UX (in progress)
 
 Operator/admin improvements for `/equipe/paie` (see **ADR 0005** for manual lines):
 
-1. **Manual payroll lines** — add/edit lines on a draft worksheet; generate one bulletin immediately or save for bulk export (no Bocal until close)
-2. **Agent filtering & selection** — filter bulletin by employee(s); URL-driven selection where useful
-3. **Bulk print** — single printable file for all agents (or selected subset) in one action
-4. **Admin UX polish** — presets, clearer period controls, batch actions, and other options that reduce close-of-month friction
+1. **Manual payroll lines** — done (`50007a3`)
+2. **Agent filtering & selection** — URL `?employee=` filter + `?selected=` checkboxes
+3. **Bulk print** — tableau récap + bulletins paginés (sélection ou filtre)
+4. **Admin UX polish** — presets, clearer period controls, batch actions (ongoing)
 
 ADR 0004 governs close and ledger postings; ADR 0005 governs draft/manual worksheets and export before close.
 

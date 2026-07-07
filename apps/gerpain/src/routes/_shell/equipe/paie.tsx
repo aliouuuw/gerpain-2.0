@@ -14,6 +14,8 @@ const paieSearchSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   runId: z.string().uuid().optional(),
+  employee: z.string().uuid().optional(),
+  selected: z.string().optional(),
 })
 
 export const Route = createFileRoute('/_shell/equipe/paie')({

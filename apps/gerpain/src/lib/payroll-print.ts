@@ -1,6 +1,7 @@
 import { formatXof } from '#/lib/format-money'
 import { formatPeriodLabel } from '#/lib/period'
 import { employeeRoleLabel } from '#/lib/employee-labels'
+import { subsetPayrollPreview } from '#/lib/payroll-preview-utils'
 import type { PayrollPreview } from '#/services/payroll'
 
 function escapeHtml(value: string): string {
@@ -107,6 +108,83 @@ export function buildPayrollPrintHtml(
 </html>`
 }
 
+export function buildPayrollBulkBulletinsHtml(
+  preview: PayrollPreview,
+  bakeryName?: string,
+): string {
+  const periodTitle = formatPeriodLabel(preview.startDate, preview.endDate)
+  const bakeryLabel = bakeryName
+    ? `${escapeHtml(bakeryName)} — `
+    : ''
+
+  const sections = preview.lines
+    .map((line) => {
+      const single = subsetPayrollPreview(preview, [line.employeeId])
+      const body = buildPayrollPrintHtml(single, bakeryName)
+      const inner = body
+        .replace(/^[\s\S]*<body>/, '')
+        .replace(/<\/body>[\s\S]*$/, '')
+      return `<section class="bulletin-page">
+  <h2>${escapeHtml(line.employeeName)}</h2>
+  ${inner}
+</section>`
+    })
+    .join('\n')
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>${bakeryLabel}Bulletins de paie — ${escapeHtml(periodTitle)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      color: #111;
+      margin: 24px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    h2 { font-size: 15px; margin: 0 0 8px; }
+    .meta { color: #555; margin-bottom: 20px; }
+    .bulletin-page { margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f3f3f3; font-weight: 600; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tfoot td { font-weight: 600; background: #fafafa; }
+    @media print {
+      body { margin: 12mm; }
+      @page { margin: 12mm; }
+      .bulletin-page {
+        break-after: page;
+        page-break-after: always;
+      }
+      .bulletin-page:last-child {
+        break-after: auto;
+        page-break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>${bakeryLabel}Bulletins de paie</h1>
+  <p class="meta">
+    Période : ${escapeHtml(periodTitle)} (${escapeHtml(preview.periodLabel)})
+    · ${preview.lines.length} agent${preview.lines.length > 1 ? 's' : ''}
+    ${preview.isClosed ? ' · Clôturée' : ' · Aperçu'}
+  </p>
+  ${sections}
+</body>
+</html>`
+}
+
 export function printPayrollBulletin(
   preview: PayrollPreview,
   bakeryName?: string,
@@ -138,6 +216,26 @@ export function printPayrollLine(
   }
 
   printPayrollBulletin(singleLinePreview, bakeryName)
+}
+
+export function printPayrollBulletins(
+  preview: PayrollPreview,
+  employeeIds: string[] | undefined,
+  bakeryName?: string,
+): void {
+  const target =
+    employeeIds && employeeIds.length > 0
+      ? subsetPayrollPreview(preview, employeeIds)
+      : preview
+
+  if (target.lines.length === 0) return
+
+  const html =
+    target.lines.length === 1
+      ? buildPayrollPrintHtml(target, bakeryName)
+      : buildPayrollBulkBulletinsHtml(target, bakeryName)
+
+  openPrintWindow(html)
 }
 
 function openPrintWindow(html: string): void {

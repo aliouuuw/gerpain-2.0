@@ -1,4 +1,5 @@
 import { formatPeriodLabel } from '#/lib/period'
+import { totalsFromPayrollLines } from '#/lib/payroll-preview-utils'
 import type { PayrollPreview } from '#/services/payroll'
 
 function csvCell(value: string | number): string {
@@ -34,6 +35,8 @@ export function buildPayrollCsv(preview: PayrollPreview): string {
     line.netAmount,
   ])
 
+  const totals = preview.totals ?? totalsFromPayrollLines(preview.lines)
+
   const lines = [
     `# Bulletin paie — ${formatPeriodLabel(preview.startDate, preview.endDate)} (${preview.periodLabel})`,
     header.map(csvCell).join(','),
@@ -43,12 +46,12 @@ export function buildPayrollCsv(preview: PayrollPreview): string {
       'TOTAL',
       '',
       '',
-      preview.totals.commission,
-      preview.totals.bonus,
-      preview.totals.gross,
-      preview.totals.advanceDeduction,
-      preview.totals.collectionDeduction,
-      preview.totals.net,
+      totals.commission,
+      totals.bonus,
+      totals.gross,
+      totals.advanceDeduction,
+      totals.collectionDeduction,
+      totals.net,
     ]
       .map(csvCell)
       .join(','),

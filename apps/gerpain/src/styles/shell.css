@@ -1562,6 +1562,16 @@
   background: var(--surface-2);
 }
 
+.data-table__check-col {
+  width: 40px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.data-table__check-col input {
+  margin: 0;
+}
+
 .table-action {
   padding: 5px 10px;
   border-radius: var(--radius);

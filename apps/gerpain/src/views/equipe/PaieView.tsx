@@ -19,11 +19,24 @@ import {
   type PeriodPreset,
 } from '#/lib/period'
 import { downloadPayrollCsv } from '#/lib/payroll-csv'
-import { printPayrollBulletin, printPayrollLine } from '#/lib/payroll-print'
+import {
+  parseSelectedAgentIds,
+  reconcileSelectedAgentIds,
+  serializeSelectedAgentIds,
+  subsetPayrollPreview,
+  totalsFromPayrollLines,
+} from '#/lib/payroll-preview-utils'
+import {
+  printPayrollBulletin,
+  printPayrollBulletins,
+  printPayrollLine,
+} from '#/lib/payroll-print'
 import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 
 const routeApi = getRouteApi('/_shell/equipe/paie')
+
+const ALL_EMPLOYEES = ''
 
 type PayrollLine = {
   employeeId: string
@@ -64,6 +77,8 @@ type PayrollLine = {
   collectionDeduction: number
   grossAmount: number
   netAmount: number
+  advanceInstallmentIds: string[]
+  bonusIds: string[]
   lineSource?: 'computed' | 'manual' | 'override'
   manualReason?: string | null
   draftLineId?: string | null
@@ -399,6 +414,7 @@ export function PaieView() {
     'month'
   const customStart = search.start ?? todayIso()
   const customEnd = search.end ?? todayIso()
+  const employeeFilterId = search.employee ?? ALL_EMPLOYEES
 
   const patchSearch = (patch: Partial<typeof search>) => {
     void patchNavigate({
@@ -475,10 +491,46 @@ export function PaieView() {
   )
 
   const lines = (preview.data?.lines ?? []) as PayrollLine[]
-  const totals = preview.data?.totals
+  const visibleLines = useMemo(() => {
+    if (!employeeFilterId) return lines
+    return lines.filter((line) => line.employeeId === employeeFilterId)
+  }, [employeeFilterId, lines])
+
+  const selectedIds = useMemo(
+    () =>
+      reconcileSelectedAgentIds(
+        parseSelectedAgentIds(search.selected),
+        lines.map((line) => line.employeeId),
+      ),
+    [lines, search.selected],
+  )
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
+
+  const exportPreview = useMemo(() => {
+    if (!preview.data) return null
+    const targetIds =
+      selectedIds.length > 0
+        ? selectedIds
+        : visibleLines.map((line) => line.employeeId)
+    if (targetIds.length === 0) return null
+    return subsetPayrollPreview(preview.data, targetIds)
+  }, [preview.data, selectedIds, visibleLines])
+
+  const totals = useMemo(() => {
+    if (exportPreview) return exportPreview.totals
+    if (employeeFilterId && visibleLines.length > 0) {
+      return totalsFromPayrollLines(visibleLines)
+    }
+    return preview.data?.totals
+  }, [employeeFilterId, exportPreview, preview.data?.totals, visibleLines])
+
   const isClosed = preview.data?.isClosed ?? false
   const hasDraft = preview.data?.hasDraft ?? false
   const bakeryName = bakery?.name ?? bakeryDetail.data?.name
+  const allVisibleSelected =
+    visibleLines.length > 0 &&
+    visibleLines.every((line) => selectedIdSet.has(line.employeeId))
+  const hasSelection = selectedIds.length > 0
 
   const activeEmployees = employees.data ?? []
   const employeesForManualAdd = activeEmployees
@@ -563,6 +615,45 @@ export function PaieView() {
     )
   }
 
+  function setEmployeeFilter(value: string) {
+    patchSearch({
+      employee: value === ALL_EMPLOYEES ? undefined : value,
+    })
+  }
+
+  function toggleSelected(employeeId: string) {
+    const next = selectedIdSet.has(employeeId)
+      ? selectedIds.filter((id) => id !== employeeId)
+      : [...selectedIds, employeeId]
+    patchSearch({ selected: serializeSelectedAgentIds(next) })
+  }
+
+  function toggleSelectAllVisible() {
+    if (allVisibleSelected) {
+      const visibleIds = new Set(visibleLines.map((line) => line.employeeId))
+      const next = selectedIds.filter((id) => !visibleIds.has(id))
+      patchSearch({ selected: serializeSelectedAgentIds(next) })
+      return
+    }
+
+    const merged = new Set([
+      ...selectedIds,
+      ...visibleLines.map((line) => line.employeeId),
+    ])
+    patchSearch({
+      selected: serializeSelectedAgentIds([...merged]),
+    })
+  }
+
+  function clearSelection() {
+    patchSearch({ selected: undefined })
+  }
+
+  const bulletinTitle =
+    visibleLines.length === lines.length
+      ? `Bulletin par agent (${lines.length})`
+      : `Bulletin par agent (${visibleLines.length} / ${lines.length})`
+
   return (
     <div className="section-stack">
       <section className="period-toolbar" aria-label="Filtres paie">
@@ -604,13 +695,55 @@ export function PaieView() {
             </div>
           )}
         </div>
+
+        <div className="period-toolbar__group">
+          <span className="period-toolbar__label">Agent</span>
+          <select
+            className="employee-select"
+            value={employeeFilterId}
+            onChange={(e) => setEmployeeFilter(e.target.value)}
+            disabled={employees.isLoading || lines.length === 0}
+          >
+            {employees.isLoading ? (
+              <option value="">Chargement…</option>
+            ) : lines.length === 0 ? (
+              <option value="">Aucun agent</option>
+            ) : (
+              <>
+                <option value={ALL_EMPLOYEES}>Tous les agents</option>
+                {lines.map((line) => (
+                  <option key={line.employeeId} value={line.employeeId}>
+                    {line.employeeName}
+                  </option>
+                ))}
+              </>
+            )}
+          </select>
+        </div>
+
+        {hasSelection ? (
+          <div className="period-toolbar__group">
+            <span className="period-toolbar__label">Sélection</span>
+            <span className="period-toolbar__range">
+              {selectedIds.length} agent{selectedIds.length > 1 ? 's' : ''}
+            </span>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={clearSelection}
+            >
+              Effacer
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <HelpNote>
         Aperçu paie : {formatPeriodLabel(startDate, endDate)}. Net = salaire de
         base + commissions + primes − retenues avances − manque caisse (si
         applicable). À la clôture, les encaissements validés sont marqués réglés.
-        Cliquez sur un agent pour le détail.
+        Cochez des agents pour exporter ou imprimer un sous-ensemble ; le filtre
+        agent réduit l&apos;affichage du tableau.
       </HelpNote>
 
       {isClosed ? (
@@ -666,33 +799,49 @@ export function PaieView() {
       ) : null}
 
       <Card
-        title="Bulletin par agent"
+        title={bulletinTitle}
         actions={
           <div className="card-actions-row">
-            {preview.data && lines.length > 0 ? (
+            {exportPreview && exportPreview.lines.length > 0 ? (
               <>
                 <button
                   type="button"
                   className="btn-secondary btn-sm"
                   onClick={() => {
-                    if (!preview.data) return
                     downloadPayrollCsv(
-                      preview.data,
-                      `paie-${periodLabelFromEndDate(endDate)}.csv`,
+                      exportPreview,
+                      `paie-${periodLabelFromEndDate(endDate)}${hasSelection ? '-selection' : ''}.csv`,
                     )
                   }}
                 >
                   Exporter CSV
+                  {hasSelection ? ` (${selectedIds.length})` : ''}
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => {
+                    printPayrollBulletin(exportPreview, bakeryName)
+                  }}
+                >
+                  Imprimer tableau
                 </button>
                 <button
                   type="button"
                   className="btn-secondary btn-sm"
                   onClick={() => {
                     if (!preview.data) return
-                    printPayrollBulletin(preview.data, bakeryName)
+                    printPayrollBulletins(
+                      preview.data,
+                      exportPreview.lines.map((line) => line.employeeId),
+                      bakeryName,
+                    )
                   }}
                 >
-                  Imprimer
+                  Imprimer bulletins
+                  {exportPreview.lines.length > 1
+                    ? ` (${exportPreview.lines.length})`
+                    : ''}
                 </button>
               </>
             ) : null}
@@ -752,11 +901,23 @@ export function PaieView() {
           <p className="empty-state">Impossible de charger l&apos;aperçu paie.</p>
         ) : lines.length === 0 ? (
           <p className="empty-state">Aucun agent actif pour cette période.</p>
+        ) : visibleLines.length === 0 ? (
+          <p className="empty-state">
+            Aucun bulletin pour cet agent sur la période.
+          </p>
         ) : (
           <div className="table-wrap">
             <table className="data-table data-table--expandable">
               <thead>
                 <tr>
+                  <th className="data-table__check-col">
+                    <input
+                      type="checkbox"
+                      aria-label="Sélectionner les agents visibles"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAllVisible}
+                    />
+                  </th>
                   <th>Agent</th>
                   <th>Rôle</th>
                   <th>Calcul</th>
@@ -766,9 +927,10 @@ export function PaieView() {
                 </tr>
               </thead>
               <tbody>
-                {lines.map((line) => {
+                {visibleLines.map((line) => {
                   const isExpanded = expandedEmployeeId === line.employeeId
                   const sourceLabel = lineSourceLabel(line.lineSource)
+                  const isSelected = selectedIdSet.has(line.employeeId)
                   return (
                     <Fragment key={line.employeeId}>
                       <tr
@@ -784,6 +946,18 @@ export function PaieView() {
                         role="button"
                         aria-expanded={isExpanded}
                       >
+                        <td
+                          className="data-table__check-col"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            aria-label={`Sélectionner ${line.employeeName}`}
+                            checked={isSelected}
+                            onChange={() => toggleSelected(line.employeeId)}
+                          />
+                        </td>
                         <td>
                           {line.employeeName}
                           {sourceLabel ? (
@@ -866,7 +1040,7 @@ export function PaieView() {
                       </tr>
                       {isExpanded ? (
                         <tr className="data-table__expand-row">
-                          <td colSpan={!isClosed && canManage ? 6 : 5}>
+                          <td colSpan={!isClosed && canManage ? 7 : 6}>
                             <PayrollLineBreakdown
                               line={line}
                               periodPreset={preset}
