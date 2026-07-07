@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-07-07  
 **Branch:** `main` (synced with `origin/main`)  
-**Commit:** (pending) — fix(dev): standalone devtools; docs sprint F close + paie UX backlog  
+**Commit:** `497e6e2` — fix(dev): standalone devtools; docs sprint F close + paie UX backlog  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -38,13 +38,14 @@ Architecture steps (`docs/architecture.md`):
 
 ### Sprint F+ — Paie admin UX (next)
 
-Operator/admin improvements for `/equipe/paie`:
+Operator/admin improvements for `/equipe/paie` (see **ADR 0005** for manual lines):
 
-1. **Agent filtering & selection** — filter bulletin by employee(s); URL-driven selection where useful
-2. **Bulk print** — single printable file for all agents (or selected subset) in one action
-3. **Admin UX polish** — presets, clearer period controls, batch actions, and other options that reduce close-of-month friction
+1. **Manual payroll lines** — add/edit lines on a draft worksheet; generate one bulletin immediately or save for bulk export (no Bocal until close)
+2. **Agent filtering & selection** — filter bulletin by employee(s); URL-driven selection where useful
+3. **Bulk print** — single printable file for all agents (or selected subset) in one action
+4. **Admin UX polish** — presets, clearer period controls, batch actions, and other options that reduce close-of-month friction
 
-See ADR 0004 for close semantics; export/print should read from `payroll_run_lines` when closed.
+ADR 0004 governs close and ledger postings; ADR 0005 governs draft/manual worksheets and export before close.
 
 ### Sprint D — done
 
@@ -188,11 +189,11 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **Paie — agent filter/selection** — multi-select or role filter on bulletin table; preserve in URL
-2. **Paie — bulk print** — one HTML/PDF with all agents (or selected) per period; reuse `payroll-print.ts`
-3. **Paie — admin UX** — period presets, empty states, post-close read-only affordances, batch CSV
-4. **Optional** — integration test for collection shortfall Bocal posting at close
-5. **Sprint H** — cutover parity checklist vs legacy when Paie UX is comfortable
+1. **Paie — manual lines (ADR 0005)** — draft run upsert, save/remove line, merge in preview; UI « Ajouter une ligne » + per-row Générer
+2. **Paie — agent filter/selection** — multi-select or role filter on bulletin table; preserve in URL
+3. **Paie — bulk print** — one HTML/PDF from merged preview (all or selected agents); reuse `payroll-print.ts`
+4. **Paie — admin UX** — period presets, manual/computed badges, post-close read-only affordances
+5. **Optional** — integration test: manual line → export → close → Bocal
 
 ---
 
