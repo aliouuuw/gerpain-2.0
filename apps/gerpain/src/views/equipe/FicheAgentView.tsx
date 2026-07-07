@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { Modal } from '#/components/ui/Modal'
 import { advanceStatusLabel } from '#/lib/advance-labels'
@@ -13,9 +14,11 @@ import { useBakery } from '#/lib/bakery-context'
 import {
   employeeInitials,
   employeeRoleLabel,
+  employeeStatusLabel,
 } from '#/lib/employee-labels'
 import { formatXof, parseXofInput, xofInputToNumber } from '#/lib/format-money'
 import { leaveStatusLabel, leaveTypeLabel } from '#/lib/leave-labels'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
 import {
   formatPeriodLabel,
@@ -24,6 +27,7 @@ import {
   type PeriodPreset,
 } from '#/lib/period'
 import { todayIso } from '#/lib/today'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 const routeApi = getRouteApi('/_shell/equipe/agents/$employeeId')
@@ -105,7 +109,12 @@ export function FicheAgentView() {
   const patchNavigate = routeApi.useNavigate()
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [addBonusOpen, setAddBonusOpen] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [pendingCancelBonusId, setPendingCancelBonusId] = useState<string | null>(
+    null,
+  )
   const [bonusAmount, setBonusAmount] = useState('')
   const [bonusDuePeriod, setBonusDuePeriod] = useState(currentBonusPeriod())
   const [bonusReason, setBonusReason] = useState('')
@@ -223,16 +232,42 @@ export function FicheAgentView() {
         setBonusReason('')
         setBonusDuePeriod(currentBonusPeriod())
         setAddBonusOpen(false)
+        mutationSuccess(toast, 'Prime enregistrée')()
         await bonuses.refetch()
       },
+      onError: mutationError(toast, 'Impossible d\'enregistrer la prime'),
     }),
   )
 
   const cancelBonus = useMutation(
     orpc.salaryBonuses.cancel.mutationOptions({
       onSuccess: async () => {
+        setPendingCancelBonusId(null)
+        mutationSuccess(toast, 'Prime annulée')()
         await bonuses.refetch()
       },
+      onError: mutationError(toast, 'Impossible d\'annuler la prime'),
+    }),
+  )
+
+  const archiveEmployee = useMutation(
+    orpc.employees.archive.mutationOptions({
+      onSuccess: async () => {
+        setArchiveOpen(false)
+        mutationSuccess(toast, 'Agent archivé')()
+        await employee.refetch()
+      },
+      onError: mutationError(toast, 'Impossible d\'archiver l\'agent'),
+    }),
+  )
+
+  const reactivateEmployee = useMutation(
+    orpc.employees.reactivate.mutationOptions({
+      onSuccess: async () => {
+        mutationSuccess(toast, 'Agent réactivé')()
+        await employee.refetch()
+      },
+      onError: mutationError(toast, 'Impossible de réactiver l\'agent'),
     }),
   )
 
@@ -349,9 +384,9 @@ export function FicheAgentView() {
           <div className="agent-hero__meta">
             <Badge variant="neutral">{employeeRoleLabel(agent.role)}</Badge>
             {agent.status === 'inactive' ? (
-              <Badge variant="warning">Inactif</Badge>
+              <Badge variant="warning">{employeeStatusLabel('inactive')}</Badge>
             ) : (
-              <Badge variant="success">Actif</Badge>
+              <Badge variant="success">{employeeStatusLabel('active')}</Badge>
             )}
           </div>
           <p className="agent-hero__contact">
@@ -374,6 +409,28 @@ export function FicheAgentView() {
           >
             Encaissements
           </Link>
+          {canManage ? (
+            agent.status === 'active' ? (
+              <button
+                type="button"
+                className="table-action table-action--danger"
+                onClick={() => setArchiveOpen(true)}
+              >
+                Archiver
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="table-action table-action--primary"
+                disabled={reactivateEmployee.isPending}
+                onClick={() =>
+                  reactivateEmployee.mutate({ bakeryId, employeeId: agent.id })
+                }
+              >
+                {reactivateEmployee.isPending ? 'Réactivation…' : 'Réactiver'}
+              </button>
+            )
+          ) : null}
         </div>
       </header>
 
@@ -556,19 +613,7 @@ export function FicheAgentView() {
                                 type="button"
                                 className="table-action table-action--danger"
                                 disabled={cancelBonus.isPending}
-                                onClick={() => {
-                                  if (
-                                    !window.confirm(
-                                      'Annuler cette prime ? Elle ne sera plus versée à la clôture.',
-                                    )
-                                  ) {
-                                    return
-                                  }
-                                  cancelBonus.mutate({
-                                    bakeryId,
-                                    bonusId: row.id,
-                                  })
-                                }}
+                                onClick={() => setPendingCancelBonusId(row.id)}
                               >
                                 Annuler
                               </button>
@@ -982,6 +1027,39 @@ export function FicheAgentView() {
           </Card>
         </>
       ) : null}
+
+      <ConfirmDialog
+        open={archiveOpen}
+        title="Archiver cet agent ?"
+        confirmLabel="Archiver"
+        confirmVariant="danger"
+        loading={archiveEmployee.isPending}
+        onConfirm={() => {
+          if (!bakeryId) return
+          archiveEmployee.mutate({ bakeryId, employeeId: agent.id })
+        }}
+        onCancel={() => setArchiveOpen(false)}
+      >
+        <p>
+          {agent.fullName} ne sera plus proposé dans les listes actives. Son
+          historique (tournées, paie, avances) reste consultable ici.
+        </p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={pendingCancelBonusId !== null}
+        title="Annuler cette prime ?"
+        confirmLabel="Annuler la prime"
+        confirmVariant="danger"
+        loading={cancelBonus.isPending}
+        onConfirm={() => {
+          if (!bakeryId || !pendingCancelBonusId) return
+          cancelBonus.mutate({ bakeryId, bonusId: pendingCancelBonusId })
+        }}
+        onCancel={() => setPendingCancelBonusId(null)}
+      >
+        <p>Elle ne sera plus versée à la clôture de paie.</p>
+      </ConfirmDialog>
     </div>
   )
 }

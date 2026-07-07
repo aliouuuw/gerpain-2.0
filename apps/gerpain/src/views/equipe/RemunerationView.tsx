@@ -11,7 +11,9 @@ import {
   employeeRoleLabel,
 } from '#/lib/employee-labels'
 import { formatXof } from '#/lib/format-money'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 import { AffectationsView } from '#/views/equipe/AffectationsView'
 
@@ -26,6 +28,7 @@ export function RemunerationView({
 } = {}) {
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [drafts, setDrafts] = useState<Record<string, PayDraft>>({})
   const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -90,7 +93,10 @@ export function RemunerationView({
   const savePay = useMutation(
     orpc.employees.update.mutationOptions({
       onSuccess: () => employees.refetch(),
-      onError: (error) => setSaveError(error.message),
+      onError: (error) => {
+        setSaveError(error.message)
+        mutationError(toast, 'Impossible d\'enregistrer la rémunération')(error)
+      },
     }),
   )
 
@@ -122,8 +128,16 @@ export function RemunerationView({
           baseSalary: Number.parseInt(draft.baseSalary, 10) || 0,
         })
       }
+      if (updates.length > 0) {
+        mutationSuccess(
+          toast,
+          updates.length === 1
+            ? 'Rémunération enregistrée'
+            : `${updates.length} rémunérations enregistrées`,
+        )()
+      }
     } catch {
-      // onError sets saveError
+      // onError sets saveError + toast
     }
   }
 

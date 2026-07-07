@@ -9,8 +9,10 @@ import { HelpNote } from '#/components/ui/HelpNote'
 import { Modal } from '#/components/ui/Modal'
 import { useBakery } from '#/lib/bakery-context'
 import { leaveStatusLabel, leaveTypeLabel } from '#/lib/leave-labels'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
 import { todayIso } from '#/lib/today'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 type LeaveForm = {
@@ -41,6 +43,7 @@ export function CongesView() {
   const today = todayIso()
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'pending' | 'approved' | 'rejected' | 'cancelled'
   >('all')
@@ -90,9 +93,13 @@ export function CongesView() {
         setForm(emptyLeaveForm(today))
         setFormError(null)
         setAddOpen(false)
+        mutationSuccess(toast, 'Demande de congé enregistrée')()
         await leaves.refetch()
       },
-      onError: (error) => setFormError(error.message),
+      onError: (error) => {
+        setFormError(error.message)
+        mutationError(toast, 'Impossible d\'enregistrer la demande')(error)
+      },
     }),
   )
 
@@ -100,8 +107,10 @@ export function CongesView() {
     orpc.leaveRequests.approve.mutationOptions({
       onSuccess: () => {
         setReviewNote('')
+        mutationSuccess(toast, 'Congé approuvé')()
         void leaves.refetch()
       },
+      onError: mutationError(toast, 'Impossible d\'approuver la demande'),
     }),
   )
 
@@ -109,14 +118,20 @@ export function CongesView() {
     orpc.leaveRequests.reject.mutationOptions({
       onSuccess: () => {
         setReviewNote('')
+        mutationSuccess(toast, 'Demande rejetée')()
         void leaves.refetch()
       },
+      onError: mutationError(toast, 'Impossible de rejeter la demande'),
     }),
   )
 
   const cancelLeave = useMutation(
     orpc.leaveRequests.cancel.mutationOptions({
-      onSuccess: () => leaves.refetch(),
+      onSuccess: () => {
+        mutationSuccess(toast, 'Demande annulée')()
+        void leaves.refetch()
+      },
+      onError: mutationError(toast, 'Impossible d\'annuler la demande'),
     }),
   )
 

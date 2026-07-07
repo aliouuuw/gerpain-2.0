@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { useBakery } from '#/lib/bakery-context'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 export function AffectationsView({
@@ -18,6 +20,7 @@ export function AffectationsView({
   const navigate = useNavigate()
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [selectedId, setSelectedId] = useState<string | null>(employeeId ?? null)
   const [productError, setProductError] = useState<string | null>(null)
 
@@ -77,9 +80,13 @@ export function AffectationsView({
     orpc.employees.setProducts.mutationOptions({
       onSuccess: async () => {
         setProductError(null)
+        mutationSuccess(toast, 'Assignations enregistrées')()
         await Promise.all([assignments.refetch(), employees.refetch()])
       },
-      onError: (error) => setProductError(error.message),
+      onError: (error) => {
+        setProductError(error.message)
+        mutationError(toast, 'Impossible d\'enregistrer les assignations')(error)
+      },
     }),
   )
 

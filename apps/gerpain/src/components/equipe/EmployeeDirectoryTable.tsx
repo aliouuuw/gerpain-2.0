@@ -16,6 +16,7 @@ import { Badge } from '#/components/ui/Badge'
 import {
   employeeInitials,
   employeeRoleLabel,
+  employeeStatusLabel,
 } from '#/lib/employee-labels'
 import { formatXof } from '#/lib/format-money'
 
@@ -35,7 +36,11 @@ export type EmployeeDirectoryRow = {
 type EmployeeDirectoryTableProps = {
   rows: EmployeeDirectoryRow[]
   canManage: boolean
-  onDeactivate: (employeeId: string) => void
+  showArchived: boolean
+  onShowArchivedChange: (show: boolean) => void
+  archivingEmployeeId: string | null
+  reactivatingEmployeeId: string | null
+  onArchive: (employeeId: string, fullName: string) => void
   onReactivate: (employeeId: string) => void
 }
 
@@ -64,7 +69,11 @@ function SortHeader({
 export function EmployeeDirectoryTable({
   rows,
   canManage,
-  onDeactivate,
+  showArchived,
+  onShowArchivedChange,
+  archivingEmployeeId,
+  reactivatingEmployeeId,
+  onArchive,
   onReactivate,
 }: EmployeeDirectoryTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
@@ -72,7 +81,7 @@ export function EmployeeDirectoryTable({
   ])
   const [globalFilter, setGlobalFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>(
-    'all',
+    'active',
   )
 
   const filteredRows = useMemo(() => {
@@ -148,9 +157,9 @@ export function EmployeeDirectoryTable({
         header: 'Statut',
         cell: ({ getValue }) =>
           getValue<string>() === 'inactive' ? (
-            <Badge variant="warning">Inactif</Badge>
+            <Badge variant="warning">{employeeStatusLabel('inactive')}</Badge>
           ) : (
-            <Badge variant="success">Actif</Badge>
+            <Badge variant="success">{employeeStatusLabel('active')}</Badge>
           ),
       },
     ]
@@ -160,39 +169,54 @@ export function EmployeeDirectoryTable({
         id: 'actions',
         header: '',
         enableSorting: false,
-        cell: ({ row }) => (
-          <div className="table-actions">
-            <Link
-              to="/equipe/remuneration"
-              search={{ employee: row.original.id }}
-              className="table-action"
-            >
-              Rémunération
-            </Link>
-            {row.original.status === 'active' ? (
-              <button
-                type="button"
+        cell: ({ row }) => {
+          const isArchiving = archivingEmployeeId === row.original.id
+          const isReactivating = reactivatingEmployeeId === row.original.id
+
+          return (
+            <div className="table-actions">
+              <Link
+                to="/equipe/remuneration"
+                search={{ employee: row.original.id }}
                 className="table-action"
-                onClick={() => onDeactivate(row.original.id)}
               >
-                Désactiver
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="table-action table-action--primary"
-                onClick={() => onReactivate(row.original.id)}
-              >
-                Réactiver
-              </button>
-            )}
-          </div>
-        ),
+                Rémunération
+              </Link>
+              {row.original.status === 'active' ? (
+                <button
+                  type="button"
+                  className="table-action table-action--danger"
+                  disabled={Boolean(archivingEmployeeId)}
+                  onClick={() =>
+                    onArchive(row.original.id, row.original.fullName)
+                  }
+                >
+                  {isArchiving ? 'Archivage…' : 'Archiver'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="table-action table-action--primary"
+                  disabled={Boolean(reactivatingEmployeeId)}
+                  onClick={() => onReactivate(row.original.id)}
+                >
+                  {isReactivating ? 'Réactivation…' : 'Réactiver'}
+                </button>
+              )}
+            </div>
+          )
+        },
       })
     }
 
     return base
-  }, [canManage, onDeactivate, onReactivate])
+  }, [
+    archivingEmployeeId,
+    canManage,
+    onArchive,
+    onReactivate,
+    reactivatingEmployeeId,
+  ])
 
   const table = useReactTable({
     data: filteredRows,
@@ -209,7 +233,7 @@ export function EmployeeDirectoryTable({
         item.phone ?? '',
         employeeRoleLabel(item.role),
         item.locationLabel,
-        item.status === 'active' ? 'actif' : 'inactif',
+        employeeStatusLabel(item.status).toLowerCase(),
       ]
         .join(' ')
         .toLowerCase()
@@ -251,10 +275,18 @@ export function EmployeeDirectoryTable({
                 setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')
               }
             >
-              <option value="all">Tous</option>
               <option value="active">Actifs</option>
-              <option value="inactive">Inactifs</option>
+              <option value="inactive">Archivés</option>
+              <option value="all">Tous</option>
             </select>
+          </label>
+          <label className="settings-checkbox data-table-toolbar__checkbox">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => onShowArchivedChange(e.target.checked)}
+            />
+            Inclure les archivés dans la liste
           </label>
         </div>
       </div>
@@ -305,11 +337,10 @@ export function EmployeeDirectoryTable({
           <tbody>
             {table.getRowModel().rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={columns.length}
-                  className="data-table__empty"
-                >
-                  Aucun résultat pour cette recherche.
+                <td colSpan={columns.length} className="data-table__empty">
+                  {statusFilter === 'inactive'
+                    ? 'Aucun agent archivé.'
+                    : 'Aucun résultat pour cette recherche.'}
                 </td>
               </tr>
             ) : (

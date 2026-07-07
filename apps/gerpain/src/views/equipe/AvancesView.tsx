@@ -14,7 +14,9 @@ import {
 } from '#/lib/advance-labels'
 import { useBakery } from '#/lib/bakery-context'
 import { formatXof, parseXofInput, xofInputToNumber } from '#/lib/format-money'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 type AdvanceForm = {
@@ -58,6 +60,7 @@ function currentPeriod(): string {
 export function AvancesView() {
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'active' | 'closed' | 'cancelled'
   >('active')
@@ -120,15 +123,23 @@ export function AvancesView() {
         setForm(emptyAdvanceForm())
         setFormError(null)
         setAddOpen(false)
+        mutationSuccess(toast, 'Avance enregistrée')()
         await refetchAdvances()
       },
-      onError: (error) => setFormError(error.message),
+      onError: (error) => {
+        setFormError(error.message)
+        mutationError(toast, 'Impossible d\'enregistrer l\'avance')(error)
+      },
     }),
   )
 
   const payInstallment = useMutation(
     orpc.salaryAdvances.payInstallment.mutationOptions({
-      onSuccess: () => refetchAdvances(),
+      onSuccess: () => {
+        mutationSuccess(toast, 'Échéance enregistrée')()
+        void refetchAdvances()
+      },
+      onError: mutationError(toast, 'Impossible d\'enregistrer le paiement'),
     }),
   )
 
@@ -136,14 +147,20 @@ export function AvancesView() {
     orpc.salaryAdvances.payRemainder.mutationOptions({
       onSuccess: () => {
         setDetailAdvanceId(null)
+        mutationSuccess(toast, 'Avance soldée')()
         void refetchAdvances()
       },
+      onError: mutationError(toast, 'Impossible de solder l\'avance'),
     }),
   )
 
   const rollOver = useMutation(
     orpc.salaryAdvances.rollOverInstallment.mutationOptions({
-      onSuccess: () => refetchAdvances(),
+      onSuccess: () => {
+        mutationSuccess(toast, 'Échéance reportée')()
+        void refetchAdvances()
+      },
+      onError: mutationError(toast, 'Impossible de reporter l\'échéance'),
     }),
   )
 
@@ -151,8 +168,10 @@ export function AvancesView() {
     orpc.salaryAdvances.cancel.mutationOptions({
       onSuccess: () => {
         setDetailAdvanceId(null)
+        mutationSuccess(toast, 'Avance annulée')()
         void refetchAdvances()
       },
+      onError: mutationError(toast, 'Impossible d\'annuler l\'avance'),
     }),
   )
 

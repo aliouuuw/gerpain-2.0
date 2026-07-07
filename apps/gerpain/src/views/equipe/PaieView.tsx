@@ -11,6 +11,7 @@ import { Modal } from '#/components/ui/Modal'
 import { useBakery } from '#/lib/bakery-context'
 import { employeeRoleLabel } from '#/lib/employee-labels'
 import { formatXof } from '#/lib/format-money'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
 import {
   formatPeriodLabel,
@@ -34,6 +35,7 @@ import {
 } from '#/lib/payroll-pdf'
 import type { PayrollPreview } from '#/services/payroll'
 import { todayIso } from '#/lib/today'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 const routeApi = getRouteApi('/_shell/equipe/paie')
@@ -517,6 +519,7 @@ function PayrollLineBreakdown({
 export function PaieView() {
   const { bakeryId, bakery, isLoading: bakeryLoading } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const search = routeApi.useSearch()
   const patchNavigate = routeApi.useNavigate()
   const queryClient = useQueryClient()
@@ -593,12 +596,14 @@ export function PaieView() {
   const closePayroll = useMutation(
     orpc.payroll.close.mutationOptions({
       onSuccess: () => {
+        mutationSuccess(toast, 'Paie clôturée')()
         invalidatePreview()
         void history.refetch()
         void queryClient.invalidateQueries({
           queryKey: orpc.salaryAdvances.list.key(),
         })
       },
+      onError: mutationError(toast, 'Impossible de clôturer la paie'),
     }),
   )
 
@@ -608,7 +613,12 @@ export function PaieView() {
         setDraftModalOpen(false)
         setEditingLine(null)
         setDraftFormError(null)
+        mutationSuccess(toast, 'Ligne de paie enregistrée')()
         invalidatePreview()
+      },
+      onError: (error) => {
+        setDraftFormError(error.message)
+        mutationError(toast, 'Impossible d\'enregistrer la ligne')(error)
       },
     }),
   )
@@ -616,16 +626,20 @@ export function PaieView() {
   const removeDraftLine = useMutation(
     orpc.payroll.removeDraftLine.mutationOptions({
       onSuccess: () => {
+        mutationSuccess(toast, 'Ligne retirée du brouillon')()
         invalidatePreview()
       },
+      onError: mutationError(toast, 'Impossible de retirer la ligne'),
     }),
   )
 
   const discardDraft = useMutation(
     orpc.payroll.discardDraft.mutationOptions({
       onSuccess: () => {
+        mutationSuccess(toast, 'Brouillon abandonné')()
         invalidatePreview()
       },
+      onError: mutationError(toast, 'Impossible d\'abandonner le brouillon'),
     }),
   )
 

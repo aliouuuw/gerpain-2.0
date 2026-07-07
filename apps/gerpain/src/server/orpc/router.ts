@@ -78,6 +78,8 @@ export default {
     get: employees.get,
     create: employees.create,
     update: employees.update,
+    archive: employees.archive,
+    reactivate: employees.reactivate,
     reorder: employees.reorder,
     listProducts: employees.listProducts,
     setProducts: employees.setProducts,

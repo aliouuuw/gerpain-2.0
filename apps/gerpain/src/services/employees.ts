@@ -315,6 +315,28 @@ export async function updateEmployee(
   return getEmployee(db, organizationId, bakeryId, employeeId)
 }
 
+export async function archiveEmployee(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  employeeId: string,
+) {
+  return updateEmployee(db, organizationId, bakeryId, employeeId, {
+    status: 'inactive',
+  })
+}
+
+export async function reactivateEmployee(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  employeeId: string,
+) {
+  return updateEmployee(db, organizationId, bakeryId, employeeId, {
+    status: 'active',
+  })
+}
+
 export async function listEmployeeProducts(
   db: Database,
   organizationId: string,

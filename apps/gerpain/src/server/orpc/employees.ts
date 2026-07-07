@@ -5,10 +5,12 @@ import { db } from '@gerpain/db'
 
 import { getBakeryForOrg } from '#/services/bakeries'
 import {
+  archiveEmployee,
   createEmployee,
   getEmployee,
   listEmployeeProducts,
   listEmployees,
+  reactivateEmployee,
   reorderEmployees,
   setEmployeeProducts,
   EmployeeServiceError,
@@ -145,6 +147,50 @@ export const update = orgContext
         bakeryId,
         employeeId,
         fields,
+      )
+    } catch (error) {
+      mapEmployeeError(error)
+    }
+  })
+
+export const archive = orgContext
+  .input(
+    bakeryIdInput.extend({
+      employeeId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    try {
+      return await archiveEmployee(
+        db,
+        context.legacyOrganizationId,
+        input.bakeryId,
+        input.employeeId,
+      )
+    } catch (error) {
+      mapEmployeeError(error)
+    }
+  })
+
+export const reactivate = orgContext
+  .input(
+    bakeryIdInput.extend({
+      employeeId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    try {
+      return await reactivateEmployee(
+        db,
+        context.legacyOrganizationId,
+        input.bakeryId,
+        input.employeeId,
       )
     } catch (error) {
       mapEmployeeError(error)

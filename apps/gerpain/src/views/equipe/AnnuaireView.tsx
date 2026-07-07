@@ -9,10 +9,13 @@ import {
 } from '#/components/equipe/EmployeeDirectoryTable'
 import { EmployeeStatsSummary } from '#/components/equipe/EmployeeStatsSummary'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { Modal } from '#/components/ui/Modal'
 import { useBakery } from '#/lib/bakery-context'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 type EmployeeRole = 'delivery' | 'cashier' | 'manager' | 'baker'
@@ -38,9 +41,15 @@ const emptyEmployeeForm = (): EmployeeForm => ({
 export function AnnuaireView() {
   const { bakeryId, isLoading: bakeryLoading } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [form, setForm] = useState<EmployeeForm>(emptyEmployeeForm)
   const [formError, setFormError] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+  const [pendingArchive, setPendingArchive] = useState<{
+    id: string
+    fullName: string
+  } | null>(null)
 
   const employees = useQuery({
     ...orpc.employees.list.queryOptions({ input: { bakeryId } }),
@@ -79,6 +88,11 @@ export function AnnuaireView() {
           : '',
     }))
   }, [employees.data, locationNameById])
+
+  const visibleRows = useMemo(() => {
+    if (showArchived) return tableRows
+    return tableRows.filter((row) => row.status === 'active')
+  }, [showArchived, tableRows])
 
   const stats = useMemo(() => {
     const list = employees.data ?? []
@@ -145,40 +159,62 @@ export function AnnuaireView() {
         setForm(emptyEmployeeForm())
         setFormError(null)
         setAddOpen(false)
+        mutationSuccess(toast, 'Membre ajouté à l\'équipe')()
         await employees.refetch()
       },
-      onError: (error) => setFormError(error.message),
+      onError: (error) => {
+        setFormError(error.message)
+        mutationError(toast, 'Impossible d\'ajouter le membre')(error)
+      },
     }),
   )
 
-  const updateEmployee = useMutation(
-    orpc.employees.update.mutationOptions({
-      onSuccess: () => employees.refetch(),
+  const archiveEmployee = useMutation(
+    orpc.employees.archive.mutationOptions({
+      onSuccess: async () => {
+        setPendingArchive(null)
+        mutationSuccess(toast, 'Agent archivé')()
+        await employees.refetch()
+      },
+      onError: (error) => {
+        mutationError(toast, 'Impossible d\'archiver l\'agent')(error)
+      },
     }),
   )
 
-  const handleDeactivate = useCallback(
-    (employeeId: string) => {
-      if (!bakeryId) return
-      updateEmployee.mutate({
-        bakeryId,
-        employeeId,
-        status: 'inactive',
-      })
-    },
-    [bakeryId, updateEmployee],
+  const reactivateEmployee = useMutation(
+    orpc.employees.reactivate.mutationOptions({
+      onSuccess: async () => {
+        mutationSuccess(toast, 'Agent réactivé')()
+        await employees.refetch()
+      },
+      onError: (error) => {
+        mutationError(toast, 'Impossible de réactiver l\'agent')(error)
+      },
+    }),
   )
+
+  const handleArchive = useCallback((employeeId: string, fullName: string) => {
+    setPendingArchive({ id: employeeId, fullName })
+  }, [])
+
+  const confirmArchive = useCallback(() => {
+    if (!bakeryId || !pendingArchive) return
+    archiveEmployee.mutate({
+      bakeryId,
+      employeeId: pendingArchive.id,
+    })
+  }, [archiveEmployee, bakeryId, pendingArchive])
 
   const handleReactivate = useCallback(
     (employeeId: string) => {
       if (!bakeryId) return
-      updateEmployee.mutate({
+      reactivateEmployee.mutate({
         bakeryId,
         employeeId,
-        status: 'active',
       })
     },
-    [bakeryId, updateEmployee],
+    [bakeryId, reactivateEmployee],
   )
 
   function openAdd() {
@@ -273,13 +309,40 @@ export function AnnuaireView() {
           </div>
         ) : (
           <EmployeeDirectoryTable
-            rows={tableRows}
+            rows={visibleRows}
             canManage={canManage}
-            onDeactivate={handleDeactivate}
+            showArchived={showArchived}
+            onShowArchivedChange={setShowArchived}
+            archivingEmployeeId={
+              archiveEmployee.isPending ? (pendingArchive?.id ?? null) : null
+            }
+            reactivatingEmployeeId={
+              reactivateEmployee.isPending
+                ? (reactivateEmployee.variables?.employeeId ?? null)
+                : null
+            }
+            onArchive={handleArchive}
             onReactivate={handleReactivate}
           />
         )}
       </Card>
+
+      <ConfirmDialog
+        open={pendingArchive !== null}
+        title="Archiver cet agent ?"
+        confirmLabel="Archiver"
+        confirmVariant="danger"
+        loading={archiveEmployee.isPending}
+        onConfirm={confirmArchive}
+        onCancel={() => setPendingArchive(null)}
+      >
+        {pendingArchive ? (
+          <p>
+            {pendingArchive.fullName} ne sera plus proposé dans les listes
+            actives (tournées, avances, paie). L&apos;historique est conservé.
+          </p>
+        ) : null}
+      </ConfirmDialog>
 
       <Modal
         open={addOpen}

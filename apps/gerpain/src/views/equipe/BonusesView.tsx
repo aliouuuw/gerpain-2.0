@@ -5,11 +5,14 @@ import { useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { Modal } from '#/components/ui/Modal'
 import { useBakery } from '#/lib/bakery-context'
 import { formatXof, parseXofInput, xofInputToNumber } from '#/lib/format-money'
+import { mutationError, mutationSuccess } from '#/lib/mutation-feedback'
 import { orpc } from '#/lib/orpc-client'
+import { useToast } from '#/lib/toast'
 import { usePermissions } from '#/lib/use-permissions'
 
 import { bonusStatusLabel, currentBonusPeriod } from '#/lib/bonus-labels'
@@ -17,10 +20,12 @@ import { bonusStatusLabel, currentBonusPeriod } from '#/lib/bonus-labels'
 export function BonusesView() {
   const { bakeryId } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
+  const toast = useToast()
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'scheduled' | 'paid' | 'cancelled'
   >('scheduled')
   const [addOpen, setAddOpen] = useState(false)
+  const [pendingCancelId, setPendingCancelId] = useState<string | null>(null)
   const [employeeId, setEmployeeId] = useState('')
   const [amount, setAmount] = useState('')
   const [duePeriod, setDuePeriod] = useState(currentBonusPeriod())
@@ -55,7 +60,12 @@ export function BonusesView() {
         setReason('')
         setDuePeriod(currentBonusPeriod())
         setAddOpen(false)
+        mutationSuccess(toast, 'Prime enregistrée')()
         await bonuses.refetch()
+      },
+      onError: (error) => {
+        setFormError(error.message)
+        mutationError(toast, 'Impossible d\'enregistrer la prime')(error)
       },
     }),
   )
@@ -63,8 +73,11 @@ export function BonusesView() {
   const cancelBonus = useMutation(
     orpc.salaryBonuses.cancel.mutationOptions({
       onSuccess: async () => {
+        setPendingCancelId(null)
+        mutationSuccess(toast, 'Prime annulée')()
         await bonuses.refetch()
       },
+      onError: mutationError(toast, 'Impossible d\'annuler la prime'),
     }),
   )
 
@@ -170,19 +183,7 @@ export function BonusesView() {
                             type="button"
                             className="table-action table-action--danger"
                             disabled={cancelBonus.isPending}
-                            onClick={() => {
-                              if (
-                                !window.confirm(
-                                  'Annuler cette prime ? Elle ne sera plus versée à la clôture.',
-                                )
-                              ) {
-                                return
-                              }
-                              cancelBonus.mutate({
-                                bakeryId,
-                                bonusId: row.id,
-                              })
-                            }}
+                            onClick={() => setPendingCancelId(row.id)}
                           >
                             Annuler
                           </button>
@@ -264,6 +265,21 @@ export function BonusesView() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={pendingCancelId !== null}
+        title="Annuler cette prime ?"
+        confirmLabel="Annuler la prime"
+        confirmVariant="danger"
+        loading={cancelBonus.isPending}
+        onConfirm={() => {
+          if (!bakeryId || !pendingCancelId) return
+          cancelBonus.mutate({ bakeryId, bonusId: pendingCancelId })
+        }}
+        onCancel={() => setPendingCancelId(null)}
+      >
+        <p>Elle ne sera plus versée à la clôture de paie.</p>
+      </ConfirmDialog>
     </div>
   )
 }

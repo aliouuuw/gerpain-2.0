@@ -11,3 +11,7 @@ export function employeeRoleLabel(role: string): string {
 export function employeeInitials(firstName: string, lastName: string): string {
   return `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase()
 }
+
+export function employeeStatusLabel(status: string): string {
+  return status === 'inactive' ? 'Archivé' : 'Actif'
+}

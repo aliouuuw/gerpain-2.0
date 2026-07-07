@@ -73,7 +73,7 @@ export function EmployeeStatsSummary({ stats }: EmployeeStatsSummaryProps) {
           meta={`sur ${stats.total}`}
         />
         <StatLine
-          label="Inactifs"
+          label="Archivés"
           value={stats.inactive}
           warn={stats.inactive > 0}
         />

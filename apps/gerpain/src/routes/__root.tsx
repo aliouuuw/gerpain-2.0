@@ -8,6 +8,7 @@ import {
 import { AppDevtools } from '../integrations/tanstack-query/devtools'
 
 import { BakeryProvider } from '#/lib/bakery-context'
+import { ToastProvider } from '#/lib/toast'
 
 import appCss from '../styles.css?url'
 
@@ -44,10 +45,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootComponent() {
   return (
-    <BakeryProvider>
-      <Outlet />
-      {import.meta.env.DEV ? <AppDevtools /> : null}
-    </BakeryProvider>
+    <ToastProvider>
+      <BakeryProvider>
+        <Outlet />
+        {import.meta.env.DEV ? <AppDevtools /> : null}
+      </BakeryProvider>
+    </ToastProvider>
   )
 }
 
