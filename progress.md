@@ -1,9 +1,8 @@
 # Gerpain 2.0 — Progress Log
 
 **Last updated:** 2026-07-07  
-**Branch:** `main` (59 commits ahead of `origin/main`)  
-**Commit:** `e991ed2` — fix(paie): use fresh period in payroll integration test  
-**WIP (uncommitted):** bonus cancel + agent fiche Primes tab; Bocal posting for collection shortfall at close; print bulletin helper  
+**Branch:** `main` (synced with `origin/main`)  
+**Commit:** (pending) — fix(dev): standalone devtools; docs sprint F close + paie UX backlog  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -24,24 +23,28 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Sprint F — payroll close (ADR 0004); finish uncommitted bonus/ledger polish; then Sprint H cutover.
+**Current focus:** Sprint F+ — Paie admin UX (filtering, bulk print, operator options); then Sprint H cutover.
 
-### Sprint F — payroll & équipe (in progress)
+### Sprint F — payroll & équipe (done)
 
 - **Payroll close** — `payroll_runs` / `payroll_run_lines`; preview + close oRPC; Bocal payout on close (ADR 0004)
 - **Commission preview** — period commission from validated deliveries; breakdown on Rémunération tab
 - **Salary advances** — schedule, installments, payroll deduction via `PAYROLL_CLEARING` (ADR 0003)
-- **Bonuses** — `salary_bonuses` workflow; due by `periodLabel`; list/create on `/equipe/primes`
-- **Collection shortfall** — manque caisse deducted from net; surplus informational only
-- **CSV export** — payroll bulletin download from Paie preview/closed run
-- **Print bulletin** — `payroll-print.ts` HTML print from Paie (uncommitted)
+- **Bonuses** — `salary_bonuses` workflow; due by `periodLabel`; list/create/cancel; Primes tab on fiche agent
+- **Collection shortfall** — manque caisse deducted from net; Bocal `payroll_collection_deduction` on close
+- **CSV + print** — bulletin export and HTML print from Paie (`payroll-csv.ts`, `payroll-print.ts`)
 - **Leave requests** — congés workflow; block prepare-day when agent on leave
+- **Integration test** — payroll close with bonus (`payroll.integration.test.ts`)
 
-**Uncommitted WIP:**
+### Sprint F+ — Paie admin UX (next)
 
-- `salaryBonuses.cancel` + Primes tab on fiche agent
-- Per-employee Bocal posting for collection shortfall (`payroll_collection_deduction`)
-- Unit tests for `buildPayrollCollectionDeductionLines`
+Operator/admin improvements for `/equipe/paie`:
+
+1. **Agent filtering & selection** — filter bulletin by employee(s); URL-driven selection where useful
+2. **Bulk print** — single printable file for all agents (or selected subset) in one action
+3. **Admin UX polish** — presets, clearer period controls, batch actions, and other options that reduce close-of-month friction
+
+See ADR 0004 for close semantics; export/print should read from `payroll_run_lines` when closed.
 
 ### Sprint D — done
 
@@ -113,27 +116,14 @@ Architecture steps (`docs/architecture.md`):
 ### Recent commits (new app)
 
 ```
-ff92fff feat(encaissements): all-agents overview, performance colors, lock affordance
-afe4ab1 feat(deep-link): URL-driven encaissements filters and prominent livraisons link
-0e49cf9 feat(ui): day totals strip, human dates, solde context; drop Bocal jargon on detail
-d5623cd fix(auth): full-page redirect after login to avoid empty data until refresh
-a5995eb fix(deliveries): abort run validation when pre-save fails
-0d3958d fix(collections): prevent zero-day dead-end, dedupe saves, fix stale cache and selection
-3000048 docs(progress): log period view fixes
-2eda1f3 fix(ui): period view UX/accessibility and row keyboard navigation
-1989262 feat(collections): employee-centric period view for encaissements
-afcdc60 feat(deliveries): refine livraisons table IA and product entry cards
-6eaad75 feat(deliveries): add shell matin/soir drill-down panel
-8728fca feat(master-data): complete sprint B catalog and team CRUD
-9fd0c32 chore(deps): drop mocked-interfaces from bun workspaces
-8b23a2d chore: remove mocked-interfaces after shell port to app
-ba9e566 feat(shell): port ledger IA into apps/gerpain with clinical sharp theme
-43268cc feat(collections): payroll settlement
-83671ea feat(collections): validate with bocal posting
-a541b68 feat(collections): list, detail, submit
-cb61048 feat(deliveries): listRuns slice
-c9d7230 feat(auth): Better Auth + org context
-261958e feat(bocal): v0 ledger API
+a8a1626 feat(paie): cancel bonuses, post shortfall to ledger, and print bulletin
+f90ddf8 feat(paie): deduct cash shortfall, export CSV, bonuses, and settle on close
+f43fc47 feat(paie): persist bulletin snapshot and frozen closed-run preview
+2d56231 feat(paie): add payroll close, commission breakdown, and équipe UX refocus
+9aca318 feat(equipe): add period commission preview from validated runs
+7356218 feat(equipe): reorganize nav and product-only commissions
+edd56c1 feat(equipe): add salary advances with Bocal postings
+074d309 feat(equipe): add leave requests and block prepare-day
 ```
 
 ---
@@ -142,6 +132,7 @@ c9d7230 feat(auth): Better Auth + org context
 
 - [x] Delivery: edit quantities → validate → encaissement created (via `/deliveries`)
 - [x] Collection: record payment → submit → supervisor validate (Bocal) → clôturer (via `/collections`)
+- [x] Payroll: preview period → close → frozen bulletin + Bocal payout (integration test; manual UI smoke recommended)
 
 **Dev commands:**
 
@@ -166,14 +157,14 @@ bun run typecheck && bun run test && bun run build
 
 **Still only in legacy (not in shell or thin slice):**
 
-- ~~Employee-centric **period** view for encaissements~~ → **done in shell** (incl. all-agents mode)
-- Reconciliations overview (birds-eye by employee) — legacy has `/cash/reconciliations`; shell has all-agents table but not dedicated réconciliations view
+- ~~Employee-centric **period** view for encaissements~~ → **done in shell**
+- ~~Reconciliations overview~~ → **done** (`/reconciliations`)
+- ~~Dashboard KPIs from Bocal balances~~ → **done** (Accueil)
+- ~~Archive settled periods~~ → **done** (`isArchived`)
+- ~~Master data CRUD~~ → **done** (Réglages + Équipe)
+- ~~Payroll module~~ → **done** (Sprint F; Paie UX polish in Sprint F+)
 - Daily delivery board (all agents on one screen)
-- Master data CRUD in new app (locations, products, employees)
-- Dashboard KPIs from Bocal balances
-- Archive settled periods (`isArchived`)
-- Role-based auth gates (manager vs livreur)
-- Inventory movements, POS boutique, payroll module
+- Inventory movements, POS boutique
 
 ---
 
@@ -186,21 +177,22 @@ bun run typecheck && bun run test && bun run build
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Done** |
 | **D** | Collections parity — period view, reconciliations, archive | **Done** |
 | **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | **Done** (KPIs + movement detail) |
-| **F** | Commissions & payroll — close, advances, bonuses, shortfall | **In progress** (~90% — WIP uncommitted) |
+| **F** | Commissions & payroll — close, advances, bonuses, shortfall | **Done** |
+| **F+** | Paie admin UX — filter agents, bulk print, close workflow polish | **Next** |
 | **G** | Inventory & POS | Deferred |
 | **H** | Cutover | Pending |
 
-**Recommended next order:** finish **F** WIP → fix typecheck → **H** (cutover checklist)
+**Recommended next order:** **F+** (Paie UX) → manual payroll smoke → **H** (cutover checklist)
 
 ---
 
 ## Next session
 
-1. **Commit WIP** — bonus cancel, collection shortfall Bocal posting, print helper, fiche Primes tab
-2. **ADR 0004** — document `CASH_SHORTAGE` posting for collection deductions (partially done in code)
-3. **Fix typecheck** — `ReconciliationsView.tsx` query typing errors (pre-existing)
-4. **Manual E2E** — close a payroll period with bonus + shortfall + advance; verify Bocal movements
-5. **Push to remote** — branch 59 commits ahead of `origin/main`
+1. **Paie — agent filter/selection** — multi-select or role filter on bulletin table; preserve in URL
+2. **Paie — bulk print** — one HTML/PDF with all agents (or selected) per period; reuse `payroll-print.ts`
+3. **Paie — admin UX** — period presets, empty states, post-close read-only affordances, batch CSV
+4. **Optional** — integration test for collection shortfall Bocal posting at close
+5. **Sprint H** — cutover parity checklist vs legacy when Paie UX is comfortable
 
 ---
 

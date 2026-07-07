@@ -4,10 +4,8 @@ import {
   Scripts,
   createRootRouteWithContext,
 } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
 
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
+import { AppDevtools } from '../integrations/tanstack-query/devtools'
 
 import { BakeryProvider } from '#/lib/bakery-context'
 
@@ -48,6 +46,7 @@ function RootComponent() {
   return (
     <BakeryProvider>
       <Outlet />
+      {import.meta.env.DEV ? <AppDevtools /> : null}
     </BakeryProvider>
   )
 }
@@ -60,16 +59,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         {children}
-        <TanStackDevtools
-          config={{ position: 'bottom-right' }}
-          plugins={[
-            {
-              name: 'Tanstack Router',
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-            TanStackQueryDevtools,
-          ]}
-        />
         <Scripts />
       </body>
     </html>

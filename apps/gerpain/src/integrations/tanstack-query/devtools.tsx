@@ -1,6 +1,14 @@
-import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { useRouteContext } from '@tanstack/react-router'
 
-export default {
-  name: 'Tanstack Query',
-  render: <ReactQueryDevtoolsPanel />,
+export function AppDevtools() {
+  const { queryClient } = useRouteContext({ from: '__root__' })
+
+  return (
+    <>
+      <ReactQueryDevtools client={queryClient} buttonPosition="bottom-left" />
+      <TanStackRouterDevtools position="bottom-right" />
+    </>
+  )
 }

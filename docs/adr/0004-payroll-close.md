@@ -90,3 +90,4 @@ Cr CASH            totalNetPaid
 - Re-opening a closed period is not supported in v1; corrections are new
   movements or a future reversal ADR.
 - CSV/PDF export can read from `payroll_run_lines` without recomputing.
+- Bulk print (all agents in one document) is a UI concern on top of the same snapshot; see Sprint F+ in `progress.md`.
