@@ -11,7 +11,10 @@ const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     devtools(),
-    nitro({ preset: 'bun', rollupConfig: { external: [/^@sentry\//] } }),
+    nitro({
+      preset: process.env.VERCEL ? 'vercel' : 'bun',
+      rollupConfig: { external: [/^@sentry\//] },
+    }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),
