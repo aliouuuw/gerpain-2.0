@@ -24,8 +24,18 @@ export const ORG_SLUG = 'gerpain'
 
 const auth = createSeedAuth()
 
+function authBaseUrl(): URL {
+  return new URL(process.env.BETTER_AUTH_URL ?? 'http://localhost:3000')
+}
+
+function sessionCookieName(): string {
+  return authBaseUrl().protocol === 'https:'
+    ? '__Secure-better-auth.session_token'
+    : 'better-auth.session_token'
+}
+
 function requestHeaders(): Headers {
-  const base = new URL(process.env.BETTER_AUTH_URL ?? 'http://localhost:3000')
+  const base = authBaseUrl()
   return new Headers({ host: base.host })
 }
 
@@ -36,12 +46,13 @@ function authenticatedHeaders(signInHeaders: Headers): Headers {
     setCookieParts.length > 0
       ? setCookieParts.join(', ')
       : (signInHeaders.get('set-cookie') ?? '')
-  const sessionToken = parseSetCookieHeader(setCookieHeader).get(
-    'better-auth.session_token',
-  )?.value
+  const parsed = parseSetCookieHeader(setCookieHeader)
+  const sessionToken =
+    parsed.get('__Secure-better-auth.session_token')?.value ??
+    parsed.get('better-auth.session_token')?.value
 
   if (sessionToken) {
-    headers.set('cookie', `better-auth.session_token=${sessionToken}`)
+    headers.set('cookie', `${sessionCookieName()}=${sessionToken}`)
   }
 
   return headers

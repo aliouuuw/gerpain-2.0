@@ -1,8 +1,9 @@
 import { closeDatabase } from '../client'
-import { ADMIN_EMAIL, ADMIN_PASSWORD, runSeed } from './seed-core'
+import { ADMIN_EMAIL, ADMIN_PASSWORD, runSeed, shouldTruncateDomain } from './seed-core'
 
 async function main() {
-  console.log('🌱 Seeding Gerpain local database…\n')
+  const target = shouldTruncateDomain() ? 'local' : 'remote'
+  console.log(`🌱 Seeding Gerpain ${target} database…\n`)
 
   const result = await runSeed()
 
