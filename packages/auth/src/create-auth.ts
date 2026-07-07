@@ -6,6 +6,8 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import type { Database } from '@gerpain/db'
 import * as schema from '@gerpain/db/schema'
 
+import { additionalTrustedOrigins } from './trusted-origins'
+
 export type CreateAuthOptions = {
   db: Database
   baseURL: string
@@ -15,6 +17,8 @@ export type CreateAuthOptions = {
   disableSignUp?: boolean
   /** Skip TanStack cookie plugin (CLI, seeds, tests). */
   serverOnly?: boolean
+  /** Extra trusted origins (www/apex and Vercel previews are added automatically). */
+  trustedOrigins?: string[]
 }
 
 const betterAuthSchema = {
@@ -32,6 +36,10 @@ export function createAuth(options: CreateAuthOptions) {
     appName: options.appName,
     baseURL: options.baseURL,
     secret: options.secret,
+    trustedOrigins: additionalTrustedOrigins(
+      options.baseURL,
+      options.trustedOrigins,
+    ),
     database: drizzleAdapter(options.db, {
       provider: 'pg',
       schema: betterAuthSchema,
