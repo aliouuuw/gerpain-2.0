@@ -16,14 +16,14 @@ const LABEL_COL_W = 72
 const VALUE_COL_X = MARGIN + LABEL_COL_W
 const VALUE_COL_W = INNER - LABEL_COL_W
 
-/** Clinical Sharp tokens — apps/gerpain/src/styles/shell.css */
+/** Uber-sharp + warm neutrals — apps/gerpain/src/styles/shell.css */
 const C = {
-  text: [15, 23, 42] as const,
-  text2: [71, 85, 105] as const,
-  text3: [148, 163, 184] as const,
-  border: [226, 232, 240] as const,
-  surface2: [241, 245, 249] as const,
-  accent: [37, 99, 235] as const,
+  text: [0, 0, 0] as const,
+  text2: [94, 90, 84] as const,
+  text3: [175, 170, 163] as const,
+  border: [232, 228, 223] as const,
+  surface2: [240, 238, 235] as const,
+  accent: [0, 0, 0] as const,
 }
 
 function hr(doc: jsPDF, y: number): void {
