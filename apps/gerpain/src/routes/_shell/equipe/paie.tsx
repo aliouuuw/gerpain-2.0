@@ -17,6 +17,7 @@ const paieSearchSchema = z.object({
   role: z.enum(['delivery', 'cashier', 'manager', 'baker']).optional(),
   group: z.enum(['delivery', 'salaried']).optional(),
   selected: z.string().optional(),
+  panel: z.enum(['history']).optional(),
 })
 
 export const Route = createFileRoute('/_shell/equipe/paie')({

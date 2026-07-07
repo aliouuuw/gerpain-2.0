@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
+import { ConfirmDialog } from '#/components/ui/ConfirmDialog'
 import { HelpNote } from '#/components/ui/HelpNote'
 import { Modal } from '#/components/ui/Modal'
 import { useBakery } from '#/lib/bakery-context'
@@ -31,6 +32,7 @@ import {
   downloadPayrollLinePdf,
   downloadPayrollPdf,
 } from '#/lib/payroll-pdf'
+import type { PayrollPreview } from '#/services/payroll'
 import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 
@@ -154,21 +156,95 @@ function soldeClass(solde: number): string {
   return 'money-strip__value--ok'
 }
 
-function formulaSummary(line: PayrollLine): string {
-  const parts = [formatXof(line.baseSalary)]
-  if (line.bonusAmount > 0) {
-    parts.push(`+ ${formatXof(line.bonusAmount)}`)
+function lineRetenues(line: PayrollLine): number {
+  return line.advanceDeduction + line.collectionDeduction
+}
+
+function totalsScopeLabel(
+  hasSelection: boolean,
+  selectedCount: number,
+  roleFilter: PayrollGroupFilter,
+): string {
+  if (hasSelection) {
+    return `Sélection (${selectedCount} agent${selectedCount > 1 ? 's' : ''})`
   }
-  if (line.role === 'delivery' && line.commissionAmount > 0) {
-    parts.push(`+ ${formatXof(line.commissionAmount)}`)
+  if (roleFilter === 'delivery') return 'Livreurs'
+  if (roleFilter === 'salaried') return 'Salariés'
+  return 'Tous les agents'
+}
+
+function retenuesMeta(
+  advanceDeduction: number,
+  collectionDeduction: number,
+): string | null {
+  const parts: string[] = []
+  if (advanceDeduction > 0) {
+    parts.push(`avances ${formatXof(advanceDeduction)}`)
   }
-  if (line.advanceDeduction > 0) {
-    parts.push(`− ${formatXof(line.advanceDeduction)}`)
+  if (collectionDeduction > 0) {
+    parts.push(`caisse ${formatXof(collectionDeduction)}`)
   }
-  if (line.collectionDeduction > 0) {
-    parts.push(`− ${formatXof(line.collectionDeduction)}`)
-  }
-  return parts.join(' ')
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+function ExportMenu({
+  exportPreview,
+  fullPreview,
+  bakeryName,
+  endDate,
+  hasSelection,
+}: {
+  exportPreview: PayrollPreview
+  fullPreview: PayrollPreview
+  bakeryName?: string
+  endDate: string
+  hasSelection: boolean
+}) {
+  const suffix = hasSelection ? '-selection' : ''
+  const periodSlug = periodLabelFromEndDate(endDate)
+
+  return (
+    <details className="export-menu">
+      <summary className="btn-secondary btn-sm">Exporter</summary>
+      <div className="export-menu__panel" role="menu">
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            downloadPayrollCsv(exportPreview, `paie-${periodSlug}${suffix}.csv`)
+          }}
+        >
+          Tableau CSV ({exportPreview.lines.length})
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            downloadPayrollPdf(
+              exportPreview,
+              bakeryName,
+              `paie-${periodSlug}${suffix}.pdf`,
+            )
+          }}
+        >
+          Récap PDF ({exportPreview.lines.length})
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            downloadPayrollBulletinsPdf(
+              fullPreview,
+              exportPreview.lines.map((line) => line.employeeId),
+              bakeryName,
+            )
+          }}
+        >
+          Bulletins PDF — un par agent ({exportPreview.lines.length})
+        </button>
+      </div>
+    </details>
+  )
 }
 
 function PayrollLineBreakdown({
@@ -176,13 +252,64 @@ function PayrollLineBreakdown({
   periodPreset,
   startDate,
   endDate,
+  showActions,
+  onDownloadPdf,
+  onEdit,
+  onRemoveDraft,
+  removeDraftPending,
 }: {
   line: PayrollLine
   periodPreset: PeriodPreset
   startDate: string
   endDate: string
+  showActions?: boolean
+  onDownloadPdf?: () => void
+  onEdit?: () => void
+  onRemoveDraft?: () => void
+  removeDraftPending?: boolean
 }) {
   return (
+    <>
+      {showActions || line.manualReason ? (
+        <div className="pay-breakdown__actions">
+          {line.manualReason ? (
+            <p className="pay-breakdown__reason">{line.manualReason}</p>
+          ) : (
+            <span />
+          )}
+          {showActions ? (
+            <div className="card-actions-row">
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={onDownloadPdf}
+              >
+                <FileDown size={14} aria-hidden="true" />
+                Bulletin PDF
+              </button>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={onEdit}
+              >
+                <Pencil size={14} aria-hidden="true" />
+                Ajuster
+              </button>
+              {line.draftLineId ? (
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  disabled={removeDraftPending}
+                  onClick={onRemoveDraft}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  Supprimer
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     <dl className="fiche-details pay-breakdown">
       <div className="fiche-details__row">
         <dt>Salaire de base</dt>
@@ -383,6 +510,7 @@ function PayrollLineBreakdown({
         ) : null}
       </div>
     </dl>
+    </>
   )
 }
 
@@ -407,6 +535,8 @@ export function PaieView() {
     manualReason: '',
   })
   const [draftFormError, setDraftFormError] = useState<string | null>(null)
+  const [closeModalOpen, setCloseModalOpen] = useState(false)
+  const [closeConfirmed, setCloseConfirmed] = useState(false)
 
   const bakeryDetail = useQuery({
     ...orpc.bakeries.get.queryOptions({ input: { bakeryId } }),
@@ -422,6 +552,7 @@ export function PaieView() {
   const roleFilter: PayrollGroupFilter =
     search.group ??
     (search.role === 'delivery' ? 'delivery' : search.role ? 'salaried' : 'all')
+  const panel = search.panel ?? 'period'
 
   const patchSearch = (patch: Partial<typeof search>) => {
     void patchNavigate({
@@ -561,6 +692,15 @@ export function PaieView() {
     visibleLines.every((line) => selectedIdSet.has(line.employeeId))
   const hasSelection = selectedIds.length > 0
 
+  const adjustedLines = useMemo(
+    () =>
+      lines.filter(
+        (line) =>
+          line.lineSource === 'manual' || line.lineSource === 'override',
+      ),
+    [lines],
+  )
+
   const activeEmployees = employees.data ?? []
 
   function openEditLineModal(line: PayrollLine) {
@@ -663,12 +803,42 @@ export function PaieView() {
     patchSearch({ selected: undefined })
   }
 
-  const bulletinTitle =
-    roleFilter === 'all'
-      ? `Bulletin par agent (${lines.length})`
-      : roleFilter === 'delivery'
-        ? `Livreurs (${roleCounts.delivery})`
-        : `Salariés (${roleCounts.salaried})`
+  function selectAdjustedLines() {
+    if (adjustedLines.length === 0) return
+    patchSearch({
+      selected: serializeSelectedAgentIds(
+        adjustedLines.map((line) => line.employeeId),
+      ),
+    })
+    setExpandedEmployeeId(adjustedLines[0]?.employeeId ?? null)
+  }
+
+  function focusAdjustedLines() {
+    selectAdjustedLines()
+  }
+
+  function setPanel(next: 'period' | 'history') {
+    patchSearch({ panel: next === 'history' ? 'history' : undefined })
+  }
+
+  function handleClosePayroll() {
+    if (!bakeryId || !closeConfirmed) return
+    closePayroll.mutate(
+      { bakeryId, startDate, endDate },
+      {
+        onSuccess: () => {
+          setCloseModalOpen(false)
+          setCloseConfirmed(false)
+          setPanel('history')
+        },
+      },
+    )
+  }
+
+  const periodTitle = formatPeriodLabel(startDate, endDate)
+  const totalsRetenues = totals
+    ? totals.advanceDeduction + totals.collectionDeduction
+    : 0
 
   return (
     <div className="section-stack">
@@ -711,173 +881,192 @@ export function PaieView() {
             </div>
           )}
         </div>
-
-        {hasSelection ? (
-          <div className="period-toolbar__group">
-            <span className="period-toolbar__label">Sélection</span>
-            <span className="period-toolbar__range">
-              {selectedIds.length} agent{selectedIds.length > 1 ? 's' : ''}
-            </span>
-            <button
-              type="button"
-              className="btn-secondary btn-sm"
-              onClick={clearSelection}
-            >
-              Effacer
-            </button>
-          </div>
-        ) : null}
       </section>
 
       <HelpNote>
-        Aperçu paie : {formatPeriodLabel(startDate, endDate)}. Net = salaire de
-        base + commissions + primes − retenues avances − manque caisse (si
-        applicable). À la clôture, les encaissements validés sont marqués réglés.
-        Cochez des agents pour exporter ou imprimer un sous-ensemble. Utilisez
-        l&apos;icône crayon sur une ligne pour ajuster un montant avant clôture.
-        Les livreurs sont filtrés à part des salariés (caisse, production,
-        encadrement).
+        {periodTitle} — {isClosed ? 'Clôturée' : 'Aperçu avant clôture'}.
+        <details className="help-note__details">
+          <summary>Comment c&apos;est calculé ?</summary>
+          <p>
+            Net = salaire de base + commissions + primes − retenues avances −
+            manque caisse (si applicable). À la clôture, les encaissements
+            validés sont marqués réglés. Dépliez une ligne pour ajuster un
+            montant ou télécharger un bulletin.
+          </p>
+        </details>
       </HelpNote>
 
       {isClosed ? (
-        <p className="settings-form__hint settings-coming-soon">
-          <CheckCircle2
-            size={16}
-            aria-hidden="true"
-            style={{ verticalAlign: 'text-bottom', marginRight: '0.35rem' }}
-          />
-          Période clôturée — bulletin figé au moment de la clôture. Consultez
-          l&apos;historique pour rouvrir une période passée.
-        </p>
+        <div className="status-banner status-banner--success" role="status">
+          <span>
+            <CheckCircle2
+              size={16}
+              aria-hidden="true"
+              style={{ verticalAlign: 'text-bottom', marginRight: '0.35rem' }}
+            />
+            Période clôturée — bulletin figé. Consultez l&apos;historique pour
+            une période passée.
+          </span>
+        </div>
       ) : hasDraft ? (
-        <p className="settings-form__hint">
-          Brouillon en cours — certaines lignes ont été saisies ou ajustées
-          manuellement. Elles seront figées à la clôture.
-        </p>
+        <div className="status-banner status-banner--info" role="status">
+          <span>
+            Brouillon — {adjustedLines.length} ligne
+            {adjustedLines.length > 1 ? 's' : ''} ajustée
+            {adjustedLines.length > 1 ? 's' : ''}. Figées à la clôture.
+          </span>
+          <div className="status-banner__actions">
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={focusAdjustedLines}
+            >
+              Voir
+            </button>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              disabled={discardDraft.isPending}
+              onClick={() => {
+                if (!bakeryId) return
+                discardDraft.mutate({ bakeryId, startDate, endDate })
+              }}
+            >
+              {discardDraft.isPending ? 'Annulation…' : 'Annuler le brouillon'}
+            </button>
+          </div>
+        </div>
       ) : null}
 
-      {totals ? (
-        <section className="stats-grid" aria-label="Synthèse paie">
-          <dl className="stats-grid__col">
-            <div className="stats-lines__row">
-              <dt>Net à payer</dt>
-              <dd>{formatXof(totals.net)}</dd>
-            </div>
-          </dl>
-          <dl className="stats-grid__col">
-            <div className="stats-lines__row">
-              <dt>Brut total</dt>
-              <dd>{formatXof(totals.gross)}</dd>
-            </div>
-          </dl>
-          <dl className="stats-grid__col">
-            <div className="stats-lines__row">
-              <dt>Commissions</dt>
-              <dd>{formatXof(totals.commission)}</dd>
-            </div>
-          </dl>
-          <dl className="stats-grid__col">
-            <div className="stats-lines__row">
-              <dt>Retenues avances</dt>
-              <dd>{formatXof(totals.advanceDeduction)}</dd>
-            </div>
-          </dl>
-          <dl className="stats-grid__col">
-            <div className="stats-lines__row">
-              <dt>Retenues caisse</dt>
-              <dd>{formatXof(totals.collectionDeduction)}</dd>
-            </div>
-          </dl>
+      {canManage && !isClosed ? (
+        <div className="pay-close-bar">
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            disabled={
+              !bakeryId ||
+              preview.isLoading ||
+              closePayroll.isPending ||
+              lines.length === 0
+            }
+            onClick={() => {
+              setCloseConfirmed(false)
+              setCloseModalOpen(true)
+            }}
+          >
+            Clôturer la période
+          </button>
+        </div>
+      ) : null}
+
+      <nav className="fiche-tabs" aria-label="Sections paie">
+        <button
+          type="button"
+          className={`fiche-tabs__tab${panel === 'period' ? ' fiche-tabs__tab--active' : ''}`}
+          aria-current={panel === 'period' ? 'page' : undefined}
+          onClick={() => setPanel('period')}
+        >
+          Période en cours
+        </button>
+        <button
+          type="button"
+          className={`fiche-tabs__tab${panel === 'history' ? ' fiche-tabs__tab--active' : ''}`}
+          aria-current={panel === 'history' ? 'page' : undefined}
+          onClick={() => setPanel('history')}
+        >
+          Historique
+        </button>
+      </nav>
+
+      {panel === 'period' && totals ? (
+        <section aria-label="Synthèse paie">
+          <p className="stats-grid__context">
+            {totalsScopeLabel(hasSelection, selectedIds.length, roleFilter)} ·{' '}
+            {periodTitle}
+          </p>
+          <div className="stats-grid stats-grid--3">
+            <dl className="stats-grid__col">
+              <div className="stats-lines__row">
+                <dt>Net à payer</dt>
+                <dd>{formatXof(totals.net)}</dd>
+              </div>
+            </dl>
+            <dl className="stats-grid__col">
+              <div className="stats-lines__row">
+                <dt>Brut total</dt>
+                <dd>{formatXof(totals.gross)}</dd>
+              </div>
+            </dl>
+            <dl className="stats-grid__col">
+              <div className="stats-lines__row">
+                <dt>Retenues</dt>
+                <dd>
+                  {formatXof(totalsRetenues)}
+                  {retenuesMeta(
+                    totals.advanceDeduction,
+                    totals.collectionDeduction,
+                  ) ? (
+                    <span className="stats-lines__meta">
+                      {retenuesMeta(
+                        totals.advanceDeduction,
+                        totals.collectionDeduction,
+                      )}
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            </dl>
+          </div>
         </section>
       ) : null}
 
+      {panel === 'period' && hasSelection && exportPreview ? (
+        <div className="selection-bar" role="status">
+          <span className="selection-bar__count">
+            {selectedIds.length} agent{selectedIds.length > 1 ? 's' : ''}{' '}
+            sélectionné{selectedIds.length > 1 ? 's' : ''}
+          </span>
+          <ExportMenu
+            exportPreview={exportPreview}
+            fullPreview={preview.data!}
+            bakeryName={bakeryName}
+            endDate={endDate}
+            hasSelection
+          />
+          <button
+            type="button"
+            className="btn-secondary btn-sm"
+            onClick={clearSelection}
+          >
+            Effacer
+          </button>
+          {adjustedLines.length > 0 ? (
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={selectAdjustedLines}
+            >
+              Sélectionner les ajustées
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {panel === 'period' ? (
       <Card
-        title={bulletinTitle}
+        title="Lignes de paie"
         actions={
           <div className="card-actions-row">
-            {exportPreview && exportPreview.lines.length > 0 ? (
-              <>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  onClick={() => {
-                    downloadPayrollCsv(
-                      exportPreview,
-                      `paie-${periodLabelFromEndDate(endDate)}${hasSelection ? '-selection' : ''}.csv`,
-                    )
-                  }}
-                >
-                  Exporter CSV
-                  {hasSelection ? ` (${selectedIds.length})` : ''}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  onClick={() => {
-                    downloadPayrollPdf(
-                      exportPreview,
-                      bakeryName,
-                      `paie-${periodLabelFromEndDate(endDate)}${hasSelection ? '-selection' : ''}.pdf`,
-                    )
-                  }}
-                >
-                  Télécharger PDF
-                  {hasSelection ? ` (${selectedIds.length})` : ''}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  onClick={() => {
-                    if (!preview.data) return
-                    downloadPayrollBulletinsPdf(
-                      preview.data,
-                      exportPreview.lines.map((line) => line.employeeId),
-                      bakeryName,
-                    )
-                  }}
-                >
-                  Télécharger bulletins PDF
-                  {exportPreview.lines.length > 1
-                    ? ` (${exportPreview.lines.length})`
-                    : ''}
-                </button>
-              </>
+            {exportPreview && exportPreview.lines.length > 0 && preview.data ? (
+              <ExportMenu
+                exportPreview={exportPreview}
+                fullPreview={preview.data}
+                bakeryName={bakeryName}
+                endDate={endDate}
+                hasSelection={hasSelection}
+              />
             ) : null}
-            {canManage && !isClosed ? (
-              <>
-                {hasDraft ? (
-                  <button
-                    type="button"
-                    className="btn-secondary btn-sm"
-                    disabled={discardDraft.isPending}
-                    onClick={() => {
-                      if (!bakeryId) return
-                      discardDraft.mutate({ bakeryId, startDate, endDate })
-                    }}
-                  >
-                    {discardDraft.isPending
-                      ? 'Annulation…'
-                      : 'Annuler le brouillon'}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  disabled={
-                    !bakeryId ||
-                    preview.isLoading ||
-                    closePayroll.isPending ||
-                    lines.length === 0
-                  }
-                  onClick={() => {
-                    if (!bakeryId) return
-                    closePayroll.mutate({ bakeryId, startDate, endDate })
-                  }}
-                >
-                  {closePayroll.isPending ? 'Clôture…' : 'Clôturer la période'}
-                </button>
-              </>
-            ) : isClosed ? (
+            {isClosed ? (
               <span className="settings-form__hint">
                 <Lock size={14} aria-hidden="true" /> Clôturée
               </span>
@@ -893,12 +1082,8 @@ export function PaieView() {
           <p className="empty-state">Aucun agent actif pour cette période.</p>
         ) : (
           <>
-            <div
-              className="period-toolbar"
-              style={{ marginBottom: '1rem' }}
-              aria-label="Filtre par rôle"
-            >
-              <div className="period-toolbar__presets">
+            <div className="data-table-toolbar" aria-label="Filtre par rôle">
+              <div className="pay-toolbar-tabs">
                 {PAYROLL_GROUP_TABS.map((tab) => (
                   <button
                     key={tab.id}
@@ -934,9 +1119,9 @@ export function PaieView() {
                   </th>
                   <th>Agent</th>
                   <th>Rôle</th>
-                  <th>Calcul</th>
+                  <th className="num">Brut</th>
+                  <th className="num">Retenues</th>
                   <th className="num">Net à payer</th>
-                  {!isClosed && canManage ? <th>Actions</th> : null}
                   <th aria-hidden="true" />
                 </tr>
               </thead>
@@ -945,6 +1130,7 @@ export function PaieView() {
                   const isExpanded = expandedEmployeeId === line.employeeId
                   const sourceLabel = lineSourceLabel(line.lineSource)
                   const isSelected = selectedIdSet.has(line.employeeId)
+                  const retenues = lineRetenues(line)
                   return (
                     <Fragment key={line.employeeId}>
                       <tr
@@ -986,80 +1172,46 @@ export function PaieView() {
                             {employeeRoleLabel(line.role)}
                           </Badge>
                         </td>
-                        <td className="pay-formula-cell">
-                          {formulaSummary(line)}
-                          {line.manualReason ? (
-                            <span className="stats-lines__meta">
-                              {' '}
-                              · {line.manualReason}
-                            </span>
-                          ) : null}
+                        <td className="num">{formatXof(line.grossAmount)}</td>
+                        <td className="num">
+                          {retenues > 0 ? formatXof(retenues) : '—'}
                         </td>
                         <td className="num">{formatXof(line.netAmount)}</td>
-                        {!isClosed && canManage ? (
-                          <td
-                            className="status-cell"
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => e.stopPropagation()}
-                          >
-                            <div className="card-actions-row">
-                              <button
-                                type="button"
-                                className="btn-secondary btn-sm"
-                                title="Télécharger le bulletin PDF"
-                                onClick={() => {
-                                  if (!preview.data) return
-                                  downloadPayrollLinePdf(
-                                    preview.data,
-                                    line.employeeId,
-                                    bakeryName,
-                                  )
-                                }}
-                              >
-                                <FileDown size={14} aria-hidden="true" />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-secondary btn-sm"
-                                title="Ajuster la ligne"
-                                onClick={() => openEditLineModal(line)}
-                              >
-                                <Pencil size={14} aria-hidden="true" />
-                              </button>
-                              {line.draftLineId ? (
-                                <button
-                                  type="button"
-                                  className="btn-secondary btn-sm"
-                                  title="Supprimer la ligne manuelle"
-                                  disabled={removeDraftLine.isPending}
-                                  onClick={() => {
-                                    if (!bakeryId || !line.draftLineId) return
-                                    removeDraftLine.mutate({
-                                      bakeryId,
-                                      startDate,
-                                      endDate,
-                                      lineId: line.draftLineId,
-                                    })
-                                  }}
-                                >
-                                  <Trash2 size={14} aria-hidden="true" />
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        ) : null}
                         <td className="status-cell__chevron">
                           {isExpanded ? '▲' : '▼'}
                         </td>
                       </tr>
                       {isExpanded ? (
                         <tr className="data-table__expand-row">
-                          <td colSpan={!isClosed && canManage ? 7 : 6}>
+                          <td colSpan={7}>
                             <PayrollLineBreakdown
                               line={line}
                               periodPreset={preset}
                               startDate={startDate}
                               endDate={endDate}
+                              showActions={canManage && !isClosed}
+                              onDownloadPdf={() => {
+                                if (!preview.data) return
+                                downloadPayrollLinePdf(
+                                  preview.data,
+                                  line.employeeId,
+                                  bakeryName,
+                                )
+                              }}
+                              onEdit={() => openEditLineModal(line)}
+                              onRemoveDraft={
+                                line.draftLineId && bakeryId
+                                  ? () => {
+                                      removeDraftLine.mutate({
+                                        bakeryId,
+                                        startDate,
+                                        endDate,
+                                        lineId: line.draftLineId!,
+                                      })
+                                    }
+                                  : undefined
+                              }
+                              removeDraftPending={removeDraftLine.isPending}
                             />
                           </td>
                         </tr>
@@ -1077,6 +1229,7 @@ export function PaieView() {
           <p className="settings-form__error">{closePayroll.error.message}</p>
         ) : null}
       </Card>
+      ) : null}
 
       <Modal
         open={draftModalOpen}
@@ -1223,6 +1376,53 @@ export function PaieView() {
         </div>
       </Modal>
 
+      <ConfirmDialog
+        open={closeModalOpen}
+        title="Clôturer la période"
+        confirmLabel="Clôturer définitivement"
+        loading={closePayroll.isPending}
+        confirmDisabled={!closeConfirmed}
+        onCancel={() => {
+          setCloseModalOpen(false)
+          setCloseConfirmed(false)
+        }}
+        onConfirm={handleClosePayroll}
+      >
+        <p>
+          Période <strong>{periodTitle}</strong> — {lines.length} agent
+          {lines.length > 1 ? 's' : ''}, net total{' '}
+          <strong>{formatXof(preview.data?.totals.net ?? 0)}</strong>.
+        </p>
+        {adjustedLines.length > 0 ? (
+          <>
+            <p>Lignes ajustées incluses dans la clôture :</p>
+            <ul>
+              {adjustedLines.map((line) => (
+                <li key={line.employeeId}>
+                  {line.employeeName} — {formatXof(line.netAmount)}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+        <p>
+          Les encaissements validés seront marqués réglés. Cette action est
+          irréversible.
+        </p>
+        <label className="period-toolbar__checkbox">
+          <input
+            type="checkbox"
+            checked={closeConfirmed}
+            onChange={(e) => setCloseConfirmed(e.target.checked)}
+          />
+          Je confirme la clôture de cette période
+        </label>
+        {closePayroll.isError ? (
+          <p className="settings-form__error">{closePayroll.error.message}</p>
+        ) : null}
+      </ConfirmDialog>
+
+      {panel === 'history' ? (
       <Card title="Historique des clôtures">
         {history.isLoading ? (
           <p className="empty-state">Chargement…</p>
@@ -1255,6 +1455,7 @@ export function PaieView() {
                             start: run.startDate,
                             end: run.endDate,
                             runId: run.id,
+                            panel: undefined,
                           },
                           replace: true,
                         })
@@ -1268,6 +1469,7 @@ export function PaieView() {
                               start: run.startDate,
                               end: run.endDate,
                               runId: run.id,
+                              panel: undefined,
                             },
                             replace: true,
                           })
@@ -1302,6 +1504,7 @@ export function PaieView() {
           Cliquez sur une ligne pour afficher le bulletin figé de la clôture.
         </p>
       </Card>
+      ) : null}
     </div>
   )
 }

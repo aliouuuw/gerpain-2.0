@@ -8,6 +8,7 @@ export type ConfirmDialogProps = {
   cancelLabel?: string
   confirmVariant?: 'primary' | 'danger'
   loading?: boolean
+  confirmDisabled?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -20,6 +21,7 @@ export function ConfirmDialog({
   cancelLabel = 'Annuler',
   confirmVariant = 'primary',
   loading = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -54,7 +56,7 @@ export function ConfirmDialog({
                 ? 'btn-danger btn-sm'
                 : 'btn-primary btn-sm'
             }
-            disabled={loading}
+            disabled={loading || confirmDisabled}
             onClick={onConfirm}
           >
             {loading ? '…' : confirmLabel}
