@@ -109,5 +109,8 @@ export default {
     list: payroll.list,
     get: payroll.get,
     close: payroll.close,
+    saveDraftLine: payroll.saveDraftLine,
+    removeDraftLine: payroll.removeDraftLine,
+    discardDraft: payroll.discardDraft,
   },
 }

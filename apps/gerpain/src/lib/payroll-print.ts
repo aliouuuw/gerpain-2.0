@@ -112,6 +112,35 @@ export function printPayrollBulletin(
   bakeryName?: string,
 ): void {
   const html = buildPayrollPrintHtml(preview, bakeryName)
+  openPrintWindow(html)
+}
+
+export function printPayrollLine(
+  preview: PayrollPreview,
+  employeeId: string,
+  bakeryName?: string,
+): void {
+  const line = preview.lines.find((row) => row.employeeId === employeeId)
+  if (!line) return
+
+  const singleLinePreview: PayrollPreview = {
+    ...preview,
+    hasDraft: preview.hasDraft ?? false,
+    lines: [line],
+    totals: {
+      gross: line.grossAmount,
+      net: line.netAmount,
+      commission: line.commissionAmount,
+      bonus: line.bonusAmount,
+      advanceDeduction: line.advanceDeduction,
+      collectionDeduction: line.collectionDeduction,
+    },
+  }
+
+  printPayrollBulletin(singleLinePreview, bakeryName)
+}
+
+function openPrintWindow(html: string): void {
   const printWindow = window.open('', '_blank', 'noopener,noreferrer')
   if (!printWindow) return
 

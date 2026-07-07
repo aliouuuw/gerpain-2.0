@@ -11,6 +11,11 @@ import {
   PayrollServiceError,
   previewPayroll,
 } from '#/services/payroll'
+import {
+  discardDraftPayrollRun,
+  removeDraftPayrollLine,
+  saveDraftPayrollLine,
+} from '#/services/payroll-draft'
 import { assertManagerRole } from '#/server/permissions'
 import { orgContext } from './context'
 
@@ -114,6 +119,137 @@ export const close = orgContext
         },
         closedByUserId ?? undefined,
       )
+    } catch (error) {
+      mapPayrollError(error)
+    }
+  })
+
+const draftLineInput = periodInput.extend({
+  employeeId: z.string().uuid(),
+  baseSalary: z.number().int().min(0),
+  commissionAmount: z.number().int().min(0),
+  bonusAmount: z.number().int().min(0),
+  advanceDeduction: z.number().int().min(0),
+  collectionDeduction: z.number().int().min(0),
+  grossAmount: z.number().int().min(0),
+  netAmount: z.number().int().min(0),
+  manualReason: z.string().max(500).optional(),
+  source: z.enum(['manual', 'override']),
+  computedSnapshot: z
+    .object({
+      commissionUnitsSold: z.number().int().min(0),
+      commissionUnitsCommissioned: z.number().int().min(0),
+      commissionValidatedRuns: z.number().int().min(0),
+      commissionProducts: z.array(
+        z.object({
+          productId: z.string().uuid(),
+          productName: z.string(),
+          unitsSold: z.number().int().min(0),
+          commissionPerUnit: z.number().int().min(0),
+          commissionAmount: z.number().int().min(0),
+        }),
+      ),
+      bonuses: z.array(
+        z.object({
+          id: z.string().uuid(),
+          amount: z.number().int().min(0),
+          reason: z.string().nullable(),
+          duePeriod: z.string(),
+        }),
+      ),
+      advanceInstallments: z.array(
+        z.object({
+          id: z.string().uuid(),
+          amount: z.number().int().min(0),
+          installmentNumber: z.number().int().min(1),
+          duePeriod: z.string().nullable(),
+        }),
+      ),
+      collectionBalance: z
+        .object({
+          totalExpected: z.number().int().min(0),
+          totalCollected: z.number().int().min(0),
+          solde: z.number().int(),
+          collectionCount: z.number().int().min(0),
+        })
+        .nullable(),
+      advanceInstallmentIds: z.array(z.string().uuid()),
+      bonusIds: z.array(z.string().uuid()),
+    })
+    .optional(),
+})
+
+export const saveDraftLine = orgContext
+  .input(draftLineInput)
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    const {
+      bakeryId,
+      startDate,
+      endDate,
+      computedSnapshot,
+      ...line
+    } = input
+
+    try {
+      return await saveDraftPayrollLine(
+        db,
+        {
+          organizationId: context.legacyOrganizationId,
+          bakeryId,
+          startDate,
+          endDate,
+        },
+        { ...line, computedSnapshot },
+      )
+    } catch (error) {
+      mapPayrollError(error)
+    }
+  })
+
+export const removeDraftLine = orgContext
+  .input(
+    periodInput.extend({
+      lineId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    try {
+      await removeDraftPayrollLine(
+        db,
+        {
+          organizationId: context.legacyOrganizationId,
+          bakeryId: input.bakeryId,
+          startDate: input.startDate,
+          endDate: input.endDate,
+        },
+        input.lineId,
+      )
+      return { ok: true as const }
+    } catch (error) {
+      mapPayrollError(error)
+    }
+  })
+
+export const discardDraft = orgContext
+  .input(periodInput)
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    try {
+      await discardDraftPayrollRun(db, {
+        organizationId: context.legacyOrganizationId,
+        bakeryId: input.bakeryId,
+        startDate: input.startDate,
+        endDate: input.endDate,
+      })
+      return { ok: true as const }
     } catch (error) {
       mapPayrollError(error)
     }

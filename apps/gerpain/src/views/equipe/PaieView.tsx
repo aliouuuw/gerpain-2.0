@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { CheckCircle2, Lock } from 'lucide-react'
+import { CheckCircle2, Lock, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
+import { Modal } from '#/components/ui/Modal'
 import { useBakery } from '#/lib/bakery-context'
 import { employeeRoleLabel } from '#/lib/employee-labels'
 import { formatXof } from '#/lib/format-money'
@@ -18,7 +19,7 @@ import {
   type PeriodPreset,
 } from '#/lib/period'
 import { downloadPayrollCsv } from '#/lib/payroll-csv'
-import { printPayrollBulletin } from '#/lib/payroll-print'
+import { printPayrollBulletin, printPayrollLine } from '#/lib/payroll-print'
 import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 
@@ -63,6 +64,62 @@ type PayrollLine = {
   collectionDeduction: number
   grossAmount: number
   netAmount: number
+  lineSource?: 'computed' | 'manual' | 'override'
+  manualReason?: string | null
+  draftLineId?: string | null
+}
+
+type DraftLineForm = {
+  employeeId: string
+  baseSalary: string
+  commissionAmount: string
+  bonusAmount: string
+  advanceDeduction: string
+  collectionDeduction: string
+  manualReason: string
+}
+
+function parseAmount(value: string): number {
+  const parsed = Number.parseInt(value.replace(/\s/g, ''), 10)
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+}
+
+function grossFromForm(form: DraftLineForm): number {
+  return (
+    parseAmount(form.baseSalary) +
+    parseAmount(form.commissionAmount) +
+    parseAmount(form.bonusAmount)
+  )
+}
+
+function netFromForm(form: DraftLineForm): number {
+  const gross = grossFromForm(form)
+  return Math.max(
+    gross -
+      parseAmount(form.advanceDeduction) -
+      parseAmount(form.collectionDeduction),
+    0,
+  )
+}
+
+function lineSourceLabel(source: PayrollLine['lineSource']): string | null {
+  if (source === 'manual') return 'Manuelle'
+  if (source === 'override') return 'Ajustée'
+  return null
+}
+
+function computedSnapshotFromLine(line: PayrollLine) {
+  return {
+    commissionUnitsSold: line.commissionUnitsSold,
+    commissionUnitsCommissioned: line.commissionUnitsCommissioned,
+    commissionValidatedRuns: line.commissionValidatedRuns,
+    commissionProducts: line.commissionProducts,
+    bonuses: line.bonuses,
+    advanceInstallments: line.advanceInstallments,
+    collectionBalance: line.collectionBalance,
+    advanceInstallmentIds: line.advanceInstallments.map((row) => row.id),
+    bonusIds: line.bonuses.map((row) => row.id),
+  }
 }
 
 function soldeLabel(solde: number): string {
@@ -318,6 +375,18 @@ export function PaieView() {
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(
     null,
   )
+  const [draftModalOpen, setDraftModalOpen] = useState(false)
+  const [editingLine, setEditingLine] = useState<PayrollLine | null>(null)
+  const [draftForm, setDraftForm] = useState<DraftLineForm>({
+    employeeId: '',
+    baseSalary: '0',
+    commissionAmount: '0',
+    bonusAmount: '0',
+    advanceDeduction: '0',
+    collectionDeduction: '0',
+    manualReason: '',
+  })
+  const [draftFormError, setDraftFormError] = useState<string | null>(null)
 
   const bakeryDetail = useQuery({
     ...orpc.bakeries.get.queryOptions({ input: { bakeryId } }),
@@ -355,10 +424,21 @@ export function PaieView() {
     enabled: Boolean(bakeryId),
   })
 
+  const employees = useQuery({
+    ...orpc.employees.list.queryOptions({
+      input: { bakeryId, status: 'active' },
+    }),
+    enabled: Boolean(bakeryId),
+  })
+
+  const invalidatePreview = () => {
+    void preview.refetch()
+  }
+
   const closePayroll = useMutation(
     orpc.payroll.close.mutationOptions({
       onSuccess: () => {
-        void preview.refetch()
+        invalidatePreview()
         void history.refetch()
         void queryClient.invalidateQueries({
           queryKey: orpc.salaryAdvances.list.key(),
@@ -367,9 +447,115 @@ export function PaieView() {
     }),
   )
 
+  const saveDraftLine = useMutation(
+    orpc.payroll.saveDraftLine.mutationOptions({
+      onSuccess: () => {
+        setDraftModalOpen(false)
+        setEditingLine(null)
+        setDraftFormError(null)
+        invalidatePreview()
+      },
+    }),
+  )
+
+  const removeDraftLine = useMutation(
+    orpc.payroll.removeDraftLine.mutationOptions({
+      onSuccess: () => {
+        invalidatePreview()
+      },
+    }),
+  )
+
+  const discardDraft = useMutation(
+    orpc.payroll.discardDraft.mutationOptions({
+      onSuccess: () => {
+        invalidatePreview()
+      },
+    }),
+  )
+
   const lines = (preview.data?.lines ?? []) as PayrollLine[]
   const totals = preview.data?.totals
   const isClosed = preview.data?.isClosed ?? false
+  const hasDraft = preview.data?.hasDraft ?? false
+  const bakeryName = bakery?.name ?? bakeryDetail.data?.name
+
+  const activeEmployees = employees.data ?? []
+  const employeesForManualAdd = activeEmployees
+
+  function openAddLineModal() {
+    setEditingLine(null)
+    setDraftForm({
+      employeeId: activeEmployees[0]?.id ?? '',
+      baseSalary: '0',
+      commissionAmount: '0',
+      bonusAmount: '0',
+      advanceDeduction: '0',
+      collectionDeduction: '0',
+      manualReason: '',
+    })
+    setDraftFormError(null)
+    setDraftModalOpen(true)
+  }
+
+  function openEditLineModal(line: PayrollLine) {
+    setEditingLine(line)
+    setDraftForm({
+      employeeId: line.employeeId,
+      baseSalary: String(line.baseSalary),
+      commissionAmount: String(line.commissionAmount),
+      bonusAmount: String(line.bonusAmount),
+      advanceDeduction: String(line.advanceDeduction),
+      collectionDeduction: String(line.collectionDeduction),
+      manualReason: line.manualReason ?? '',
+    })
+    setDraftFormError(null)
+    setDraftModalOpen(true)
+  }
+
+  function handleSaveDraftLine() {
+    if (!bakeryId) return
+    if (!draftForm.employeeId) {
+      setDraftFormError('Choisissez un agent.')
+      return
+    }
+
+    const grossAmount = grossFromForm(draftForm)
+    const netAmount = netFromForm(draftForm)
+    const existingLine = lines.find(
+      (line) => line.employeeId === draftForm.employeeId,
+    )
+    const source =
+      existingLine?.lineSource === 'manual' || (!existingLine && !editingLine)
+        ? ('manual' as const)
+        : ('override' as const)
+
+    const computedSnapshot =
+      source === 'override' && existingLine
+        ? computedSnapshotFromLine(
+            existingLine.lineSource === 'computed'
+              ? existingLine
+              : (editingLine ?? existingLine),
+          )
+        : undefined
+
+    saveDraftLine.mutate({
+      bakeryId,
+      startDate,
+      endDate,
+      employeeId: draftForm.employeeId,
+      baseSalary: parseAmount(draftForm.baseSalary),
+      commissionAmount: parseAmount(draftForm.commissionAmount),
+      bonusAmount: parseAmount(draftForm.bonusAmount),
+      advanceDeduction: parseAmount(draftForm.advanceDeduction),
+      collectionDeduction: parseAmount(draftForm.collectionDeduction),
+      grossAmount,
+      netAmount,
+      manualReason: draftForm.manualReason.trim() || undefined,
+      source,
+      computedSnapshot,
+    })
+  }
 
   function toggleEmployee(employeeId: string) {
     setExpandedEmployeeId((current) =>
@@ -437,6 +623,11 @@ export function PaieView() {
           Période clôturée — bulletin figé au moment de la clôture. Consultez
           l&apos;historique pour rouvrir une période passée.
         </p>
+      ) : hasDraft ? (
+        <p className="settings-form__hint">
+          Brouillon en cours — certaines lignes ont été saisies ou ajustées
+          manuellement. Elles seront figées à la clôture.
+        </p>
       ) : null}
 
       {totals ? (
@@ -498,10 +689,7 @@ export function PaieView() {
                   className="btn-secondary btn-sm"
                   onClick={() => {
                     if (!preview.data) return
-                    printPayrollBulletin(
-                      preview.data,
-                      bakery?.name ?? bakeryDetail.data?.name,
-                    )
+                    printPayrollBulletin(preview.data, bakeryName)
                   }}
                 >
                   Imprimer
@@ -509,22 +697,47 @@ export function PaieView() {
               </>
             ) : null}
             {canManage && !isClosed ? (
-              <button
-                type="button"
-                className="btn-primary btn-sm"
-                disabled={
-                  !bakeryId ||
-                  preview.isLoading ||
-                  closePayroll.isPending ||
-                  lines.length === 0
-                }
-                onClick={() => {
-                  if (!bakeryId) return
-                  closePayroll.mutate({ bakeryId, startDate, endDate })
-                }}
-              >
-                {closePayroll.isPending ? 'Clôture…' : 'Clôturer la période'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={openAddLineModal}
+                  disabled={activeEmployees.length === 0}
+                >
+                  <Plus size={14} aria-hidden="true" /> Ajouter une ligne
+                </button>
+                {hasDraft ? (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    disabled={discardDraft.isPending}
+                    onClick={() => {
+                      if (!bakeryId) return
+                      discardDraft.mutate({ bakeryId, startDate, endDate })
+                    }}
+                  >
+                    {discardDraft.isPending
+                      ? 'Annulation…'
+                      : 'Annuler le brouillon'}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  disabled={
+                    !bakeryId ||
+                    preview.isLoading ||
+                    closePayroll.isPending ||
+                    lines.length === 0
+                  }
+                  onClick={() => {
+                    if (!bakeryId) return
+                    closePayroll.mutate({ bakeryId, startDate, endDate })
+                  }}
+                >
+                  {closePayroll.isPending ? 'Clôture…' : 'Clôturer la période'}
+                </button>
+              </>
             ) : isClosed ? (
               <span className="settings-form__hint">
                 <Lock size={14} aria-hidden="true" /> Clôturée
@@ -548,12 +761,14 @@ export function PaieView() {
                   <th>Rôle</th>
                   <th>Calcul</th>
                   <th className="num">Net à payer</th>
+                  {!isClosed && canManage ? <th>Actions</th> : null}
                   <th aria-hidden="true" />
                 </tr>
               </thead>
               <tbody>
                 {lines.map((line) => {
                   const isExpanded = expandedEmployeeId === line.employeeId
+                  const sourceLabel = lineSourceLabel(line.lineSource)
                   return (
                     <Fragment key={line.employeeId}>
                       <tr
@@ -569,7 +784,15 @@ export function PaieView() {
                         role="button"
                         aria-expanded={isExpanded}
                       >
-                        <td>{line.employeeName}</td>
+                        <td>
+                          {line.employeeName}
+                          {sourceLabel ? (
+                            <>
+                              {' '}
+                              <Badge variant="info">{sourceLabel}</Badge>
+                            </>
+                          ) : null}
+                        </td>
                         <td>
                           <Badge variant="neutral">
                             {employeeRoleLabel(line.role)}
@@ -577,15 +800,73 @@ export function PaieView() {
                         </td>
                         <td className="pay-formula-cell">
                           {formulaSummary(line)}
+                          {line.manualReason ? (
+                            <span className="stats-lines__meta">
+                              {' '}
+                              · {line.manualReason}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="num">{formatXof(line.netAmount)}</td>
+                        {!isClosed && canManage ? (
+                          <td
+                            className="status-cell"
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                          >
+                            <div className="card-actions-row">
+                              <button
+                                type="button"
+                                className="btn-secondary btn-sm"
+                                title="Générer le bulletin"
+                                onClick={() => {
+                                  if (!preview.data) return
+                                  printPayrollLine(
+                                    preview.data,
+                                    line.employeeId,
+                                    bakeryName,
+                                  )
+                                }}
+                              >
+                                <Printer size={14} aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary btn-sm"
+                                title="Ajuster la ligne"
+                                onClick={() => openEditLineModal(line)}
+                              >
+                                <Pencil size={14} aria-hidden="true" />
+                              </button>
+                              {line.draftLineId ? (
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-sm"
+                                  title="Supprimer la ligne manuelle"
+                                  disabled={removeDraftLine.isPending}
+                                  onClick={() => {
+                                    if (!bakeryId || !line.draftLineId) return
+                                    removeDraftLine.mutate({
+                                      bakeryId,
+                                      startDate,
+                                      endDate,
+                                      lineId: line.draftLineId,
+                                    })
+                                  }}
+                                >
+                                  <Trash2 size={14} aria-hidden="true" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        ) : null}
                         <td className="status-cell__chevron">
                           {isExpanded ? '▲' : '▼'}
                         </td>
                       </tr>
                       {isExpanded ? (
                         <tr className="data-table__expand-row">
-                          <td colSpan={5}>
+                          <td colSpan={!isClosed && canManage ? 6 : 5}>
                             <PayrollLineBreakdown
                               line={line}
                               periodPreset={preset}
@@ -606,6 +887,153 @@ export function PaieView() {
           <p className="settings-form__error">{closePayroll.error.message}</p>
         ) : null}
       </Card>
+
+      <Modal
+        open={draftModalOpen}
+        title={
+          editingLine ? 'Ajuster la ligne de paie' : 'Ajouter une ligne manuelle'
+        }
+        onClose={() => {
+          setDraftModalOpen(false)
+          setEditingLine(null)
+          setDraftFormError(null)
+        }}
+      >
+        <div className="settings-form">
+          <label className="settings-form__field">
+            <span>Agent</span>
+            <select
+              value={draftForm.employeeId}
+              disabled={Boolean(editingLine)}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  employeeId: e.target.value,
+                }))
+              }
+            >
+              <option value="">— Choisir —</option>
+              {(editingLine
+                ? activeEmployees.filter(
+                    (employee) => employee.id === editingLine.employeeId,
+                  )
+                : employeesForManualAdd
+              ).map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.fullName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="settings-form__field">
+            <span>Salaire de base (XOF)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={draftForm.baseSalary}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  baseSalary: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="settings-form__field">
+            <span>Commission (XOF)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={draftForm.commissionAmount}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  commissionAmount: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="settings-form__field">
+            <span>Primes (XOF)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={draftForm.bonusAmount}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  bonusAmount: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="settings-form__field">
+            <span>Retenue avances (XOF)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={draftForm.advanceDeduction}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  advanceDeduction: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="settings-form__field">
+            <span>Retenue caisse (XOF)</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={draftForm.collectionDeduction}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  collectionDeduction: e.target.value,
+                }))
+              }
+            />
+          </label>
+          <div className="settings-form__field">
+            <span>Brut calculé</span>
+            <p className="num">{formatXof(grossFromForm(draftForm))}</p>
+          </div>
+          <div className="settings-form__field">
+            <span>Net calculé</span>
+            <p className="num">{formatXof(netFromForm(draftForm))}</p>
+          </div>
+          <label className="settings-form__field">
+            <span>Motif (optionnel)</span>
+            <input
+              type="text"
+              value={draftForm.manualReason}
+              onChange={(e) =>
+                setDraftForm((current) => ({
+                  ...current,
+                  manualReason: e.target.value,
+                }))
+              }
+            />
+          </label>
+          {draftFormError ? (
+            <p className="settings-form__error">{draftFormError}</p>
+          ) : null}
+          {saveDraftLine.isError ? (
+            <p className="settings-form__error">{saveDraftLine.error.message}</p>
+          ) : null}
+          <div className="settings-form__actions">
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={saveDraftLine.isPending}
+              onClick={handleSaveDraftLine}
+            >
+              {saveDraftLine.isPending ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       <Card title="Historique des clôtures">
         {history.isLoading ? (

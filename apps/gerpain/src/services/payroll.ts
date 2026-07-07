@@ -30,6 +30,12 @@ import {
   markSalaryBonusesPaidInTx,
 } from '#/services/salary-bonuses'
 import { periodLabelFromEndDate } from '#/lib/period'
+import {
+  deleteDraftPayrollRunInTx,
+  loadDraftPayrollLines,
+  mergePayrollLinesWithDraft,
+  type PayrollLineSource,
+} from '#/services/payroll-draft'
 
 export class PayrollServiceError extends Error {
   constructor(
@@ -97,6 +103,9 @@ export type PayrollLinePreview = {
   netAmount: number
   advanceInstallmentIds: string[]
   bonusIds: string[]
+  lineSource?: PayrollLineSource
+  manualReason?: string | null
+  draftLineId?: string | null
 }
 
 /** Frozen at close — commission/cash detail for audit without recomputing. */
@@ -112,7 +121,7 @@ export type PayrollLineSnapshot = {
   bonusIds: string[]
 }
 
-function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapshot {
+export function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapshot {
   return {
     commissionUnitsSold: line.commissionUnitsSold,
     commissionUnitsCommissioned: line.commissionUnitsCommissioned,
@@ -199,6 +208,7 @@ export type PayrollPreview = {
   periodLabel: string
   isClosed: boolean
   closedRunId: string | null
+  hasDraft: boolean
   lines: PayrollLinePreview[]
   totals: {
     gross: number
@@ -499,6 +509,7 @@ export async function previewPayroll(
       periodLabel: detail.periodLabel,
       isClosed: true,
       closedRunId: detail.id,
+      hasDraft: false,
       lines: detail.lines,
       totals: totalsFromLines(detail.lines, {
         gross: detail.totalGross,
@@ -507,7 +518,18 @@ export async function previewPayroll(
     }
   }
 
-  const { periodLabel, lines, totals } = await buildPayrollLines(db, input)
+  const [{ periodLabel, lines }, draftLines] = await Promise.all([
+    buildPayrollLines(db, input),
+    loadDraftPayrollLines(
+      db,
+      input.organizationId,
+      input.bakeryId,
+      input.startDate,
+      input.endDate,
+    ),
+  ])
+
+  const mergedLines = mergePayrollLinesWithDraft(lines, draftLines)
 
   return {
     startDate: input.startDate,
@@ -515,8 +537,9 @@ export async function previewPayroll(
     periodLabel,
     isClosed: false,
     closedRunId: null,
-    lines,
-    totals,
+    hasDraft: draftLines.length > 0,
+    lines: mergedLines,
+    totals: totalsFromLines(mergedLines),
   }
 }
 
@@ -674,6 +697,8 @@ export async function closePayroll(
         'Cette période est déjà clôturée',
       )
     }
+
+    await deleteDraftPayrollRunInTx(tx, input)
 
     const [run] = await tx
       .insert(payrollRuns)
