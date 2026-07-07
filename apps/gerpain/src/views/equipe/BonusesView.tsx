@@ -12,20 +12,7 @@ import { formatXof, parseXofInput, xofInputToNumber } from '#/lib/format-money'
 import { orpc } from '#/lib/orpc-client'
 import { usePermissions } from '#/lib/use-permissions'
 
-function currentPeriod(): string {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  return `${now.getFullYear()}-${month}`
-}
-
-function bonusStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    scheduled: 'Prévue',
-    paid: 'Versée',
-    cancelled: 'Annulée',
-  }
-  return labels[status] ?? status
-}
+import { bonusStatusLabel, currentBonusPeriod } from '#/lib/bonus-labels'
 
 export function BonusesView() {
   const { bakeryId } = useBakery()
@@ -36,7 +23,7 @@ export function BonusesView() {
   const [addOpen, setAddOpen] = useState(false)
   const [employeeId, setEmployeeId] = useState('')
   const [amount, setAmount] = useState('')
-  const [duePeriod, setDuePeriod] = useState(currentPeriod())
+  const [duePeriod, setDuePeriod] = useState(currentBonusPeriod())
   const [reason, setReason] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -66,8 +53,16 @@ export function BonusesView() {
         setEmployeeId('')
         setAmount('')
         setReason('')
-        setDuePeriod(currentPeriod())
+        setDuePeriod(currentBonusPeriod())
         setAddOpen(false)
+        await bonuses.refetch()
+      },
+    }),
+  )
+
+  const cancelBonus = useMutation(
+    orpc.salaryBonuses.cancel.mutationOptions({
+      onSuccess: async () => {
         await bonuses.refetch()
       },
     }),
@@ -153,6 +148,7 @@ export function BonusesView() {
                   <th className="num">Montant</th>
                   <th>Statut</th>
                   <th>Motif</th>
+                  {canManage ? <th aria-label="Actions" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -167,12 +163,41 @@ export function BonusesView() {
                       </Badge>
                     </td>
                     <td>{row.reason ?? '—'}</td>
+                    {canManage ? (
+                      <td>
+                        {row.status === 'scheduled' ? (
+                          <button
+                            type="button"
+                            className="table-action table-action--danger"
+                            disabled={cancelBonus.isPending}
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  'Annuler cette prime ? Elle ne sera plus versée à la clôture.',
+                                )
+                              ) {
+                                return
+                              }
+                              cancelBonus.mutate({
+                                bakeryId,
+                                bonusId: row.id,
+                              })
+                            }}
+                          >
+                            Annuler
+                          </button>
+                        ) : null}
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
+        {cancelBonus.isError ? (
+          <p className="settings-form__error">{cancelBonus.error.message}</p>
+        ) : null}
       </Card>
 
       <Modal

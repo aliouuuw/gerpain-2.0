@@ -5,7 +5,7 @@ import { FicheAgentView } from '#/views/equipe/FicheAgentView'
 
 const ficheSearchSchema = z.object({
   tab: z
-    .enum(['profil', 'remuneration', 'avances', 'conges', 'activite'])
+    .enum(['profil', 'remuneration', 'primes', 'avances', 'conges', 'activite'])
     .optional(),
   period: z.enum(['week', 'month', 'last15', 'custom']).optional(),
   start: z

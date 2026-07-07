@@ -54,6 +54,7 @@ On close, validated encaissements in the period are marked `isSettled`.
 | `SALARY_EXPENSE` | expense | Net salary paid out |
 | `CASH` | asset | Cash leaving the bakery |
 | `PAYROLL_CLEARING` | liability | Advance repayments via payroll (ADR 0003) |
+| `CASH_SHORTAGE` | expense | Collection shortfall (manque caisse) retained from net |
 
 ## Postings on close
 
@@ -63,6 +64,17 @@ For each due advance installment (existing ADR 0003 flow):
 Dr PAYROLL_CLEARING           installmentAmount
 Cr SALARY_ADVANCE_RECEIVABLE  installmentAmount
 ```
+
+For each employee with `collectionDeduction > 0`
+(`sourceType: payroll_collection_deduction`, `sourceId: {runId}:{employeeId}`):
+
+```
+Dr PAYROLL_CLEARING  collectionDeduction
+Cr CASH_SHORTAGE     collectionDeduction
+```
+
+Net payout already reflects the shortfall deduction; this posting records the
+retained amount without paying it out in cash.
 
 Aggregated net payout (`sourceType: payroll_run`):
 

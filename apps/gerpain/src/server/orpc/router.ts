@@ -102,6 +102,7 @@ export default {
   salaryBonuses: {
     list: salaryBonuses.list,
     create: salaryBonuses.create,
+    cancel: salaryBonuses.cancel,
   },
   payroll: {
     preview: payroll.preview,

@@ -18,6 +18,7 @@ import {
   type PeriodPreset,
 } from '#/lib/period'
 import { downloadPayrollCsv } from '#/lib/payroll-csv'
+import { printPayrollBulletin } from '#/lib/payroll-print'
 import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 
@@ -309,7 +310,7 @@ function PayrollLineBreakdown({
 }
 
 export function PaieView() {
-  const { bakeryId, isLoading: bakeryLoading } = useBakery()
+  const { bakeryId, bakery, isLoading: bakeryLoading } = useBakery()
   const { canManageCollections: canManage } = usePermissions()
   const search = routeApi.useSearch()
   const patchNavigate = routeApi.useNavigate()
@@ -478,19 +479,34 @@ export function PaieView() {
         actions={
           <div className="card-actions-row">
             {preview.data && lines.length > 0 ? (
-              <button
-                type="button"
-                className="btn-secondary btn-sm"
-                onClick={() => {
-                  if (!preview.data) return
-                  downloadPayrollCsv(
-                    preview.data,
-                    `paie-${periodLabelFromEndDate(endDate)}.csv`,
-                  )
-                }}
-              >
-                Exporter CSV
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => {
+                    if (!preview.data) return
+                    downloadPayrollCsv(
+                      preview.data,
+                      `paie-${periodLabelFromEndDate(endDate)}.csv`,
+                    )
+                  }}
+                >
+                  Exporter CSV
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => {
+                    if (!preview.data) return
+                    printPayrollBulletin(
+                      preview.data,
+                      bakery?.name ?? bakeryDetail.data?.name,
+                    )
+                  }}
+                >
+                  Imprimer
+                </button>
+              </>
             ) : null}
             {canManage && !isClosed ? (
               <button

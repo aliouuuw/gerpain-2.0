@@ -1,17 +1,20 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
 import { Card } from '#/components/ui/Card'
 import { HelpNote } from '#/components/ui/HelpNote'
+import { Modal } from '#/components/ui/Modal'
 import { advanceStatusLabel } from '#/lib/advance-labels'
+import { bonusStatusLabel, currentBonusPeriod } from '#/lib/bonus-labels'
 import { useBakery } from '#/lib/bakery-context'
 import {
   employeeInitials,
   employeeRoleLabel,
 } from '#/lib/employee-labels'
-import { formatXof } from '#/lib/format-money'
+import { formatXof, parseXofInput, xofInputToNumber } from '#/lib/format-money'
 import { leaveStatusLabel, leaveTypeLabel } from '#/lib/leave-labels'
 import { orpc } from '#/lib/orpc-client'
 import {
@@ -21,14 +24,16 @@ import {
   type PeriodPreset,
 } from '#/lib/period'
 import { todayIso } from '#/lib/today'
+import { usePermissions } from '#/lib/use-permissions'
 
 const routeApi = getRouteApi('/_shell/equipe/agents/$employeeId')
 
-type FicheTab = 'profil' | 'remuneration' | 'avances' | 'conges' | 'activite'
+type FicheTab = 'profil' | 'remuneration' | 'primes' | 'avances' | 'conges' | 'activite'
 
 const FICHE_TABS: Array<{ id: FicheTab; label: string }> = [
   { id: 'profil', label: 'Profil' },
   { id: 'remuneration', label: 'Rémunération' },
+  { id: 'primes', label: 'Primes' },
   { id: 'avances', label: 'Avances' },
   { id: 'conges', label: 'Congés' },
   { id: 'activite', label: 'Activité' },
@@ -99,6 +104,12 @@ export function FicheAgentView() {
   const search = routeApi.useSearch()
   const patchNavigate = routeApi.useNavigate()
   const { bakeryId } = useBakery()
+  const { canManageCollections: canManage } = usePermissions()
+  const [addBonusOpen, setAddBonusOpen] = useState(false)
+  const [bonusAmount, setBonusAmount] = useState('')
+  const [bonusDuePeriod, setBonusDuePeriod] = useState(currentBonusPeriod())
+  const [bonusReason, setBonusReason] = useState('')
+  const [bonusFormError, setBonusFormError] = useState<string | null>(null)
 
   const tab: FicheTab = search.tab ?? 'activite'
   const preset: PeriodPreset = search.period ?? 'month'
@@ -197,6 +208,53 @@ export function FicheAgentView() {
     }),
     enabled: Boolean(bakeryId && employeeId && tab === 'conges'),
   })
+
+  const bonuses = useQuery({
+    ...orpc.salaryBonuses.list.queryOptions({
+      input: { bakeryId, employeeId },
+    }),
+    enabled: Boolean(bakeryId && employeeId && tab === 'primes'),
+  })
+
+  const createBonus = useMutation(
+    orpc.salaryBonuses.create.mutationOptions({
+      onSuccess: async () => {
+        setBonusAmount('')
+        setBonusReason('')
+        setBonusDuePeriod(currentBonusPeriod())
+        setAddBonusOpen(false)
+        await bonuses.refetch()
+      },
+    }),
+  )
+
+  const cancelBonus = useMutation(
+    orpc.salaryBonuses.cancel.mutationOptions({
+      onSuccess: async () => {
+        await bonuses.refetch()
+      },
+    }),
+  )
+
+  function handleCreateBonus() {
+    setBonusFormError(null)
+    const parsedAmount = xofInputToNumber(parseXofInput(bonusAmount))
+    if (!parsedAmount || parsedAmount <= 0) {
+      setBonusFormError('Montant invalide.')
+      return
+    }
+    if (!/^\d{4}-\d{2}$/.test(bonusDuePeriod)) {
+      setBonusFormError('Période due invalide (AAAA-MM).')
+      return
+    }
+    createBonus.mutate({
+      bakeryId,
+      employeeId,
+      amount: parsedAmount,
+      duePeriod: bonusDuePeriod,
+      reason: bonusReason.trim() || undefined,
+    })
+  }
 
   const locationNameById = useMemo(() => {
     const map = new Map<string, string>()
@@ -435,6 +493,153 @@ export function FicheAgentView() {
               </div>
             )}
           </Card>
+        </>
+      ) : null}
+
+      {tab === 'primes' ? (
+        <>
+          <HelpNote>
+            Les primes sont versées à la clôture de paie lorsque la période due
+            correspond au libellé de clôture. Consultez{' '}
+            <Link to="/equipe/paie" className="text-link">
+              Paie
+            </Link>
+            .
+          </HelpNote>
+          <Card
+            title="Primes"
+            actions={
+              canManage ? (
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  onClick={() => setAddBonusOpen(true)}
+                >
+                  <Plus size={14} aria-hidden="true" /> Nouvelle prime
+                </button>
+              ) : undefined
+            }
+          >
+            {bonuses.isLoading ? (
+              <p className="settings-form__hint">Chargement…</p>
+            ) : (bonuses.data?.length ?? 0) === 0 ? (
+              <p className="settings-form__hint">
+                Aucune prime pour cet agent.
+              </p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Période due</th>
+                      <th className="num">Montant</th>
+                      <th>Statut</th>
+                      <th>Motif</th>
+                      {canManage ? <th aria-label="Actions" /> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bonuses.data?.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.duePeriod}</td>
+                        <td className="num">{formatXof(row.amount)}</td>
+                        <td>
+                          <Badge variant="neutral">
+                            {bonusStatusLabel(row.status)}
+                          </Badge>
+                        </td>
+                        <td>{row.reason ?? '—'}</td>
+                        {canManage ? (
+                          <td>
+                            {row.status === 'scheduled' ? (
+                              <button
+                                type="button"
+                                className="table-action table-action--danger"
+                                disabled={cancelBonus.isPending}
+                                onClick={() => {
+                                  if (
+                                    !window.confirm(
+                                      'Annuler cette prime ? Elle ne sera plus versée à la clôture.',
+                                    )
+                                  ) {
+                                    return
+                                  }
+                                  cancelBonus.mutate({
+                                    bakeryId,
+                                    bonusId: row.id,
+                                  })
+                                }}
+                              >
+                                Annuler
+                              </button>
+                            ) : null}
+                          </td>
+                        ) : null}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {cancelBonus.isError ? (
+              <p className="settings-form__error">
+                {cancelBonus.error.message}
+              </p>
+            ) : null}
+          </Card>
+
+          <Modal
+            open={addBonusOpen}
+            title="Nouvelle prime"
+            onClose={() => setAddBonusOpen(false)}
+          >
+            <div className="settings-form">
+              <label className="settings-form__field">
+                <span>Montant (XOF)</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(e.target.value)}
+                />
+              </label>
+              <label className="settings-form__field">
+                <span>Période due (AAAA-MM)</span>
+                <input
+                  type="text"
+                  value={bonusDuePeriod}
+                  onChange={(e) => setBonusDuePeriod(e.target.value)}
+                  placeholder="2026-07"
+                />
+              </label>
+              <label className="settings-form__field">
+                <span>Motif (optionnel)</span>
+                <input
+                  type="text"
+                  value={bonusReason}
+                  onChange={(e) => setBonusReason(e.target.value)}
+                />
+              </label>
+              {bonusFormError ? (
+                <p className="settings-form__error">{bonusFormError}</p>
+              ) : null}
+              {createBonus.isError ? (
+                <p className="settings-form__error">
+                  {createBonus.error.message}
+                </p>
+              ) : null}
+              <div className="settings-form__actions">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={createBonus.isPending}
+                  onClick={handleCreateBonus}
+                >
+                  {createBonus.isPending ? 'Enregistrement…' : 'Enregistrer'}
+                </button>
+              </div>
+            </div>
+          </Modal>
         </>
       ) : null}
 

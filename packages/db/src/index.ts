@@ -1,4 +1,4 @@
-export { closeDatabase, db, type Database } from './client'
+export { closeDatabase, db, type Database, type DbOrTx, type DbTransaction } from './client'
 export {
   legacyOrganizationIdForBaOrg,
   legacyUserIdForEmail,

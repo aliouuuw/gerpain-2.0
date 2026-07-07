@@ -5,6 +5,7 @@ import { db, legacyUserIdForEmail } from '@gerpain/db'
 
 import { getBakeryForOrg } from '#/services/bakeries'
 import {
+  cancelSalaryBonus,
   createSalaryBonus,
   listSalaryBonuses,
   SalaryBonusServiceError,
@@ -86,6 +87,28 @@ export const create = orgContext
           reason: input.reason,
         },
         createdByUserId ?? undefined,
+      )
+    } catch (error) {
+      mapBonusError(error)
+    }
+  })
+
+export const cancel = orgContext
+  .input(
+    bakeryIdInput.extend({
+      bonusId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    try {
+      return await cancelSalaryBonus(
+        db,
+        context.legacyOrganizationId,
+        input.bakeryId,
+        input.bonusId,
       )
     } catch (error) {
       mapBonusError(error)

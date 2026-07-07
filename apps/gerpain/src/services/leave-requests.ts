@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 
 import {
   type Database,
+  type DbOrTx,
   employees,
   leaveRequests,
 } from '@gerpain/db'
@@ -102,7 +103,7 @@ async function assertNoOverlappingRequests(
 }
 
 export async function getEmployeeIdsOnApprovedLeave(
-  db: Database,
+  db: DbOrTx,
   organizationId: string,
   bakeryId: string,
   date: string,

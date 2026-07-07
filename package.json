@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "workspaces": ["apps/*", "packages/*"],
+  "overrides": {
+    "@tanstack/query-core": "5.101.2"
+  },
   "scripts": {
     "dev": "bun run --filter gerpain dev",
     "build": "bun run --filter gerpain build",

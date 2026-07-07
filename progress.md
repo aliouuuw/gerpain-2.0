@@ -1,8 +1,9 @@
 # Gerpain 2.0 — Progress Log
 
-**Last updated:** 2026-06-30  
-**Branch:** `main`  
-**Commit:** (pending) — feat(collections): reconciliations, archive, ledger KPIs, movement detail, delivery filters  
+**Last updated:** 2026-07-07  
+**Branch:** `main` (59 commits ahead of `origin/main`)  
+**Commit:** `e991ed2` — fix(paie): use fresh period in payroll integration test  
+**WIP (uncommitted):** bonus cancel + agent fiche Primes tab; Bocal posting for collection shortfall at close; print bulletin helper  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -23,9 +24,26 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Sprint E — ledger KPIs (started); Sprint H cutover when parity checklist is green.
+**Current focus:** Sprint F — payroll close (ADR 0004); finish uncommitted bonus/ledger polish; then Sprint H cutover.
 
-### Sprint D — completed this session
+### Sprint F — payroll & équipe (in progress)
+
+- **Payroll close** — `payroll_runs` / `payroll_run_lines`; preview + close oRPC; Bocal payout on close (ADR 0004)
+- **Commission preview** — period commission from validated deliveries; breakdown on Rémunération tab
+- **Salary advances** — schedule, installments, payroll deduction via `PAYROLL_CLEARING` (ADR 0003)
+- **Bonuses** — `salary_bonuses` workflow; due by `periodLabel`; list/create on `/equipe/primes`
+- **Collection shortfall** — manque caisse deducted from net; surplus informational only
+- **CSV export** — payroll bulletin download from Paie preview/closed run
+- **Print bulletin** — `payroll-print.ts` HTML print from Paie (uncommitted)
+- **Leave requests** — congés workflow; block prepare-day when agent on leave
+
+**Uncommitted WIP:**
+
+- `salaryBonuses.cancel` + Primes tab on fiche agent
+- Per-employee Bocal posting for collection shortfall (`payroll_collection_deduction`)
+- Unit tests for `buildPayrollCollectionDeductionLines`
+
+### Sprint D — done
 
 - **Réconciliations** — `/reconciliations` shell route; `collections.overview` oRPC; per-agent aggregates; drill-down to `/encaissements`
 - **Archive periods** — `isArchived` on `cash_collections` (migration `0012`); archive/unarchive oRPC; toggle « Inclure les archivés »
@@ -167,21 +185,22 @@ bun run typecheck && bun run test && bun run build
 | **B** | Master data — bakeries, locations, products, employees | **Done** |
 | **C** | Deliveries parity — daily board, date nav, Matin/Soir | **Done** |
 | **D** | Collections parity — period view, reconciliations, archive | **Done** |
-| **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | **In progress** (~KPIs + movement detail done) |
-| **F** | Commissions & payroll | Deferred |
+| **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | **Done** (KPIs + movement detail) |
+| **F** | Commissions & payroll — close, advances, bonuses, shortfall | **In progress** (~90% — WIP uncommitted) |
 | **G** | Inventory & POS | Deferred |
 | **H** | Cutover | Pending |
 
-**Recommended next order:** **D** (Encaissements period view + réconciliations) → **E** (Bocal KPIs) → **H** (cutover)
+**Recommended next order:** finish **F** WIP → fix typecheck → **H** (cutover checklist)
 
 ---
 
 ## Next session
 
-1. **Run migration** — `bun run db:migrate` for `is_archived` column
-2. **Sprint E remainder** — optional receivable posting on delivery validate; movement history page
-3. **Sprint H cutover** — parity checklist vs legacy; CI/CD; retire `gerpain_backend/` + `nextjs_frontend/`
-4. **Push to remote** — branch still ahead of `origin/main`
+1. **Commit WIP** — bonus cancel, collection shortfall Bocal posting, print helper, fiche Primes tab
+2. **ADR 0004** — document `CASH_SHORTAGE` posting for collection deductions (partially done in code)
+3. **Fix typecheck** — `ReconciliationsView.tsx` query typing errors (pre-existing)
+4. **Manual E2E** — close a payroll period with bonus + shortfall + advance; verify Bocal movements
+5. **Push to remote** — branch 59 commits ahead of `origin/main`
 
 ---
 

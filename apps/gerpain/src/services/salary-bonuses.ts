@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm'
 
-import { type Database, salaryBonuses } from '@gerpain/db'
+import { type Database, type DbOrTx, salaryBonuses } from '@gerpain/db'
 
 import { getEmployee } from '#/services/employees'
 
@@ -151,8 +151,73 @@ export async function createSalaryBonus(
   }
 }
 
+export async function cancelSalaryBonus(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+  bonusId: string,
+): Promise<SalaryBonusListItem> {
+  const row = await db.query.salaryBonuses.findFirst({
+    where: and(
+      eq(salaryBonuses.id, bonusId),
+      eq(salaryBonuses.organizationId, organizationId),
+      eq(salaryBonuses.bakeryId, bakeryId),
+    ),
+    with: {
+      employee: {
+        columns: { firstName: true, lastName: true },
+      },
+    },
+  })
+
+  if (!row) {
+    throw new SalaryBonusServiceError('NOT_FOUND', 'Prime introuvable')
+  }
+
+  if (row.status !== 'scheduled') {
+    throw new SalaryBonusServiceError(
+      'INVALID_STATE',
+      'Seules les primes prévues peuvent être annulées',
+    )
+  }
+
+  const now = new Date()
+  const [updated] = await db
+    .update(salaryBonuses)
+    .set({
+      status: 'cancelled',
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(salaryBonuses.id, bonusId),
+        eq(salaryBonuses.organizationId, organizationId),
+        eq(salaryBonuses.status, 'scheduled'),
+      ),
+    )
+    .returning()
+
+  if (!updated) {
+    throw new SalaryBonusServiceError(
+      'INVALID_STATE',
+      'Cette prime ne peut plus être annulée',
+    )
+  }
+
+  return {
+    id: updated.id,
+    employeeId: updated.employeeId,
+    employeeName: `${row.employee.firstName} ${row.employee.lastName}`,
+    amount: updated.amount,
+    reason: updated.reason,
+    duePeriod: updated.duePeriod,
+    status: updated.status,
+    paidAt: updated.paidAt,
+  }
+}
+
 export async function markSalaryBonusesPaidInTx(
-  tx: Database,
+  tx: DbOrTx,
   organizationId: string,
   bonusIds: string[],
   payrollRunId: string,

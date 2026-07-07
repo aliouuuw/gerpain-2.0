@@ -94,7 +94,7 @@ export const create = orgContext
         context.legacyOrganizationId,
         bakeryId,
         fields,
-        createdByUserId,
+        createdByUserId ?? undefined,
       )
     } catch (error) {
       mapAdvanceError(error)
@@ -120,7 +120,7 @@ export const payInstallment = orgContext
         input.bakeryId,
         input.installmentId,
         input.method,
-        createdByUserId,
+        createdByUserId ?? undefined,
       )
     } catch (error) {
       mapAdvanceError(error)
@@ -146,7 +146,7 @@ export const payRemainder = orgContext
         input.bakeryId,
         input.advanceId,
         input.method,
-        createdByUserId,
+        createdByUserId ?? undefined,
       )
     } catch (error) {
       mapAdvanceError(error)
@@ -192,7 +192,7 @@ export const cancel = orgContext
         context.legacyOrganizationId,
         input.bakeryId,
         input.advanceId,
-        cancelledByUserId,
+        cancelledByUserId ?? undefined,
       )
     } catch (error) {
       mapAdvanceError(error)

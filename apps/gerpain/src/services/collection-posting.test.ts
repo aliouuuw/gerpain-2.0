@@ -7,6 +7,9 @@ const accounts = {
   driverReceivable: 'recv-id',
   cashShortage: 'short-id',
   cashOverage: 'over-id',
+  salaryAdvanceReceivable: 'advance-id',
+  payrollClearing: 'clearing-id',
+  salaryExpense: 'expense-id',
 }
 
 describe('buildCollectionValidateLines', () => {

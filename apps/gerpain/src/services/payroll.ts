@@ -3,6 +3,8 @@ import { and, asc, desc, eq, isNull, or } from 'drizzle-orm'
 import { post } from '@gerpain/bocal'
 import {
   type Database,
+  type DbOrTx,
+  ledgerMovements,
   payrollRunLines,
   payrollRuns,
   salaryAdvanceInstallments,
@@ -16,7 +18,10 @@ import {
   ensureLedgerAccountsForOrg,
   getLedgerAccountMap,
 } from '#/services/ledger-accounts'
-import { buildPayrollPayoutLines } from '#/services/payroll-posting'
+import {
+  buildPayrollCollectionDeductionLines,
+  buildPayrollPayoutLines,
+} from '#/services/payroll-posting'
 import { collectionShortfallDeduction } from '#/services/payroll-deductions'
 import { paySalaryAdvanceInstallmentInTx } from '#/services/salary-advances'
 import {
@@ -548,7 +553,7 @@ export async function listPayrollRuns(
 }
 
 export async function getPayrollRun(
-  db: Database,
+  db: DbOrTx,
   organizationId: string,
   bakeryId: string,
   runId: string,
@@ -733,13 +738,51 @@ export async function closePayroll(
       }
     }
 
+    const accounts = await getLedgerAccountMap(tx, input.organizationId)
+
+    for (const line of preview.lines) {
+      if (line.collectionDeduction <= 0) continue
+
+      const deductionSourceId = `${run.id}:${line.employeeId}`
+      const [existingDeduction] = await tx
+        .select({ id: ledgerMovements.id })
+        .from(ledgerMovements)
+        .where(
+          and(
+            eq(ledgerMovements.organizationId, input.organizationId),
+            eq(ledgerMovements.sourceType, 'payroll_collection_deduction'),
+            eq(ledgerMovements.sourceId, deductionSourceId),
+          ),
+        )
+
+      if (existingDeduction) {
+        throw new PayrollServiceError(
+          'INVALID_STATE',
+          'Retenue caisse déjà comptabilisée pour cet agent',
+        )
+      }
+
+      const deductionLines = buildPayrollCollectionDeductionLines(
+        accounts,
+        line.collectionDeduction,
+      )
+      await post(tx, {
+        organizationId: input.organizationId,
+        occurredAt: now,
+        memo: `Retenue caisse — paie ${preview.periodLabel}`,
+        sourceType: 'payroll_collection_deduction',
+        sourceId: deductionSourceId,
+        lines: deductionLines,
+        createdBy: closedByUserId,
+      })
+    }
+
     const totalNetPayout = payableLines.reduce(
       (sum, line) => sum + line.netAmount,
       0,
     )
 
     if (totalNetPayout > 0) {
-      const accounts = await getLedgerAccountMap(tx, input.organizationId)
       const lines = buildPayrollPayoutLines(accounts, totalNetPayout)
       await post(tx, {
         organizationId: input.organizationId,

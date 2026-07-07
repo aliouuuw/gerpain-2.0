@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildPayrollPayoutLines } from './payroll-posting'
+import { buildPayrollCollectionDeductionLines, buildPayrollPayoutLines } from './payroll-posting'
 
 const accounts = {
   cash: 'cash-id',
@@ -42,6 +42,40 @@ describe('buildPayrollPayoutLines', () => {
   it('rejects non-positive net payout', () => {
     expect(() => buildPayrollPayoutLines(accounts, 0)).toThrow(
       'Le montant net de paie doit être positif',
+    )
+  })
+})
+
+describe('buildPayrollCollectionDeductionLines', () => {
+  it('posts balanced payroll clearing debit and cash shortage credit', () => {
+    const lines = buildPayrollCollectionDeductionLines(accounts, 700)
+    const debits = lines
+      .filter((line) => line.direction === 'debit')
+      .reduce((sum, line) => sum + line.amount, 0)
+    const credits = lines
+      .filter((line) => line.direction === 'credit')
+      .reduce((sum, line) => sum + line.amount, 0)
+
+    expect(debits).toBe(credits)
+    expect(lines).toEqual([
+      {
+        accountId: 'clearing-id',
+        direction: 'debit',
+        amount: 700,
+        currency: 'XOF',
+      },
+      {
+        accountId: 'short-id',
+        direction: 'credit',
+        amount: 700,
+        currency: 'XOF',
+      },
+    ])
+  })
+
+  it('rejects non-positive collection deduction', () => {
+    expect(() => buildPayrollCollectionDeductionLines(accounts, 0)).toThrow(
+      'La retenue caisse doit être positive',
     )
   })
 })

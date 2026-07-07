@@ -4,6 +4,31 @@ import type { LedgerAccountIds } from './ledger-accounts'
 
 const DEFAULT_CURRENCY = 'XOF'
 
+export function buildPayrollCollectionDeductionLines(
+  accounts: LedgerAccountIds,
+  amount: number,
+  currency = DEFAULT_CURRENCY,
+): PostLine[] {
+  if (amount <= 0) {
+    throw new Error('La retenue caisse doit être positive')
+  }
+
+  return [
+    {
+      accountId: accounts.payrollClearing,
+      direction: 'debit',
+      amount,
+      currency,
+    },
+    {
+      accountId: accounts.cashShortage,
+      direction: 'credit',
+      amount,
+      currency,
+    },
+  ]
+}
+
 export function buildPayrollPayoutLines(
   accounts: LedgerAccountIds,
   netAmount: number,

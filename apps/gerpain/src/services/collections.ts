@@ -4,6 +4,7 @@ import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { post } from '@gerpain/bocal'
 import {
   type Database,
+  type DbOrTx,
   cashCollections,
   deliveryRuns,
   employees,
@@ -556,7 +557,7 @@ export type SettleCashCollectionsResult = {
 }
 
 export async function settleCashCollectionsPeriod(
-  db: Database,
+  db: DbOrTx,
   input: SettleCashCollectionsInput,
 ): Promise<SettleCashCollectionsResult> {
   const conditions = [

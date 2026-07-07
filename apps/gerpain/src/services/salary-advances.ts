@@ -3,6 +3,7 @@ import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import { post, reverse } from '@gerpain/bocal'
 import {
   type Database,
+  type DbOrTx,
   ledgerMovements,
   salaryAdvanceInstallments,
   salaryAdvances,
@@ -15,10 +16,10 @@ import {
 } from '#/services/advance-posting'
 import { getEmployee } from '#/services/employees'
 import {
-  ensureLedgerAccountsForOrg,
   getLedgerAccountMap,
   LedgerAccountsError,
 } from '#/services/ledger-accounts'
+
 export class SalaryAdvanceServiceError extends Error {
   constructor(
     public code:
@@ -128,7 +129,7 @@ function mapAdvanceListItem(
 }
 
 async function assertLedgerReady(
-  db: Database,
+  db: DbOrTx,
   organizationId: string,
 ): Promise<Awaited<ReturnType<typeof getLedgerAccountMap>>> {
   try {
@@ -145,7 +146,7 @@ async function assertLedgerReady(
 }
 
 async function getAdvanceRow(
-  db: Database,
+  db: DbOrTx,
   organizationId: string,
   bakeryId: string,
   advanceId: string,
@@ -491,11 +492,6 @@ export async function paySalaryAdvanceRemainder(
         'Aucun solde à rembourser',
       )
     }
-
-    const totalRemaining = openInstallments.reduce(
-      (sum, row) => sum + row.amount,
-      0,
-    )
 
     const accounts = await assertLedgerReady(tx, organizationId)
     const now = new Date()
