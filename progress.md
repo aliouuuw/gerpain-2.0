@@ -41,7 +41,7 @@ Architecture steps (`docs/architecture.md`):
 Operator/admin improvements for `/equipe/paie` (see **ADR 0005** for manual lines):
 
 1. **Manual payroll lines** — done (`50007a3`)
-2. **Agent filtering & selection** — URL `?employee=` filter + `?selected=` checkboxes
+2. **Agent filtering & selection** — URL `?role=` tab filter + `?selected=` checkboxes
 3. **Bulk print** — tableau récap + bulletins paginés (sélection ou filtre)
 4. **Admin UX polish** — presets, clearer period controls, batch actions (ongoing)
 

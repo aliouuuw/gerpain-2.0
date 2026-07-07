@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { CheckCircle2, Lock, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
+import { CheckCircle2, FileDown, Lock, Pencil, Trash2 } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 
 import { Badge } from '#/components/ui/Badge'
@@ -27,16 +27,21 @@ import {
   totalsFromPayrollLines,
 } from '#/lib/payroll-preview-utils'
 import {
-  printPayrollBulletin,
-  printPayrollBulletins,
-  printPayrollLine,
-} from '#/lib/payroll-print'
+  downloadPayrollBulletinsPdf,
+  downloadPayrollLinePdf,
+  downloadPayrollPdf,
+} from '#/lib/payroll-pdf'
 import { todayIso } from '#/lib/today'
 import { usePermissions } from '#/lib/use-permissions'
 
 const routeApi = getRouteApi('/_shell/equipe/paie')
 
-const ALL_EMPLOYEES = ''
+const PAYROLL_GROUP_TABS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'delivery', label: 'Livreurs' },
+  { id: 'salaried', label: 'Salariés' },
+] as const
+type PayrollGroupFilter = (typeof PAYROLL_GROUP_TABS)[number]['id']
 
 type PayrollLine = {
   employeeId: string
@@ -414,12 +419,15 @@ export function PaieView() {
     'month'
   const customStart = search.start ?? todayIso()
   const customEnd = search.end ?? todayIso()
-  const employeeFilterId = search.employee ?? ALL_EMPLOYEES
+  const roleFilter: PayrollGroupFilter =
+    search.group ??
+    (search.role === 'delivery' ? 'delivery' : search.role ? 'salaried' : 'all')
 
   const patchSearch = (patch: Partial<typeof search>) => {
     void patchNavigate({
       search: (prev) => ({ ...prev, ...patch }),
       replace: true,
+      resetScroll: false,
     })
   }
 
@@ -491,10 +499,31 @@ export function PaieView() {
   )
 
   const lines = (preview.data?.lines ?? []) as PayrollLine[]
+
+  const roleCounts = useMemo(() => {
+    let delivery = 0
+    let salaried = 0
+    for (const line of lines) {
+      if (line.role === 'delivery') {
+        delivery += 1
+      } else {
+        salaried += 1
+      }
+    }
+    return {
+      all: lines.length,
+      delivery,
+      salaried,
+    }
+  }, [lines])
+
   const visibleLines = useMemo(() => {
-    if (!employeeFilterId) return lines
-    return lines.filter((line) => line.employeeId === employeeFilterId)
-  }, [employeeFilterId, lines])
+    if (roleFilter === 'all') return lines
+    if (roleFilter === 'delivery') {
+      return lines.filter((line) => line.role === 'delivery')
+    }
+    return lines.filter((line) => line.role !== 'delivery')
+  }, [lines, roleFilter])
 
   const selectedIds = useMemo(
     () =>
@@ -518,11 +547,11 @@ export function PaieView() {
 
   const totals = useMemo(() => {
     if (exportPreview) return exportPreview.totals
-    if (employeeFilterId && visibleLines.length > 0) {
+    if (roleFilter !== 'all' && visibleLines.length > 0) {
       return totalsFromPayrollLines(visibleLines)
     }
     return preview.data?.totals
-  }, [employeeFilterId, exportPreview, preview.data?.totals, visibleLines])
+  }, [exportPreview, preview.data?.totals, roleFilter, visibleLines])
 
   const isClosed = preview.data?.isClosed ?? false
   const hasDraft = preview.data?.hasDraft ?? false
@@ -533,22 +562,6 @@ export function PaieView() {
   const hasSelection = selectedIds.length > 0
 
   const activeEmployees = employees.data ?? []
-  const employeesForManualAdd = activeEmployees
-
-  function openAddLineModal() {
-    setEditingLine(null)
-    setDraftForm({
-      employeeId: activeEmployees[0]?.id ?? '',
-      baseSalary: '0',
-      commissionAmount: '0',
-      bonusAmount: '0',
-      advanceDeduction: '0',
-      collectionDeduction: '0',
-      manualReason: '',
-    })
-    setDraftFormError(null)
-    setDraftModalOpen(true)
-  }
 
   function openEditLineModal(line: PayrollLine) {
     setEditingLine(line)
@@ -615,9 +628,10 @@ export function PaieView() {
     )
   }
 
-  function setEmployeeFilter(value: string) {
+  function setRoleFilter(group: PayrollGroupFilter) {
     patchSearch({
-      employee: value === ALL_EMPLOYEES ? undefined : value,
+      group: group === 'all' ? undefined : group,
+      role: undefined,
     })
   }
 
@@ -650,9 +664,11 @@ export function PaieView() {
   }
 
   const bulletinTitle =
-    visibleLines.length === lines.length
+    roleFilter === 'all'
       ? `Bulletin par agent (${lines.length})`
-      : `Bulletin par agent (${visibleLines.length} / ${lines.length})`
+      : roleFilter === 'delivery'
+        ? `Livreurs (${roleCounts.delivery})`
+        : `Salariés (${roleCounts.salaried})`
 
   return (
     <div className="section-stack">
@@ -696,31 +712,6 @@ export function PaieView() {
           )}
         </div>
 
-        <div className="period-toolbar__group">
-          <span className="period-toolbar__label">Agent</span>
-          <select
-            className="employee-select"
-            value={employeeFilterId}
-            onChange={(e) => setEmployeeFilter(e.target.value)}
-            disabled={employees.isLoading || lines.length === 0}
-          >
-            {employees.isLoading ? (
-              <option value="">Chargement…</option>
-            ) : lines.length === 0 ? (
-              <option value="">Aucun agent</option>
-            ) : (
-              <>
-                <option value={ALL_EMPLOYEES}>Tous les agents</option>
-                {lines.map((line) => (
-                  <option key={line.employeeId} value={line.employeeId}>
-                    {line.employeeName}
-                  </option>
-                ))}
-              </>
-            )}
-          </select>
-        </div>
-
         {hasSelection ? (
           <div className="period-toolbar__group">
             <span className="period-toolbar__label">Sélection</span>
@@ -742,8 +733,10 @@ export function PaieView() {
         Aperçu paie : {formatPeriodLabel(startDate, endDate)}. Net = salaire de
         base + commissions + primes − retenues avances − manque caisse (si
         applicable). À la clôture, les encaissements validés sont marqués réglés.
-        Cochez des agents pour exporter ou imprimer un sous-ensemble ; le filtre
-        agent réduit l&apos;affichage du tableau.
+        Cochez des agents pour exporter ou imprimer un sous-ensemble. Utilisez
+        l&apos;icône crayon sur une ligne pour ajuster un montant avant clôture.
+        Les livreurs sont filtrés à part des salariés (caisse, production,
+        encadrement).
       </HelpNote>
 
       {isClosed ? (
@@ -821,24 +814,29 @@ export function PaieView() {
                   type="button"
                   className="btn-secondary btn-sm"
                   onClick={() => {
-                    printPayrollBulletin(exportPreview, bakeryName)
+                    downloadPayrollPdf(
+                      exportPreview,
+                      bakeryName,
+                      `paie-${periodLabelFromEndDate(endDate)}${hasSelection ? '-selection' : ''}.pdf`,
+                    )
                   }}
                 >
-                  Imprimer tableau
+                  Télécharger PDF
+                  {hasSelection ? ` (${selectedIds.length})` : ''}
                 </button>
                 <button
                   type="button"
                   className="btn-secondary btn-sm"
                   onClick={() => {
                     if (!preview.data) return
-                    printPayrollBulletins(
+                    downloadPayrollBulletinsPdf(
                       preview.data,
                       exportPreview.lines.map((line) => line.employeeId),
                       bakeryName,
                     )
                   }}
                 >
-                  Imprimer bulletins
+                  Télécharger bulletins PDF
                   {exportPreview.lines.length > 1
                     ? ` (${exportPreview.lines.length})`
                     : ''}
@@ -847,14 +845,6 @@ export function PaieView() {
             ) : null}
             {canManage && !isClosed ? (
               <>
-                <button
-                  type="button"
-                  className="btn-secondary btn-sm"
-                  onClick={openAddLineModal}
-                  disabled={activeEmployees.length === 0}
-                >
-                  <Plus size={14} aria-hidden="true" /> Ajouter une ligne
-                </button>
                 {hasDraft ? (
                   <button
                     type="button"
@@ -901,12 +891,36 @@ export function PaieView() {
           <p className="empty-state">Impossible de charger l&apos;aperçu paie.</p>
         ) : lines.length === 0 ? (
           <p className="empty-state">Aucun agent actif pour cette période.</p>
-        ) : visibleLines.length === 0 ? (
-          <p className="empty-state">
-            Aucun bulletin pour cet agent sur la période.
-          </p>
         ) : (
-          <div className="table-wrap">
+          <>
+            <div
+              className="period-toolbar"
+              style={{ marginBottom: '1rem' }}
+              aria-label="Filtre par rôle"
+            >
+              <div className="period-toolbar__presets">
+                {PAYROLL_GROUP_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`preset-btn${roleFilter === tab.id ? ' preset-btn--active' : ''}`}
+                    onClick={() => setRoleFilter(tab.id)}
+                  >
+                    {tab.label} ({roleCounts[tab.id]})
+                  </button>
+                ))}
+              </div>
+            </div>
+            {visibleLines.length === 0 ? (
+              <p className="empty-state">
+                {roleFilter === 'delivery'
+                  ? 'Aucun livreur sur cette période.'
+                  : roleFilter === 'salaried'
+                    ? 'Aucun salarié sur cette période.'
+                    : 'Aucun agent sur cette période.'}
+              </p>
+            ) : (
+              <div className="table-wrap">
             <table className="data-table data-table--expandable">
               <thead>
                 <tr>
@@ -992,17 +1006,17 @@ export function PaieView() {
                               <button
                                 type="button"
                                 className="btn-secondary btn-sm"
-                                title="Générer le bulletin"
+                                title="Télécharger le bulletin PDF"
                                 onClick={() => {
                                   if (!preview.data) return
-                                  printPayrollLine(
+                                  downloadPayrollLinePdf(
                                     preview.data,
                                     line.employeeId,
                                     bakeryName,
                                   )
                                 }}
                               >
-                                <Printer size={14} aria-hidden="true" />
+                                <FileDown size={14} aria-hidden="true" />
                               </button>
                               <button
                                 type="button"
@@ -1056,6 +1070,8 @@ export function PaieView() {
               </tbody>
             </table>
           </div>
+            )}
+          </>
         )}
         {closePayroll.isError ? (
           <p className="settings-form__error">{closePayroll.error.message}</p>
@@ -1064,9 +1080,7 @@ export function PaieView() {
 
       <Modal
         open={draftModalOpen}
-        title={
-          editingLine ? 'Ajuster la ligne de paie' : 'Ajouter une ligne manuelle'
-        }
+        title={editingLine ? 'Ajuster la ligne de paie' : 'Ligne de paie'}
         onClose={() => {
           setDraftModalOpen(false)
           setEditingLine(null)
@@ -1091,7 +1105,7 @@ export function PaieView() {
                 ? activeEmployees.filter(
                     (employee) => employee.id === editingLine.employeeId,
                   )
-                : employeesForManualAdd
+                : activeEmployees
               ).map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.fullName}

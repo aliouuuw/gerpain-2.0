@@ -14,7 +14,8 @@ const paieSearchSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
   runId: z.string().uuid().optional(),
-  employee: z.string().uuid().optional(),
+  role: z.enum(['delivery', 'cashier', 'manager', 'baker']).optional(),
+  group: z.enum(['delivery', 'salaried']).optional(),
   selected: z.string().optional(),
 })
 

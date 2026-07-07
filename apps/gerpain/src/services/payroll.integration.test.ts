@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, gte, lte } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { db, closeDatabase } from '@gerpain/db'
@@ -46,6 +46,19 @@ describe.skipIf(!dbReady || !seeded)('payroll close integration', () => {
   })
 
   afterAll(async () => {
+    if (organizationId && bakeryId) {
+      await db
+        .delete(payrollRuns)
+        .where(
+          and(
+            eq(payrollRuns.organizationId, organizationId),
+            eq(payrollRuns.bakeryId, bakeryId),
+            gte(payrollRuns.startDate, '2099-01-01'),
+            lte(payrollRuns.startDate, '2099-12-31'),
+          ),
+        )
+    }
+
     await closeDatabase()
   })
 
@@ -124,5 +137,7 @@ describe.skipIf(!dbReady || !seeded)('payroll close integration', () => {
     expect(frozen.lines.find((line) => line.employeeId === staff[0]!.id)?.bonusAmount).toBe(
       1_000,
     )
+
+    await db.delete(payrollRuns).where(eq(payrollRuns.id, closed.id))
   })
 })

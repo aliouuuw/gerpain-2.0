@@ -1,7 +1,17 @@
 const frNumber = new Intl.NumberFormat('fr-FR')
 
+/** Plain space thousands — safe for jsPDF Helvetica (avoids U+202F rendering as "/"). */
+export function formatFrInteger(amount: number): string {
+  return frNumber.format(amount).replace(/[\u202f\u00a0]/g, ' ')
+}
+
 export function formatXof(amount: number): string {
-  return `${frNumber.format(amount)} XOF`
+  return `${formatFrInteger(amount)} XOF`
+}
+
+/** PDF / print output where narrow no-break spaces break in built-in fonts. */
+export function formatXofPdf(amount: number): string {
+  return formatXof(amount)
 }
 
 /** Format digits for display in price fields (no currency suffix). */

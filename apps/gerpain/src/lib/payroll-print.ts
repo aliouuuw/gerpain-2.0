@@ -108,92 +108,16 @@ export function buildPayrollPrintHtml(
 </html>`
 }
 
-export function buildPayrollBulkBulletinsHtml(
-  preview: PayrollPreview,
-  bakeryName?: string,
-): string {
-  const periodTitle = formatPeriodLabel(preview.startDate, preview.endDate)
-  const bakeryLabel = bakeryName
-    ? `${escapeHtml(bakeryName)} — `
-    : ''
-
-  const sections = preview.lines
-    .map((line) => {
-      const single = subsetPayrollPreview(preview, [line.employeeId])
-      const body = buildPayrollPrintHtml(single, bakeryName)
-      const inner = body
-        .replace(/^[\s\S]*<body>/, '')
-        .replace(/<\/body>[\s\S]*$/, '')
-      return `<section class="bulletin-page">
-  <h2>${escapeHtml(line.employeeName)}</h2>
-  ${inner}
-</section>`
-    })
-    .join('\n')
-
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <title>${bakeryLabel}Bulletins de paie — ${escapeHtml(periodTitle)}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #111;
-      margin: 24px;
-      font-size: 12px;
-      line-height: 1.4;
-    }
-    h1 { font-size: 18px; margin: 0 0 4px; }
-    h2 { font-size: 15px; margin: 0 0 8px; }
-    .meta { color: #555; margin-bottom: 20px; }
-    .bulletin-page { margin-bottom: 24px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 6px 8px;
-      text-align: left;
-      vertical-align: top;
-    }
-    th { background: #f3f3f3; font-weight: 600; }
-    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-    tfoot td { font-weight: 600; background: #fafafa; }
-    @media print {
-      body { margin: 12mm; }
-      @page { margin: 12mm; }
-      .bulletin-page {
-        break-after: page;
-        page-break-after: always;
-      }
-      .bulletin-page:last-child {
-        break-after: auto;
-        page-break-after: auto;
-      }
-    }
-  </style>
-</head>
-<body>
-  <h1>${bakeryLabel}Bulletins de paie</h1>
-  <p class="meta">
-    Période : ${escapeHtml(periodTitle)} (${escapeHtml(preview.periodLabel)})
-    · ${preview.lines.length} agent${preview.lines.length > 1 ? 's' : ''}
-    ${preview.isClosed ? ' · Clôturée' : ' · Aperçu'}
-  </p>
-  ${sections}
-</body>
-</html>`
-}
-
-export function printPayrollBulletin(
+/** Open printable HTML in a new tab (blob URL — avoids blank noopener windows). */
+export function openPayrollHtmlPreview(
   preview: PayrollPreview,
   bakeryName?: string,
 ): void {
   const html = buildPayrollPrintHtml(preview, bakeryName)
-  openPrintWindow(html)
+  openHtmlInNewTab(html)
 }
 
-export function printPayrollLine(
+export function openPayrollLinePreview(
   preview: PayrollPreview,
   employeeId: string,
   bakeryName?: string,
@@ -215,10 +139,10 @@ export function printPayrollLine(
     },
   }
 
-  printPayrollBulletin(singleLinePreview, bakeryName)
+  openPayrollHtmlPreview(singleLinePreview, bakeryName)
 }
 
-export function printPayrollBulletins(
+export function openPayrollBulletinsPreview(
   preview: PayrollPreview,
   employeeIds: string[] | undefined,
   bakeryName?: string,
@@ -230,27 +154,69 @@ export function printPayrollBulletins(
 
   if (target.lines.length === 0) return
 
-  const html =
-    target.lines.length === 1
-      ? buildPayrollPrintHtml(target, bakeryName)
-      : buildPayrollBulkBulletinsHtml(target, bakeryName)
-
-  openPrintWindow(html)
-}
-
-function openPrintWindow(html: string): void {
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer')
-  if (!printWindow) return
-
-  printWindow.document.open()
-  printWindow.document.write(html)
-  printWindow.document.close()
-  printWindow.focus()
-
-  const triggerPrint = () => {
-    printWindow.print()
+  if (target.lines.length === 1) {
+    openPayrollLinePreview(preview, target.lines[0]!.employeeId, bakeryName)
+    return
   }
 
-  printWindow.onload = triggerPrint
-  window.setTimeout(triggerPrint, 300)
+  const periodTitle = formatPeriodLabel(preview.startDate, preview.endDate)
+  const bakeryLabel = bakeryName ? `${escapeHtml(bakeryName)} — ` : ''
+
+  const sections = target.lines
+    .map((line) => {
+      const single = subsetPayrollPreview(target, [line.employeeId])
+      const sectionHtml = buildPayrollPrintHtml(single, bakeryName)
+      const tableMatch = sectionHtml.match(/<table[\s\S]*<\/table>/)
+      const metaMatch = sectionHtml.match(/<p class="meta">[\s\S]*?<\/p>/)
+      return `<section class="bulletin-page">
+  <h2>${escapeHtml(line.employeeName)}</h2>
+  ${metaMatch?.[0] ?? ''}
+  ${tableMatch?.[0] ?? ''}
+</section>`
+    })
+    .join('\n')
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>${bakeryLabel}Bulletins de paie — ${escapeHtml(periodTitle)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; color: #111; margin: 24px; font-size: 12px; }
+    h1 { font-size: 18px; margin: 0 0 4px; }
+    h2 { font-size: 15px; margin: 16px 0 8px; }
+    .meta { color: #555; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; }
+    th { background: #f3f3f3; }
+    td.num, th.num { text-align: right; }
+    @media print {
+      .bulletin-page { break-after: page; page-break-after: always; }
+      .bulletin-page:last-child { break-after: auto; page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <h1>${bakeryLabel}Bulletins de paie</h1>
+  <p class="meta">Période : ${escapeHtml(periodTitle)} · ${target.lines.length} agent(s)</p>
+  ${sections}
+</body>
+</html>`
+
+  openHtmlInNewTab(html)
+}
+
+function openHtmlInNewTab(html: string): void {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const tab = window.open(url, '_blank', 'noopener')
+  if (!tab) {
+    URL.revokeObjectURL(url)
+    return
+  }
+  tab.addEventListener('load', () => {
+    URL.revokeObjectURL(url)
+  })
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
