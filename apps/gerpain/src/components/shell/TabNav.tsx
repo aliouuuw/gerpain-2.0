@@ -26,8 +26,22 @@ const tabs = [
     managerOnly: true,
   },
   { to: '/stock', label: 'Stock', hint: 'Bientôt disponible', mock: true, managerOnly: false },
-  { to: '/equipe', label: 'Équipe', hint: 'Personnel & paie', mock: false, managerOnly: false },
-  { to: '/reglages', label: 'Réglages', hint: undefined, mock: false, managerOnly: false },
+  {
+    to: '/equipe/annuaire',
+    label: 'Équipe',
+    hint: 'Personnel & paie',
+    mock: false,
+    managerOnly: false,
+    activePrefix: '/equipe',
+  },
+  {
+    to: '/reglages/boulangerie',
+    label: 'Réglages',
+    hint: undefined,
+    mock: false,
+    managerOnly: false,
+    activePrefix: '/reglages',
+  },
 ] as const
 
 export function TabNav() {
@@ -45,8 +59,13 @@ export function TabNav() {
   return (
     <nav className="tab-nav" aria-label="Navigation principale">
       {visibleTabs.map((tab) => {
-        const isActive =
-          tab.to === '/' ? pathname === '/' : pathname.startsWith(tab.to)
+        const activePrefix =
+          'activePrefix' in tab ? tab.activePrefix : undefined
+        const isActive = activePrefix
+          ? pathname.startsWith(activePrefix)
+          : tab.to === '/'
+            ? pathname === '/'
+            : pathname.startsWith(tab.to)
 
         return (
           <Link
