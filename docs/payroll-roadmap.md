@@ -31,7 +31,7 @@ Reference views/services:
 | F1-E | Validate `duePeriod` format (`YYYY-MM`) | Zod regex on bonus create + month picker in `BonusesView`. Prevents unmatched bonuses. | S |
 | F1-F | Preview warnings | Flag lines with net = 0 without draft, and active agents with no salary and no products. | S |
 | F1-G | Totals bar: show commission + primes | Already computed in `totals`, just not displayed in `PaieView` synthesis. | S |
-| F1-H | Bulk adjustment | Apply amount/rate to a selected group of lines (e.g. transport prime for all, −10% commissions). Produces draft override lines with shared reason. | M |
+| F1-H | Bulk adjustment | Done (selection bar + draft overrides with shared reason) |
 | F1-I | Computed vs override diff in expanded line | `computedSnapshot` already persisted; show old → new values. | M |
 | F1-J | Forecast payroll mass in `RemunerationView` | Base salaries + previous-period average commissions. | M |
 

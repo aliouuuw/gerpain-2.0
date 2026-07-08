@@ -714,6 +714,13 @@ export function PaieView() {
   const [draftFormError, setDraftFormError] = useState<string | null>(null)
   const [closeModalOpen, setCloseModalOpen] = useState(false)
   const [closeConfirmed, setCloseConfirmed] = useState(false)
+  const [bulkTarget, setBulkTarget] = useState<
+    'baseSalary' | 'commissionAmount' | 'bonusAmount'
+  >('bonusAmount')
+  const [bulkMode, setBulkMode] = useState<'add' | 'multiply'>('add')
+  const [bulkValue, setBulkValue] = useState('')
+  const [bulkReason, setBulkReason] = useState('')
+  const [bulkError, setBulkError] = useState<string | null>(null)
 
   const bakeryDetail = useQuery({
     ...orpc.bakeries.get.queryOptions({ input: { bakeryId } }),
@@ -838,6 +845,49 @@ export function PaieView() {
   )
 
   const deductionPending = addDeduction.isPending || removeDeduction.isPending
+
+  const bulkAdjust = useMutation(
+    orpc.payroll.bulkAdjust.mutationOptions({
+      onSuccess: (result) => {
+        mutationSuccess(
+          toast,
+          `${result.adjustedCount} ligne${result.adjustedCount > 1 ? 's' : ''} ajustée${result.adjustedCount > 1 ? 's' : ''}`,
+        )()
+        setBulkValue('')
+        setBulkReason('')
+        setBulkError(null)
+        invalidatePreview()
+      },
+      onError: (error) => {
+        setBulkError(error.message)
+        mutationError(toast, 'Impossible d\'appliquer l\'ajustement')(error)
+      },
+    }),
+  )
+
+  function handleBulkAdjust() {
+    if (!bakeryId || selectedIds.length === 0) return
+    const value = Number.parseInt(bulkValue.replace(/\s/g, ''), 10)
+    if (!Number.isFinite(value)) {
+      setBulkError('Valeur invalide.')
+      return
+    }
+    if (!bulkReason.trim()) {
+      setBulkError('Le motif est obligatoire.')
+      return
+    }
+    setBulkError(null)
+    bulkAdjust.mutate({
+      bakeryId,
+      startDate,
+      endDate,
+      employeeIds: selectedIds,
+      target: bulkTarget,
+      mode: bulkMode,
+      value,
+      reason: bulkReason.trim(),
+    })
+  }
 
   const lines = (preview.data?.lines ?? []) as PayrollLine[]
 
@@ -1249,33 +1299,96 @@ export function PaieView() {
       ) : null}
 
       {panel === 'period' && hasSelection && exportPreview ? (
-        <div className="selection-bar" role="status">
-          <span className="selection-bar__count">
-            {selectedIds.length} agent{selectedIds.length > 1 ? 's' : ''}{' '}
-            sélectionné{selectedIds.length > 1 ? 's' : ''}
-          </span>
-          <ExportMenu
-            exportPreview={exportPreview}
-            fullPreview={preview.data!}
-            bakeryName={bakeryName}
-            endDate={endDate}
-            hasSelection
-          />
-          <button
-            type="button"
-            className="btn-secondary btn-sm"
-            onClick={clearSelection}
-          >
-            Effacer
-          </button>
-          {adjustedLines.length > 0 ? (
+        <div className="selection-bar selection-bar--stack" role="status">
+          <div className="selection-bar__row">
+            <span className="selection-bar__count">
+              {selectedIds.length} agent{selectedIds.length > 1 ? 's' : ''}{' '}
+              sélectionné{selectedIds.length > 1 ? 's' : ''}
+            </span>
+            <ExportMenu
+              exportPreview={exportPreview}
+              fullPreview={preview.data!}
+              bakeryName={bakeryName}
+              endDate={endDate}
+              hasSelection
+            />
             <button
               type="button"
               className="btn-secondary btn-sm"
-              onClick={selectAdjustedLines}
+              onClick={clearSelection}
             >
-              Sélectionner les ajustées
+              Effacer
             </button>
+            {adjustedLines.length > 0 ? (
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={selectAdjustedLines}
+              >
+                Sélectionner les ajustées
+              </button>
+            ) : null}
+          </div>
+          {canManage && !isClosed ? (
+            <form
+              className="pay-bulk-adjust"
+              onSubmit={(e) => {
+                e.preventDefault()
+                handleBulkAdjust()
+              }}
+            >
+              <span className="period-toolbar__label">Ajustement groupé</span>
+              <select
+                value={bulkTarget}
+                onChange={(e) =>
+                  setBulkTarget(
+                    e.target.value as
+                      | 'baseSalary'
+                      | 'commissionAmount'
+                      | 'bonusAmount',
+                  )
+                }
+              >
+                <option value="baseSalary">Salaire de base</option>
+                <option value="commissionAmount">Commission</option>
+                <option value="bonusAmount">Primes</option>
+              </select>
+              <select
+                value={bulkMode}
+                onChange={(e) =>
+                  setBulkMode(e.target.value as 'add' | 'multiply')
+                }
+              >
+                <option value="add">Montant fixe (+/− FCFA)</option>
+                <option value="multiply">Taux (%)</option>
+              </select>
+              <input
+                type="number"
+                step={1}
+                value={bulkValue}
+                onChange={(e) => setBulkValue(e.target.value)}
+                placeholder={bulkMode === 'add' ? 'Ex. 5000' : 'Ex. -10'}
+                required
+              />
+              <input
+                type="text"
+                value={bulkReason}
+                onChange={(e) => setBulkReason(e.target.value)}
+                placeholder="Motif partagé"
+                maxLength={500}
+                required
+              />
+              <button
+                type="submit"
+                className="btn-primary btn-sm"
+                disabled={bulkAdjust.isPending}
+              >
+                {bulkAdjust.isPending ? 'Application…' : 'Appliquer'}
+              </button>
+              {bulkError ? (
+                <p className="settings-form__error">{bulkError}</p>
+              ) : null}
+            </form>
           ) : null}
         </div>
       ) : null}

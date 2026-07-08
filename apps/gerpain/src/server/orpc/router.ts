@@ -116,5 +116,6 @@ export default {
     discardDraft: payroll.discardDraft,
     addDeduction: payroll.addDeduction,
     removeDeduction: payroll.removeDeduction,
+    bulkAdjust: payroll.bulkAdjust,
   },
 }

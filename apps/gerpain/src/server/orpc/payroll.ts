@@ -7,6 +7,7 @@ import { getBakeryForOrg } from '#/services/bakeries'
 import { payrollDeductionTypes } from '#/lib/payroll-deduction-lines'
 import {
   addPayrollDeduction,
+  bulkAdjustPayrollLines,
   closePayroll,
   getPayrollRun,
   listPayrollRuns,
@@ -340,6 +341,47 @@ export const removeDeduction = orgContext
         },
         employeeId,
         deductionId,
+      )
+    } catch (error) {
+      mapPayrollError(error)
+    }
+  })
+
+export const bulkAdjust = orgContext
+  .input(
+    periodInput.extend({
+      employeeIds: z.array(z.string().uuid()).min(1),
+      target: z.enum(['baseSalary', 'commissionAmount', 'bonusAmount']),
+      mode: z.enum(['add', 'multiply']),
+      value: z.number().int(),
+      reason: z.string().min(1).max(500),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    const {
+      bakeryId,
+      startDate,
+      endDate,
+      employeeIds,
+      target,
+      mode,
+      value,
+      reason,
+    } = input
+
+    try {
+      return await bulkAdjustPayrollLines(
+        db,
+        {
+          organizationId: context.legacyOrganizationId,
+          bakeryId,
+          startDate,
+          endDate,
+        },
+        { employeeIds, target, mode, value, reason },
       )
     } catch (error) {
       mapPayrollError(error)

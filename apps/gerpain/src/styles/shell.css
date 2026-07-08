@@ -1115,6 +1115,40 @@ html, body {
   color: var(--text);
 }
 
+.selection-bar--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.selection-bar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.pay-bulk-adjust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.pay-bulk-adjust select,
+.pay-bulk-adjust input[type='number'],
+.pay-bulk-adjust input[type='text'] {
+  min-width: 140px;
+}
+
+.pay-deduction-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
 .export-menu {
   position: relative;
 }

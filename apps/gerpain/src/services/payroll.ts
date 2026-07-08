@@ -974,3 +974,110 @@ export async function removePayrollDeduction(
     draftLineInputFromPreview(line, deductions),
   )
 }
+
+export type BulkPayrollAdjustTarget =
+  | 'baseSalary'
+  | 'commissionAmount'
+  | 'bonusAmount'
+
+export type BulkPayrollAdjustInput = {
+  employeeIds: string[]
+  target: BulkPayrollAdjustTarget
+  mode: 'add' | 'multiply'
+  /** add: FCFA delta; multiply: percent change (e.g. -10 → 90 % of current). */
+  value: number
+  reason: string
+}
+
+export function applyBulkAdjustment(
+  line: PayrollLinePreview,
+  adjustment: BulkPayrollAdjustInput,
+): PayrollLinePreview {
+  const current = line[adjustment.target]
+  const nextValue =
+    adjustment.mode === 'add'
+      ? Math.max(current + adjustment.value, 0)
+      : Math.max(Math.round(current * (1 + adjustment.value / 100)), 0)
+
+  const updated: PayrollLinePreview = {
+    ...line,
+    [adjustment.target]: nextValue,
+  }
+
+  const grossAmount =
+    updated.baseSalary + updated.commissionAmount + updated.bonusAmount
+  const netAmount = netAfterDeductions({
+    grossAmount,
+    advanceDeduction: updated.advanceDeduction,
+    collectionDeduction: updated.collectionDeduction,
+    deductions: updated.deductions,
+  })
+
+  return {
+    ...updated,
+    grossAmount,
+    netAmount,
+  }
+}
+
+export async function bulkAdjustPayrollLines(
+  db: Database,
+  input: PayrollPeriodInput,
+  adjustment: BulkPayrollAdjustInput,
+): Promise<{ adjustedCount: number }> {
+  if (adjustment.employeeIds.length === 0) {
+    throw new PayrollServiceError(
+      'INVALID_STATE',
+      'Sélectionnez au moins un agent',
+    )
+  }
+
+  const reason = adjustment.reason.trim()
+  if (!reason) {
+    throw new PayrollServiceError(
+      'INVALID_STATE',
+      'Le motif de l\'ajustement est obligatoire',
+    )
+  }
+
+  if (adjustment.mode === 'multiply' && adjustment.value < -100) {
+    throw new PayrollServiceError(
+      'INVALID_STATE',
+      'Le taux ne peut pas être inférieur à −100 %',
+    )
+  }
+
+  const preview = await previewPayroll(db, input)
+  if (preview.isClosed) {
+    throw new PayrollServiceError(
+      'ALREADY_CLOSED',
+      'Cette période est déjà clôturée',
+    )
+  }
+
+  let adjustedCount = 0
+
+  for (const employeeId of adjustment.employeeIds) {
+    const line = preview.lines.find((row) => row.employeeId === employeeId)
+    if (!line) continue
+
+    const adjusted = applyBulkAdjustment(line, adjustment)
+    const draftInput = draftLineInputFromPreview(adjusted, adjusted.deductions)
+    draftInput.manualReason =
+      line.manualReason && line.lineSource !== 'computed'
+        ? `${line.manualReason}; ${reason}`
+        : reason
+
+    await saveDraftPayrollLine(db, input, draftInput)
+    adjustedCount += 1
+  }
+
+  if (adjustedCount === 0) {
+    throw new PayrollServiceError(
+      'NOT_FOUND',
+      'Aucun agent sélectionné trouvé sur la période',
+    )
+  }
+
+  return { adjustedCount }
+}
