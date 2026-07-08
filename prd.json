@@ -12,6 +12,7 @@
       "docs/EXPECTATIONS.md",
       "docs/bocal-spec.md",
       "docs/legacy-gen1-reference.md",
+      "docs/payroll-roadmap.md",
       "progress.md"
     ],
     "legacy_reference": {
@@ -78,7 +79,31 @@
       "name": "Commissions & payroll",
       "size": "large",
       "goal": "Per-product commission, net salary adjusted by remainder",
-      "status": "deferred",
+      "status": "done",
+      "blocks_daily_ops": false
+    },
+    {
+      "id": "F1",
+      "name": "Payroll flexibility",
+      "size": "medium",
+      "goal": "Commission for all roles, configurable deductions, bulk adjustments, preview warnings. See docs/payroll-roadmap.md",
+      "status": "pending",
+      "blocks_daily_ops": false
+    },
+    {
+      "id": "F2",
+      "name": "Payroll corrections & history",
+      "size": "large",
+      "goal": "ERP-grade closed-period corrections: reversal (contre-passation), adjustment runs, audit journal, lock date, per-agent history. See docs/payroll-roadmap.md",
+      "status": "pending",
+      "blocks_daily_ops": false
+    },
+    {
+      "id": "F3",
+      "name": "Official Senegalese payslip",
+      "size": "xlarge",
+      "goal": "Client template bulletin (CCNC boulangers): employee legal fields, statutory contributions engine (CSS/IPRES/IR/TRIMF/CFCE), heures supp, cumuls, PDF layout. See docs/payroll-roadmap.md",
+      "status": "pending",
       "blocks_daily_ops": false
     },
     {
@@ -559,6 +584,144 @@
       ],
       "files": ["apps/gerpain/src/services/payroll.ts"],
       "verification": ["bun run test"],
+      "passes": true
+    },
+    {
+      "group": "Sprint F1 — Payroll flexibility",
+      "sprint": "F1",
+      "feature": "Quick wins: commissionRate cleanup, all-role commissions, duePeriod validation, preview warnings, totals breakdown",
+      "description": "F1-A/B/E/F/G in docs/payroll-roadmap.md: remove ghost commissionRate field or wire it; drop role==='delivery' gate on commissions; Zod YYYY-MM validation on bonus duePeriod + month picker; warn on net=0 lines and agents without salary/products; show commission+primes in PaieView totals bar.",
+      "acceptance_criteria": [
+        "Any employee with active employeeProducts earns commission",
+        "Bonus duePeriod rejected unless YYYY-MM",
+        "PaieView synthesis shows commission and primes totals",
+        "Preview flags zero-net lines"
+      ],
+      "files": [
+        "apps/gerpain/src/services/payroll.ts",
+        "apps/gerpain/src/server/orpc/salary-bonuses.ts",
+        "apps/gerpain/src/views/equipe/PaieView.tsx",
+        "apps/gerpain/src/views/equipe/BonusesView.tsx"
+      ],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F1 — Payroll flexibility",
+      "sprint": "F1",
+      "feature": "Configurable collection deduction rate + free-form deductions + bulk adjustment",
+      "description": "F1-C/D/H: bakery setting collectionDeductionRate (0-100%, cap optional); structured deductions[] per line (type/label/amount); bulk apply amount/rate to selected lines as draft overrides.",
+      "acceptance_criteria": [
+        "Shortfall deduction respects bakery rate setting",
+        "Deduction lines typed and visible on payslip breakdown",
+        "Bulk adjustment produces override draft lines with shared reason"
+      ],
+      "files": [
+        "apps/gerpain/src/services/payroll-deductions.ts",
+        "apps/gerpain/src/services/payroll-draft.ts",
+        "packages/db"
+      ],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F2 — Payroll corrections & history",
+      "sprint": "F2",
+      "feature": "Audit foundation: runType, parentRunId, reversed status, payrollRunEvents",
+      "description": "F2-A/B: schema additions + append-only payrollRunEvents (closed/reversed/adjusted/exported, actor, payload); journal timeline UI on run detail.",
+      "acceptance_criteria": [
+        "Every close writes a closed event",
+        "Events append-only, org-scoped",
+        "Timeline visible in run detail"
+      ],
+      "files": ["packages/db", "apps/gerpain/src/services/payroll.ts", "apps/gerpain/src/views/equipe/PaieView.tsx"],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F2 — Payroll corrections & history",
+      "sprint": "F2",
+      "feature": "Reopen closed run (contre-passation)",
+      "description": "F2-C/E: reopenPayrollRun posts exact inverse Bocal movements in one tx; bonuses/installments back to scheduled; collections un-settled idempotently; run kept status=reversed with mandatory reason; LIFO guard (no later run); payrollLockDate bakery setting gates reopen to owner.",
+      "acceptance_criteria": [
+        "Ledger balances return to pre-close state after reversal",
+        "Reversed run immutable and visible in history",
+        "Reopen refused when a later closed run exists",
+        "Reopen before lock date requires owner role"
+      ],
+      "files": ["apps/gerpain/src/services/payroll.ts", "apps/gerpain/src/services/collections.ts", "apps/gerpain/src/server/orpc/payroll.ts"],
+      "verification": ["bun run test (integration: close→reverse→re-close)"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F2 — Payroll corrections & history",
+      "sprint": "F2",
+      "feature": "Adjustment runs + history chain + per-agent history + variance",
+      "description": "F2-D/F/G/H/I: adjustment run (runType=adjustment, parentRunId, signed lines, mandatory reasons, Bocal delta posting, PDF referencing origin); history UI shows reversed badge + indented adjustments; FicheAgentView payroll tab with YTD cumuls; period variance report; annual export.",
+      "acceptance_criteria": [
+        "Adjustment run posts only the delta to Bocal",
+        "Negative net line = rappel de trop-perçu, allowed on adjustment runs only",
+        "Agent fiche shows per-period lines + YTD",
+        "History displays parent/child chain"
+      ],
+      "files": ["apps/gerpain/src/services/payroll.ts", "apps/gerpain/src/views/equipe/PaieView.tsx", "apps/gerpain/src/views/equipe/FicheAgentView.tsx"],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F2 — Payroll corrections & history",
+      "sprint": "F2",
+      "feature": "Correct closed-run metadata (F2-J)",
+      "description": "In-place correction of display-only fields on a closed run: periodLabel, closedAt, closedBy. These are NOT functional keys (dates startDate/endDate cannot be changed in-place — use reopen F2-C for that). Owner role required. Writes a metadata_corrected event to payrollRunEvents with old→new diff.",
+      "acceptance_criteria": [
+        "periodLabel, closedAt, closedBy editable by owner after close",
+        "startDate/endDate change rejected (must reopen)",
+        "metadata_corrected event recorded with full diff",
+        "Change visible in audit journal (F2-B)"
+      ],
+      "files": ["apps/gerpain/src/server/orpc/payroll.ts", "apps/gerpain/src/services/payroll.ts", "apps/gerpain/src/views/equipe/PaieView.tsx"],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F3 — Official Senegalese payslip",
+      "sprint": "F3",
+      "feature": "Employee legal/fiscal fields",
+      "description": "F3-A: matricule, qualification, categorie (CCNC), niveau, coefficient, indice, situationFamiliale, parts, numeroIpresCss, emploiOccupe, horaireMensuel on employees; edit forms.",
+      "acceptance_criteria": [
+        "Fields persisted and editable on agent fiche",
+        "parts supports decimals (e.g. 2.5)"
+      ],
+      "files": ["packages/db", "apps/gerpain/src/views/equipe/FicheAgentView.tsx", "apps/gerpain/src/server/orpc/employees.ts"],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F3 — Official Senegalese payslip",
+      "sprint": "F3",
+      "feature": "Statutory contributions engine",
+      "description": "F3-C/D: pure framework-free module (tests first, portable like Bocal): CSS PF, CSS AT, IPRES-R général/cadre, IPM, CFCE, TRIMF (barème by parts), IR (progressive + parts reduction); rates in DB versioned by effective date; brut imposable vs brut total (transport non imposable excluded).",
+      "acceptance_criteria": [
+        "Engine reproduces client template amounts (145 665 brut → 136 308 net case)",
+        "Rates config-driven, never hardcoded",
+        "Module imports no framework/auth code"
+      ],
+      "files": ["packages (new contributions module)", "apps/gerpain/src/services/payroll.ts"],
+      "verification": ["bun run test (golden-case from template)"],
+      "passes": false
+    },
+    {
+      "group": "Sprint F3 — Official Senegalese payslip",
+      "sprint": "F3",
+      "feature": "Earnings lines, hours, payslip PDF template",
+      "description": "F3-B/E/F/G: sursalaire, heures supplémentaires (majorées), prime d'ancienneté auto from hireDate, transport non imposable; monthly/overtime hours input with base salary proration; PDF layout matching client template (legal block, designation table Taux/Gain/Retenues, cotisations, cumuls, signature); YTD cumuls row.",
+      "acceptance_criteria": [
+        "Payslip PDF matches template structure",
+        "Heures supp computed nombre × taux majoré",
+        "Prime d'ancienneté derived from hireDate per CCNC scale"
+      ],
+      "files": ["apps/gerpain/src/lib/payroll-pdf.ts", "apps/gerpain/src/services/payroll.ts"],
+      "verification": ["bun run test", "manual PDF review vs template"],
       "passes": false
     },
     {
