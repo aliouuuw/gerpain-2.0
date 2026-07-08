@@ -32,4 +32,46 @@ describe('collectionShortfallDeduction', () => {
       }),
     ).toBe(700)
   })
+
+  it('applies partial rate from bakery settings', () => {
+    expect(
+      collectionShortfallDeduction(
+        {
+          totalExpected: 10_000,
+          totalCollected: 9_000,
+          solde: -1_000,
+          collectionCount: 1,
+        },
+        { ratePercent: 50 },
+      ),
+    ).toBe(500)
+  })
+
+  it('applies optional cap after rate scaling', () => {
+    expect(
+      collectionShortfallDeduction(
+        {
+          totalExpected: 50_000,
+          totalCollected: 40_000,
+          solde: -10_000,
+          collectionCount: 3,
+        },
+        { ratePercent: 100, capAmount: 3_000 },
+      ),
+    ).toBe(3_000)
+  })
+
+  it('returns zero when rate is zero', () => {
+    expect(
+      collectionShortfallDeduction(
+        {
+          totalExpected: 10_000,
+          totalCollected: 5_000,
+          solde: -5_000,
+          collectionCount: 1,
+        },
+        { ratePercent: 0 },
+      ),
+    ).toBe(0)
+  })
 })

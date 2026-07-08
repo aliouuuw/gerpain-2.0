@@ -12,6 +12,7 @@ import {
 } from '@gerpain/db'
 
 import { getPeriodCommissionBreakdown, getPeriodCommissions } from '#/services/employee-commission'
+import { getBakeryForOrg } from '#/services/bakeries'
 import { getPeriodCollectionBalancesByEmployee, settleCashCollectionsPeriod } from '#/services/collections'
 import { listEmployees } from '#/services/employees'
 import {
@@ -30,6 +31,7 @@ import {
   markSalaryBonusesPaidInTx,
 } from '#/services/salary-bonuses'
 import { periodLabelFromEndDate } from '#/lib/period'
+import { collectionDeductionOptionsFromSettings } from '#/lib/bakery-settings'
 import {
   deleteDraftPayrollRunInTx,
   loadDraftPayrollLines,
@@ -321,7 +323,7 @@ async function buildPayrollLines(
 }> {
   const periodLabel = periodLabelFromEndDate(input.endDate)
 
-  const [activeEmployees, commissions, commissionBreakdown, collectionBalances, dueInstallments, dueBonuses] =
+  const [activeEmployees, commissions, commissionBreakdown, collectionBalances, dueInstallments, dueBonuses, bakery] =
     await Promise.all([
     listEmployees(db, input.organizationId, input.bakeryId, {
       status: 'active',
@@ -341,7 +343,12 @@ async function buildPayrollLines(
       input.bakeryId,
       periodLabel,
     ),
+    getBakeryForOrg(db, input.organizationId, input.bakeryId),
   ])
+
+  const collectionDeductionOptions = collectionDeductionOptionsFromSettings(
+    bakery?.settings ?? {},
+  )
 
   const commissionByEmployee = new Map(
     commissions.map((row) => [row.employeeId, row]),
@@ -410,7 +417,10 @@ async function buildPayrollLines(
     )
     const employeeBonuses = bonusesByEmployee.get(employee.id) ?? []
     const bonusAmount = employeeBonuses.reduce((sum, row) => sum + row.amount, 0)
-    const collectionDeduction = collectionShortfallDeduction(collectionBalance)
+    const collectionDeduction = collectionShortfallDeduction(
+      collectionBalance,
+      collectionDeductionOptions,
+    )
     const grossAmount = baseSalary + commissionAmount + bonusAmount
     const netAmount = Math.max(
       grossAmount - advanceDeduction - collectionDeduction,

@@ -1,8 +1,8 @@
 # Gerpain 2.0 — Progress Log
 
-**Last updated:** 2026-07-07  
-**Branch:** `main` (synced with `origin/main`)  
-**Commit:** `497e6e2` — fix(dev): standalone devtools; docs sprint F close + paie UX backlog  
+**Last updated:** 2026-07-08  
+**Branch:** `main` (ahead of `origin/main` by 2 commits — not pushed)  
+**Commit:** `7fa04c0` — feat(payroll): F1 quick wins — all-role commissions, totals breakdown, zero-net warnings, month picker on bonuses  
 **Stack:** TanStack Start + oRPC + Drizzle + Neon + Better Auth + `packages/bocal`  
 **Legacy (reference until cutover):** `gerpain_backend/` + `nextjs_frontend/`  
 **Gen-1 archive:** `docs/legacy-gen1-reference.md` (Prisma monolith — clone removed)
@@ -23,7 +23,7 @@ Architecture steps (`docs/architecture.md`):
 | 4 | Port domains as vertical slices | In progress |
 | 5 | Delete old Hono app once parity reached | Pending |
 
-**Current focus:** Sprint F+ — Paie admin UX (filtering, bulk print, operator options); then Sprint H cutover.
+**Current focus:** Sprint F1 — Payroll flexibility (quick wins done; F1-C/D/H next); then F2 audit/reopen foundation.
 
 ### Sprint F — payroll & équipe (done)
 
@@ -36,16 +36,33 @@ Architecture steps (`docs/architecture.md`):
 - **Leave requests** — congés workflow; block prepare-day when agent on leave
 - **Integration test** — payroll close with bonus (`payroll.integration.test.ts`)
 
-### Sprint F+ — Paie admin UX (in progress)
+### Sprint F+ — Paie admin UX (done)
 
 Operator/admin improvements for `/equipe/paie` (see **ADR 0005** for manual lines):
 
-1. **Manual payroll lines** — done (`50007a3`)
+1. **Manual payroll lines** — done (`50007a3`, ADR 0005)
 2. **Agent filtering & selection** — URL `?role=` tab filter + `?selected=` checkboxes
 3. **Bulk print** — tableau récap + bulletins paginés (sélection ou filtre)
-4. **Admin UX polish** — presets, clearer period controls, batch actions (ongoing)
+4. **PDF bulletins + role tabs** — francophone number formatting, clôture flow polish
+5. **Employee archive/reactivate** — annuaire lifecycle
 
 ADR 0004 governs close and ledger postings; ADR 0005 governs draft/manual worksheets and export before close.
+
+### Sprint F1 — Payroll flexibility (in progress)
+
+Roadmap: `docs/payroll-roadmap.md` (F1–F3). Tasks mirrored in `prd.json`.
+
+**F1 quick wins (mostly done — `7fa04c0`):**
+
+| ID | Task | Status |
+|----|------|--------|
+| F1-A | Remove ghost `commissionRate` | Done (migration `0017` drops column) |
+| F1-B | Commissions for all roles | Done (`buildPayrollLines` no longer gates on `delivery`) |
+| F1-E | `duePeriod` YYYY-MM validation + month picker | Done (Zod regex + `BonusesView` month input) |
+| F1-F | Preview warnings (net=0, no remuneration) | Done (badges in `PaieView`) |
+| F1-G | Totals bar: commission + primes | Done (synthesis strip) |
+
+**Remaining F1:** F1-D (free-form deduction lines), F1-H (bulk adjustment), F1-I (computed vs override diff), F1-J (forecast payroll mass in Rémunération).
 
 ### Sprint D — done
 
@@ -117,14 +134,14 @@ ADR 0004 governs close and ledger postings; ADR 0005 governs draft/manual worksh
 ### Recent commits (new app)
 
 ```
-a8a1626 feat(paie): cancel bonuses, post shortfall to ledger, and print bulletin
-f90ddf8 feat(paie): deduct cash shortfall, export CSV, bonuses, and settle on close
-f43fc47 feat(paie): persist bulletin snapshot and frozen closed-run preview
-2d56231 feat(paie): add payroll close, commission breakdown, and équipe UX refocus
-9aca318 feat(equipe): add period commission preview from validated runs
-7356218 feat(equipe): reorganize nav and product-only commissions
-edd56c1 feat(equipe): add salary advances with Bocal postings
-074d309 feat(equipe): add leave requests and block prepare-day
+7fa04c0 feat(payroll): F1 quick wins — all-role commissions, totals breakdown, zero-net warnings, month picker on bonuses
+ef786ce docs(payroll): roadmap F1-F3 — flexibility, closed-period corrections, Senegalese payslip
+2a1aac3 feat(styles): update theme colors and typography for Uber-sharp design
+2906696 feat(login): redesign login page with new layout and visual elements
+1095208 feat(tabs): update navigation structure and enhance routing for équipe and réglages
+cc4a0bc feat(employee): implement archiving and reactivation functionality
+ef4b487 feat(paie): add PDF bulletins, role tabs, and francophone number formatting
+50007a3 feat(paie): add draft manual payroll lines and merge into preview
 ```
 
 ---
@@ -179,21 +196,23 @@ bun run typecheck && bun run test && bun run build
 | **D** | Collections parity — period view, reconciliations, archive | **Done** |
 | **E** | Ledger & dashboard — `balanceOf` KPIs, movement history | **Done** (KPIs + movement detail) |
 | **F** | Commissions & payroll — close, advances, bonuses, shortfall | **Done** |
-| **F+** | Paie admin UX — filter agents, bulk print, close workflow polish | **Next** |
+| **F+** | Paie admin UX — filter agents, bulk print, close workflow polish | **Done** |
+| **F1** | Payroll flexibility — quick wins, deductions, bulk adjustment | **In progress** |
+| **F2** | Closed-period corrections — audit journal, reopen, adjustment runs | Pending |
+| **F3** | Official Senegalese payslip — legal fields, cotisations engine, PDF | Pending |
 | **G** | Inventory & POS | Deferred |
 | **H** | Cutover | Pending |
 
-**Recommended next order:** **F+** (Paie UX) → manual payroll smoke → **H** (cutover checklist)
+**Recommended next order:** **F1** (remaining C/D/H) → **F2-A/B** (audit foundation) → **F2-C** (reopen) → **F3** (payslip) → **H** (cutover)
 
 ---
 
 ## Next session
 
-1. **Paie — manual lines (ADR 0005)** — draft run upsert, save/remove line, merge in preview; UI « Ajouter une ligne » + per-row Générer
-2. **Paie — agent filter/selection** — multi-select or role filter on bulletin table; preserve in URL
-3. **Paie — bulk print** — one HTML/PDF from merged preview (all or selected agents); reuse `payroll-print.ts`
-4. **Paie — admin UX** — period presets, manual/computed badges, post-close read-only affordances
-5. **Optional** — integration test: manual line → export → close → Bocal
+1. **F1-D** — Structured `deductions[]` per payroll line (disciplinary, absence, cotisation) — schema + draft + close + PDF
+2. **F1-H** — Bulk adjustment: apply amount/rate to selected lines as draft overrides with shared reason
+3. **F2-A/B** — `payrollRunEvents` schema + audit journal timeline on run detail (foundation for reopen)
+4. **Housekeeping** — Push local commits; smoke test Paie with 50% collection deduction rate
 
 ---
 

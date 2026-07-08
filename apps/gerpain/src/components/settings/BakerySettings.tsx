@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card } from '#/components/ui/Card'
 import { useBakery } from '#/lib/bakery-context'
 import {
+  DEFAULT_COLLECTION_DEDUCTION_RATE,
   payrollPresetLabels,
   type BakerySettings,
 } from '#/lib/bakery-settings'
@@ -15,6 +16,8 @@ type FormState = {
   address: string
   phone: string
   defaultPayrollPreset: BakerySettings['defaultPayrollPreset'] | ''
+  collectionDeductionRate: string
+  collectionDeductionCap: string
 }
 
 export function BakerySettings() {
@@ -32,6 +35,8 @@ export function BakerySettings() {
     address: '',
     phone: '',
     defaultPayrollPreset: '',
+    collectionDeductionRate: String(DEFAULT_COLLECTION_DEDUCTION_RATE),
+    collectionDeductionCap: '',
   })
   const [formError, setFormError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -43,6 +48,14 @@ export function BakerySettings() {
       address: detail.data.address ?? '',
       phone: detail.data.phone ?? '',
       defaultPayrollPreset: detail.data.settings.defaultPayrollPreset ?? '',
+      collectionDeductionRate: String(
+        detail.data.settings.collectionDeductionRate ??
+          DEFAULT_COLLECTION_DEDUCTION_RATE,
+      ),
+      collectionDeductionCap:
+        detail.data.settings.collectionDeductionCap != null
+          ? String(detail.data.settings.collectionDeductionCap)
+          : '',
     })
   }, [detail.data])
 
@@ -68,6 +81,23 @@ export function BakerySettings() {
     e.preventDefault()
     if (!bakeryId || !canManage) return
 
+    const rate = Number(form.collectionDeductionRate)
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+      setFormError('Le taux de retenue caisse doit être entre 0 et 100 %.')
+      return
+    }
+
+    const capRaw = form.collectionDeductionCap.trim()
+    let collectionDeductionCap: number | null = null
+    if (capRaw) {
+      const cap = Number(capRaw)
+      if (!Number.isFinite(cap) || cap < 0 || !Number.isInteger(cap)) {
+        setFormError('Le plafond de retenue doit être un montant entier positif.')
+        return
+      }
+      collectionDeductionCap = cap
+    }
+
     updateMutation.mutate({
       bakeryId,
       name: form.name.trim(),
@@ -75,6 +105,8 @@ export function BakerySettings() {
       phone: form.phone.trim() || null,
       settings: {
         defaultPayrollPreset: form.defaultPayrollPreset || undefined,
+        collectionDeductionRate: rate,
+        collectionDeductionCap,
       },
     })
   }
@@ -102,6 +134,17 @@ export function BakerySettings() {
           <div className="settings-dl__row">
             <dt>Téléphone</dt>
             <dd>{bakery.phone ?? '—'}</dd>
+          </div>
+          <div className="settings-dl__row">
+            <dt>Retenue manque caisse</dt>
+            <dd>
+              {detail.data.settings.collectionDeductionRate ??
+                DEFAULT_COLLECTION_DEDUCTION_RATE}
+              %
+              {detail.data.settings.collectionDeductionCap != null
+                ? ` · plafond ${detail.data.settings.collectionDeductionCap.toLocaleString('fr-FR')} FCFA`
+                : ''}
+            </dd>
           </div>
         </dl>
       ) : (
@@ -162,6 +205,42 @@ export function BakerySettings() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="settings-form__field">
+              <span>Retenue manque caisse (%)</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={form.collectionDeductionRate}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    collectionDeductionRate: e.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="settings-form__field settings-form__field--wide">
+              <span>Plafond retenue caisse (FCFA)</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                placeholder="Aucun plafond"
+                value={form.collectionDeductionCap}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    collectionDeductionCap: e.target.value,
+                  }))
+                }
+              />
+              <span className="settings-form__hint">
+                Part du manque caisse déduite du net à la clôture paie (défaut
+                100 %). Laissez le plafond vide pour ne pas limiter le montant.
+              </span>
             </label>
           </div>
           {formError ? (

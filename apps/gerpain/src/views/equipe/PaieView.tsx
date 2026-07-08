@@ -317,7 +317,7 @@ function PayrollLineBreakdown({
         <dt>Salaire de base</dt>
         <dd className="num">{formatXof(line.baseSalary)}</dd>
       </div>
-      {line.role === 'delivery' ? (
+      {line.commissionAmount > 0 || line.commissionProducts.length > 0 ? (
         <div className="fiche-details__row">
           <dt>Commission produits</dt>
           <dd className="num">
@@ -335,7 +335,7 @@ function PayrollLineBreakdown({
           </dd>
         </div>
       ) : null}
-      {line.role === 'delivery' && line.commissionProducts.length > 0 ? (
+      {line.commissionProducts.length > 0 ? (
         <div className="pay-breakdown__installments">
           <table className="data-table data-table--compact">
             <thead>
@@ -435,7 +435,7 @@ function PayrollLineBreakdown({
           </table>
         </div>
       ) : null}
-      {line.role === 'delivery' && line.collectionBalance ? (
+      {line.collectionBalance ? (
         <div className="fiche-details__row">
           <dt>
             {line.collectionDeduction > 0
