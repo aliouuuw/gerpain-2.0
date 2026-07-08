@@ -984,6 +984,10 @@ html, body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.stats-grid--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .stats-grid__context {
   margin: 0 0 8px;
   font-size: 13px;
@@ -1140,6 +1144,12 @@ html, body {
 .pay-bulk-adjust input[type='number'],
 .pay-bulk-adjust input[type='text'] {
   min-width: 140px;
+}
+
+.pay-deduction-form {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .pay-deduction-form__grid {
@@ -1669,6 +1679,10 @@ html, body {
 .pay-breakdown__installments {
   margin: 8px 0 12px;
   padding-left: 0;
+}
+
+.pay-breakdown__add-deduction {
+  margin-top: 12px;
 }
 
 .pay-breakdown__links {
@@ -2560,6 +2574,10 @@ html, body {
   border-top: 2px solid var(--border);
 }
 
+.data-table .cell-nowrap {
+  white-space: nowrap;
+}
+
 .data-table .num {
   text-align: right;
   font-family: var(--font-mono);
@@ -3279,6 +3297,10 @@ html, body {
 
   .stats-grid--3 {
     grid-template-columns: 1fr;
+  }
+
+  .stats-grid--5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stats-lines__row {

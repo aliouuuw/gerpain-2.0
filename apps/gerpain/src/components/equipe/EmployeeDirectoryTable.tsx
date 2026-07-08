@@ -127,7 +127,9 @@ export function EmployeeDirectoryTable({
         id: 'phone',
         accessorKey: 'phone',
         header: 'Téléphone',
-        cell: ({ getValue }) => getValue<string | null>() ?? '—',
+        cell: ({ getValue }) => (
+          <span className="cell-nowrap">{getValue<string | null>() ?? '—'}</span>
+        ),
       },
       {
         id: 'locationLabel',
@@ -149,7 +151,7 @@ export function EmployeeDirectoryTable({
         accessorKey: 'productCount',
         header: 'Produits',
         cell: ({ row }) =>
-          row.original.role === 'delivery' ? row.original.productCount : '—',
+          row.original.productCount > 0 ? row.original.productCount : '—',
       },
       {
         id: 'status',

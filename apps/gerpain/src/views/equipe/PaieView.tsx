@@ -445,6 +445,7 @@ function PayrollLineBreakdown({
   onRemoveDeduction?: (deductionId: string) => void
   deductionPending?: boolean
 }) {
+  const [showDeductionForm, setShowDeductionForm] = useState(false)
   return (
     <>
       {showActions || line.manualReason ? (
@@ -585,12 +586,7 @@ function PayrollLineBreakdown({
             </span>
           </dd>
         </div>
-      ) : (
-        <div className="fiche-details__row pay-breakdown__info-row">
-          <dt>Retenues avances</dt>
-          <dd className="num pay-breakdown__muted">Aucune échéance due</dd>
-        </div>
-      )}
+      ) : null}
       {line.advanceInstallments.length > 0 ? (
         <div className="pay-breakdown__installments">
           <table className="data-table data-table--compact">
@@ -687,10 +683,25 @@ function PayrollLineBreakdown({
         </div>
       ) : null}
       {showActions && onAddDeduction ? (
-        <PayrollDeductionAddForm
-          onSubmit={onAddDeduction}
-          pending={deductionPending}
-        />
+        showDeductionForm ? (
+          <PayrollDeductionAddForm
+            onSubmit={(input) => {
+              onAddDeduction(input)
+              setShowDeductionForm(false)
+            }}
+            pending={deductionPending}
+          />
+        ) : (
+          <div className="pay-breakdown__add-deduction">
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => setShowDeductionForm(true)}
+            >
+              + Ajouter une retenue
+            </button>
+          </div>
+        )
       ) : null}
       <div className="fiche-details__row fiche-details__row--emphasis">
         <dt>Net à payer</dt>
@@ -1344,8 +1355,9 @@ export function PaieView() {
               <div className="stats-lines__row">
                 <dt>Retenues</dt>
                 <dd>
-                  {formatXof(totalsRetenues)}
-                  {retenuesMeta(
+                  {totalsRetenues > 0 ? formatXof(totalsRetenues) : '—'}
+                  {totalsRetenues > 0 &&
+                  retenuesMeta(
                     totals.advanceDeduction,
                     totals.collectionDeduction,
                     totals.otherDeduction,

@@ -64,7 +64,9 @@ export function RemunerationView({
       (sum, e) => sum + (e.baseSalary ?? 0),
       0,
     )
-    const withSalary = activeEmployees.filter((e) => (e.baseSalary ?? 0) > 0)
+    const withSalary = activeEmployees.filter(
+      (e) => (e.baseSalary ?? 0) > 0 || e.productCount > 0,
+    )
     const deliveryAgents = activeEmployees.filter((e) => e.role === 'delivery')
     const deliveryWithProducts = deliveryAgents.filter(
       (e) => e.productCount > 0,
@@ -78,7 +80,9 @@ export function RemunerationView({
       avgSalary,
       withSalary: withSalary.length,
       total: activeEmployees.length,
-      missingSalary: activeEmployees.length - withSalary.length,
+      missingSalary: activeEmployees.filter(
+        (e) => (e.baseSalary ?? 0) === 0 && e.productCount === 0,
+      ).length,
       deliveryAgents: deliveryAgents.length,
       deliveryWithProducts: deliveryWithProducts.length,
       deliveryMissingProducts:

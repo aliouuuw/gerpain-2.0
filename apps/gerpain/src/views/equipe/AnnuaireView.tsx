@@ -102,7 +102,9 @@ export function AnnuaireView() {
       (sum, e) => sum + (e.baseSalary ?? 0),
       0,
     )
-    const withSalary = active.filter((e) => (e.baseSalary ?? 0) > 0)
+    const withSalary = active.filter(
+      (e) => (e.baseSalary ?? 0) > 0 || e.productCount > 0,
+    )
     const withLocation = active.filter((e) => e.locationIds.length > 0)
     const withPhone = active.filter((e) => Boolean(e.phone?.trim()))
     const deliveryReady = deliveryActive.filter((e) => e.productCount > 0)
@@ -146,7 +148,9 @@ export function AnnuaireView() {
       deliveryReadyPct,
       withLocation: withLocation.length,
       withPhone: withPhone.length,
-      missingSalary: active.length - withSalary.length,
+      missingSalary: active.filter(
+        (e) => (e.baseSalary ?? 0) === 0 && e.productCount === 0,
+      ).length,
       missingProducts: deliveryActive.filter((e) => e.productCount === 0).length,
       missingLocation: active.length - withLocation.length,
       missingPhone: active.length - withPhone.length,
