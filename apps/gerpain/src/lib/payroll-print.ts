@@ -136,6 +136,7 @@ export function openPayrollLinePreview(
       bonus: line.bonusAmount,
       advanceDeduction: line.advanceDeduction,
       collectionDeduction: line.collectionDeduction,
+      otherDeduction: line.deductions.reduce((sum, row) => sum + row.amount, 0),
     },
   }
 

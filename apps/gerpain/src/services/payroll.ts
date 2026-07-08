@@ -33,10 +33,17 @@ import {
 import { periodLabelFromEndDate } from '#/lib/period'
 import { collectionDeductionOptionsFromSettings } from '#/lib/bakery-settings'
 import {
+  netAfterDeductions,
+  type PayrollDeductionLine,
+  type PayrollDeductionType,
+} from '#/lib/payroll-deduction-lines'
+import {
   deleteDraftPayrollRunInTx,
   loadDraftPayrollLines,
   mergePayrollLinesWithDraft,
   type PayrollLineSource,
+  saveDraftPayrollLine,
+  type SaveDraftPayrollLineInput,
 } from '#/services/payroll-draft'
 
 export class PayrollServiceError extends Error {
@@ -101,6 +108,7 @@ export type PayrollLinePreview = {
   advanceInstallments: PayrollAdvanceInstallmentPreview[]
   collectionBalance: PayrollCollectionBalancePreview | null
   collectionDeduction: number
+  deductions: PayrollDeductionLine[]
   grossAmount: number
   netAmount: number
   advanceInstallmentIds: string[]
@@ -121,6 +129,7 @@ export type PayrollLineSnapshot = {
   collectionBalance: PayrollCollectionBalancePreview | null
   advanceInstallmentIds: string[]
   bonusIds: string[]
+  deductions: PayrollDeductionLine[]
 }
 
 export function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapshot {
@@ -134,6 +143,7 @@ export function snapshotFromPreview(line: PayrollLinePreview): PayrollLineSnapsh
     collectionBalance: line.collectionBalance,
     advanceInstallmentIds: line.advanceInstallmentIds,
     bonusIds: line.bonusIds,
+    deductions: line.deductions,
   }
 }
 
@@ -155,6 +165,7 @@ function snapshotFields(
   | 'collectionBalance'
   | 'advanceInstallmentIds'
   | 'bonusIds'
+  | 'deductions'
 > {
   if (!snapshot) {
     return {
@@ -167,6 +178,7 @@ function snapshotFields(
       collectionBalance: null,
       advanceInstallmentIds: [],
       bonusIds: [],
+      deductions: [],
     }
   }
   return {
@@ -179,6 +191,7 @@ function snapshotFields(
     collectionBalance: snapshot.collectionBalance,
     advanceInstallmentIds: snapshot.advanceInstallmentIds,
     bonusIds: snapshot.bonusIds,
+    deductions: snapshot.deductions ?? [],
   }
 }
 
@@ -201,6 +214,11 @@ function totalsFromLines(
       (sum, line) => sum + line.collectionDeduction,
       0,
     ),
+    otherDeduction: lines.reduce(
+      (sum, line) =>
+        sum + line.deductions.reduce((inner, row) => inner + row.amount, 0),
+      0,
+    ),
   }
 }
 
@@ -219,6 +237,7 @@ export type PayrollPreview = {
     bonus: number
     advanceDeduction: number
     collectionDeduction: number
+    otherDeduction: number
   }
 }
 
@@ -421,11 +440,14 @@ async function buildPayrollLines(
       collectionBalance,
       collectionDeductionOptions,
     )
+    const deductions: PayrollDeductionLine[] = []
     const grossAmount = baseSalary + commissionAmount + bonusAmount
-    const netAmount = Math.max(
-      grossAmount - advanceDeduction - collectionDeduction,
-      0,
-    )
+    const netAmount = netAfterDeductions({
+      grossAmount,
+      advanceDeduction,
+      collectionDeduction,
+      deductions,
+    })
 
     return {
       employeeId: employee.id,
@@ -453,6 +475,7 @@ async function buildPayrollLines(
       })),
       collectionBalance,
       collectionDeduction,
+      deductions,
       grossAmount,
       netAmount,
       advanceInstallmentIds: employeeInstallments.map((row) => row.id),
@@ -468,6 +491,9 @@ async function buildPayrollLines(
       bonus: acc.bonus + line.bonusAmount,
       advanceDeduction: acc.advanceDeduction + line.advanceDeduction,
       collectionDeduction: acc.collectionDeduction + line.collectionDeduction,
+      otherDeduction:
+        acc.otherDeduction +
+        line.deductions.reduce((sum, row) => sum + row.amount, 0),
     }),
     {
       gross: 0,
@@ -476,6 +502,7 @@ async function buildPayrollLines(
       bonus: 0,
       advanceDeduction: 0,
       collectionDeduction: 0,
+      otherDeduction: 0,
     },
   )
 
@@ -833,4 +860,117 @@ export async function closePayroll(
 
     return getPayrollRun(tx, input.organizationId, input.bakeryId, run.id)
   })
+}
+
+export type AddPayrollDeductionInput = {
+  type: PayrollDeductionType
+  label: string
+  amount: number
+}
+
+function draftLineInputFromPreview(
+  line: PayrollLinePreview,
+  deductions: PayrollDeductionLine[],
+): SaveDraftPayrollLineInput {
+  const netAmount = netAfterDeductions({
+    grossAmount: line.grossAmount,
+    advanceDeduction: line.advanceDeduction,
+    collectionDeduction: line.collectionDeduction,
+    deductions,
+  })
+
+  const source =
+    line.lineSource === 'manual' ? ('manual' as const) : ('override' as const)
+
+  return {
+    employeeId: line.employeeId,
+    baseSalary: line.baseSalary,
+    commissionAmount: line.commissionAmount,
+    bonusAmount: line.bonusAmount,
+    advanceDeduction: line.advanceDeduction,
+    collectionDeduction: line.collectionDeduction,
+    grossAmount: line.grossAmount,
+    netAmount,
+    manualReason: line.manualReason ?? undefined,
+    source,
+    deductions,
+    computedSnapshot:
+      line.lineSource === 'computed'
+        ? snapshotFromPreview({ ...line, deductions: [] })
+        : undefined,
+  }
+}
+
+export async function addPayrollDeduction(
+  db: Database,
+  input: PayrollPeriodInput,
+  employeeId: string,
+  deduction: AddPayrollDeductionInput,
+): Promise<{ draftRunId: string; lineId: string }> {
+  if (deduction.amount <= 0) {
+    throw new PayrollServiceError(
+      'INVALID_STATE',
+      'Le montant de la retenue doit être positif',
+    )
+  }
+
+  const preview = await previewPayroll(db, input)
+  if (preview.isClosed) {
+    throw new PayrollServiceError(
+      'ALREADY_CLOSED',
+      'Cette période est déjà clôturée',
+    )
+  }
+
+  const line = preview.lines.find((row) => row.employeeId === employeeId)
+  if (!line) {
+    throw new PayrollServiceError('NOT_FOUND', 'Agent introuvable sur la période')
+  }
+
+  const deductions: PayrollDeductionLine[] = [
+    ...line.deductions,
+    {
+      id: crypto.randomUUID(),
+      type: deduction.type,
+      label: deduction.label.trim(),
+      amount: deduction.amount,
+    },
+  ]
+
+  return saveDraftPayrollLine(
+    db,
+    input,
+    draftLineInputFromPreview(line, deductions),
+  )
+}
+
+export async function removePayrollDeduction(
+  db: Database,
+  input: PayrollPeriodInput,
+  employeeId: string,
+  deductionId: string,
+): Promise<{ draftRunId: string; lineId: string }> {
+  const preview = await previewPayroll(db, input)
+  if (preview.isClosed) {
+    throw new PayrollServiceError(
+      'ALREADY_CLOSED',
+      'Cette période est déjà clôturée',
+    )
+  }
+
+  const line = preview.lines.find((row) => row.employeeId === employeeId)
+  if (!line) {
+    throw new PayrollServiceError('NOT_FOUND', 'Agent introuvable sur la période')
+  }
+
+  const deductions = line.deductions.filter((row) => row.id !== deductionId)
+  if (deductions.length === line.deductions.length) {
+    throw new PayrollServiceError('NOT_FOUND', 'Retenue introuvable')
+  }
+
+  return saveDraftPayrollLine(
+    db,
+    input,
+    draftLineInputFromPreview(line, deductions),
+  )
 }

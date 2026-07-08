@@ -34,6 +34,7 @@ const preview: PayrollPreview = {
       advanceInstallments: [],
       collectionBalance: null,
       collectionDeduction: 0,
+      deductions: [],
       grossAmount: 110_000,
       netAmount: 110_000,
       advanceInstallmentIds: [],
@@ -55,6 +56,7 @@ const preview: PayrollPreview = {
       advanceInstallments: [],
       collectionBalance: null,
       collectionDeduction: 0,
+      deductions: [],
       grossAmount: 85_000,
       netAmount: 85_000,
       advanceInstallmentIds: [],
@@ -68,6 +70,7 @@ const preview: PayrollPreview = {
     bonus: 5_000,
     advanceDeduction: 0,
     collectionDeduction: 0,
+    otherDeduction: 0,
   },
 }
 

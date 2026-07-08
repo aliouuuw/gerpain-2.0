@@ -114,5 +114,7 @@ export default {
     saveDraftLine: payroll.saveDraftLine,
     removeDraftLine: payroll.removeDraftLine,
     discardDraft: payroll.discardDraft,
+    addDeduction: payroll.addDeduction,
+    removeDeduction: payroll.removeDeduction,
   },
 }

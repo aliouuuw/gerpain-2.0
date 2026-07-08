@@ -20,6 +20,7 @@ export function buildPayrollCsv(preview: PayrollPreview): string {
     'Brut',
     'Retenues avances',
     'Retenues caisse',
+    'Autres retenues',
     'Net à payer',
   ]
 
@@ -32,6 +33,7 @@ export function buildPayrollCsv(preview: PayrollPreview): string {
     line.grossAmount,
     line.advanceDeduction,
     line.collectionDeduction,
+    line.deductions.reduce((sum, row) => sum + row.amount, 0),
     line.netAmount,
   ])
 
@@ -51,6 +53,7 @@ export function buildPayrollCsv(preview: PayrollPreview): string {
       totals.gross,
       totals.advanceDeduction,
       totals.collectionDeduction,
+      totals.otherDeduction ?? 0,
       totals.net,
     ]
       .map(csvCell)

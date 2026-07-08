@@ -33,6 +33,14 @@ import {
   downloadPayrollLinePdf,
   downloadPayrollPdf,
 } from '#/lib/payroll-pdf'
+import {
+  defaultDeductionLabel,
+  netAfterDeductions,
+  payrollDeductionTypeLabels,
+  payrollDeductionTypes,
+  sumPayrollDeductions,
+  type PayrollDeductionType,
+} from '#/lib/payroll-deduction-lines'
 import type { PayrollPreview } from '#/services/payroll'
 import { todayIso } from '#/lib/today'
 import { useToast } from '#/lib/toast'
@@ -84,6 +92,12 @@ type PayrollLine = {
     collectionCount: number
   } | null
   collectionDeduction: number
+  deductions: Array<{
+    id: string
+    type: PayrollDeductionType
+    label: string
+    amount: number
+  }>
   grossAmount: number
   netAmount: number
   advanceInstallmentIds: string[]
@@ -116,14 +130,16 @@ function grossFromForm(form: DraftLineForm): number {
   )
 }
 
-function netFromForm(form: DraftLineForm): number {
-  const gross = grossFromForm(form)
-  return Math.max(
-    gross -
-      parseAmount(form.advanceDeduction) -
-      parseAmount(form.collectionDeduction),
-    0,
-  )
+function netFromForm(
+  form: DraftLineForm,
+  deductions: PayrollLine['deductions'] = [],
+): number {
+  return netAfterDeductions({
+    grossAmount: grossFromForm(form),
+    advanceDeduction: parseAmount(form.advanceDeduction),
+    collectionDeduction: parseAmount(form.collectionDeduction),
+    deductions,
+  })
 }
 
 function lineSourceLabel(source: PayrollLine['lineSource']): string | null {
@@ -159,7 +175,11 @@ function soldeClass(solde: number): string {
 }
 
 function lineRetenues(line: PayrollLine): number {
-  return line.advanceDeduction + line.collectionDeduction
+  return (
+    line.advanceDeduction +
+    line.collectionDeduction +
+    sumPayrollDeductions(line.deductions)
+  )
 }
 
 function totalsScopeLabel(
@@ -178,6 +198,7 @@ function totalsScopeLabel(
 function retenuesMeta(
   advanceDeduction: number,
   collectionDeduction: number,
+  otherDeduction = 0,
 ): string | null {
   const parts: string[] = []
   if (advanceDeduction > 0) {
@@ -185,6 +206,9 @@ function retenuesMeta(
   }
   if (collectionDeduction > 0) {
     parts.push(`caisse ${formatXof(collectionDeduction)}`)
+  }
+  if (otherDeduction > 0) {
+    parts.push(`diverses ${formatXof(otherDeduction)}`)
   }
   return parts.length > 0 ? parts.join(' · ') : null
 }
@@ -249,6 +273,93 @@ function ExportMenu({
   )
 }
 
+function PayrollDeductionAddForm({
+  onSubmit,
+  pending,
+}: {
+  onSubmit: (input: {
+    type: PayrollDeductionType
+    label: string
+    amount: number
+  }) => void
+  pending?: boolean
+}) {
+  const [type, setType] = useState<PayrollDeductionType>('absence')
+  const [label, setLabel] = useState(defaultDeductionLabel('absence'))
+  const [amount, setAmount] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  return (
+    <form
+      className="pay-deduction-form"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const parsed = Number.parseInt(amount.replace(/\s/g, ''), 10)
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          setError('Montant invalide.')
+          return
+        }
+        setError(null)
+        onSubmit({
+          type,
+          label: label.trim() || defaultDeductionLabel(type),
+          amount: parsed,
+        })
+        setAmount('')
+      }}
+    >
+      <div className="pay-deduction-form__grid">
+        <label className="settings-form__field">
+          <span>Type</span>
+          <select
+            value={type}
+            onChange={(e) => {
+              const next = e.target.value as PayrollDeductionType
+              setType(next)
+              setLabel(defaultDeductionLabel(next))
+            }}
+          >
+            {payrollDeductionTypes.map((key) => (
+              <option key={key} value={key}>
+                {payrollDeductionTypeLabels[key]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="settings-form__field">
+          <span>Libellé</span>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={120}
+          />
+        </label>
+        <label className="settings-form__field">
+          <span>Montant (FCFA)</span>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </label>
+        <div className="settings-form__actions">
+          <button
+            type="submit"
+            className="btn-secondary btn-sm"
+            disabled={pending}
+          >
+            {pending ? 'Ajout…' : 'Ajouter la retenue'}
+          </button>
+        </div>
+      </div>
+      {error ? <p className="settings-form__error">{error}</p> : null}
+    </form>
+  )
+}
+
 function PayrollLineBreakdown({
   line,
   periodPreset,
@@ -259,6 +370,9 @@ function PayrollLineBreakdown({
   onEdit,
   onRemoveDraft,
   removeDraftPending,
+  onAddDeduction,
+  onRemoveDeduction,
+  deductionPending,
 }: {
   line: PayrollLine
   periodPreset: PeriodPreset
@@ -269,6 +383,13 @@ function PayrollLineBreakdown({
   onEdit?: () => void
   onRemoveDraft?: () => void
   removeDraftPending?: boolean
+  onAddDeduction?: (input: {
+    type: PayrollDeductionType
+    label: string
+    amount: number
+  }) => void
+  onRemoveDeduction?: (deductionId: string) => void
+  deductionPending?: boolean
 }) {
   return (
     <>
@@ -461,6 +582,59 @@ function PayrollLineBreakdown({
           </dd>
         </div>
       ) : null}
+      {line.deductions.length > 0 ? (
+        <div className="fiche-details__row">
+          <dt>Autres retenues</dt>
+          <dd className="num">
+            − {formatXof(sumPayrollDeductions(line.deductions))}
+            <span className="stats-lines__meta">
+              {line.deductions.length} ligne
+              {line.deductions.length > 1 ? 's' : ''} · déduit du net
+            </span>
+          </dd>
+        </div>
+      ) : null}
+      {line.deductions.length > 0 ? (
+        <div className="pay-breakdown__installments">
+          <table className="data-table data-table--compact">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Libellé</th>
+                <th className="num">Montant</th>
+                {showActions ? <th /> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {line.deductions.map((deduction) => (
+                <tr key={deduction.id}>
+                  <td>{payrollDeductionTypeLabels[deduction.type]}</td>
+                  <td>{deduction.label}</td>
+                  <td className="num">{formatXof(deduction.amount)}</td>
+                  {showActions ? (
+                    <td className="status-cell">
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        disabled={deductionPending}
+                        onClick={() => onRemoveDeduction?.(deduction.id)}
+                      >
+                        Retirer
+                      </button>
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+      {showActions && onAddDeduction ? (
+        <PayrollDeductionAddForm
+          onSubmit={onAddDeduction}
+          pending={deductionPending}
+        />
+      ) : null}
       <div className="fiche-details__row fiche-details__row--emphasis">
         <dt>Net à payer</dt>
         <dd className="num">{formatXof(line.netAmount)}</dd>
@@ -643,6 +817,28 @@ export function PaieView() {
     }),
   )
 
+  const addDeduction = useMutation(
+    orpc.payroll.addDeduction.mutationOptions({
+      onSuccess: () => {
+        mutationSuccess(toast, 'Retenue ajoutée')()
+        invalidatePreview()
+      },
+      onError: mutationError(toast, 'Impossible d\'ajouter la retenue'),
+    }),
+  )
+
+  const removeDeduction = useMutation(
+    orpc.payroll.removeDeduction.mutationOptions({
+      onSuccess: () => {
+        mutationSuccess(toast, 'Retenue retirée')()
+        invalidatePreview()
+      },
+      onError: mutationError(toast, 'Impossible de retirer la retenue'),
+    }),
+  )
+
+  const deductionPending = addDeduction.isPending || removeDeduction.isPending
+
   const lines = (preview.data?.lines ?? []) as PayrollLine[]
 
   const roleCounts = useMemo(() => {
@@ -739,11 +935,12 @@ export function PaieView() {
       return
     }
 
-    const grossAmount = grossFromForm(draftForm)
-    const netAmount = netFromForm(draftForm)
     const existingLine = lines.find(
       (line) => line.employeeId === draftForm.employeeId,
     )
+    const grossAmount = grossFromForm(draftForm)
+    const deductions = existingLine?.deductions ?? editingLine?.deductions ?? []
+    const netAmount = netFromForm(draftForm, deductions)
     const source =
       existingLine?.lineSource === 'manual' || (!existingLine && !editingLine)
         ? ('manual' as const)
@@ -772,6 +969,7 @@ export function PaieView() {
       netAmount,
       manualReason: draftForm.manualReason.trim() || undefined,
       source,
+      deductions,
       computedSnapshot,
     })
   }
@@ -851,7 +1049,9 @@ export function PaieView() {
 
   const periodTitle = formatPeriodLabel(startDate, endDate)
   const totalsRetenues = totals
-    ? totals.advanceDeduction + totals.collectionDeduction
+    ? totals.advanceDeduction +
+      totals.collectionDeduction +
+      (totals.otherDeduction ?? 0)
     : 0
 
   return (
@@ -1031,11 +1231,13 @@ export function PaieView() {
                   {retenuesMeta(
                     totals.advanceDeduction,
                     totals.collectionDeduction,
+                    totals.otherDeduction,
                   ) ? (
                     <span className="stats-lines__meta">
                       {retenuesMeta(
                         totals.advanceDeduction,
                         totals.collectionDeduction,
+                        totals.otherDeduction,
                       )}
                     </span>
                   ) : null}
@@ -1249,6 +1451,33 @@ export function PaieView() {
                                   : undefined
                               }
                               removeDraftPending={removeDraftLine.isPending}
+                              deductionPending={deductionPending}
+                              onAddDeduction={
+                                canManage && !isClosed && bakeryId
+                                  ? (input) => {
+                                      addDeduction.mutate({
+                                        bakeryId,
+                                        startDate,
+                                        endDate,
+                                        employeeId: line.employeeId,
+                                        ...input,
+                                      })
+                                    }
+                                  : undefined
+                              }
+                              onRemoveDeduction={
+                                canManage && !isClosed && bakeryId
+                                  ? (deductionId) => {
+                                      removeDeduction.mutate({
+                                        bakeryId,
+                                        startDate,
+                                        endDate,
+                                        employeeId: line.employeeId,
+                                        deductionId,
+                                      })
+                                    }
+                                  : undefined
+                              }
                             />
                           </td>
                         </tr>

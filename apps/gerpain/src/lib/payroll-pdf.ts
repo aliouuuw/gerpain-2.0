@@ -5,6 +5,10 @@ import { employeeRoleLabel } from '#/lib/employee-labels'
 import { formatXofPdf } from '#/lib/format-money'
 import { formatPeriodLabel } from '#/lib/period'
 import { subsetPayrollPreview } from '#/lib/payroll-preview-utils'
+import {
+  payrollDeductionTypeLabels,
+  sumPayrollDeductions,
+} from '#/lib/payroll-deduction-lines'
 import type { PayrollLinePreview, PayrollPreview } from '#/services/payroll'
 
 const MARGIN = 16
@@ -166,7 +170,7 @@ function drawDetailBlock(
 
   y = ficheRow(doc, y, 'Salaire de base', formatXofPdf(line.baseSalary))
 
-  if (line.role === 'delivery') {
+  if (line.commissionAmount > 0 || line.commissionProducts.length > 0) {
     y = ficheRow(doc, y, 'Commission produits', formatXofPdf(line.commissionAmount), {
       meta: commissionMeta(line),
     })
@@ -201,7 +205,7 @@ function drawDetailBlock(
     }
   }
 
-  if (line.role === 'delivery' && line.collectionBalance) {
+  if (line.collectionBalance) {
     const label =
       line.collectionDeduction > 0
         ? 'Retenue caisse (manque)'
@@ -214,6 +218,27 @@ function drawDetailBlock(
       meta: collectionMeta(line),
       muted: line.collectionDeduction > 0,
     })
+  }
+
+  if (line.deductions.length > 0) {
+    const otherTotal = sumPayrollDeductions(line.deductions)
+    y = ficheRow(doc, y, 'Autres retenues', formatXofPdf(otherTotal), {
+      meta: `${line.deductions.length} ligne${line.deductions.length > 1 ? 's' : ''}`,
+      muted: true,
+      skipBorder: true,
+    })
+    y = drawNestedTable(
+      doc,
+      y,
+      ['Type', 'Libellé', 'Montant'],
+      line.deductions.map((row) => [
+        payrollDeductionTypeLabels[row.type],
+        row.label,
+        formatXofPdf(row.amount),
+      ]),
+    )
+    hr(doc, y)
+    y += 6
   }
 
   y = ficheRow(doc, y, 'Net à payer', formatXofPdf(line.netAmount), {

@@ -62,7 +62,7 @@ Roadmap: `docs/payroll-roadmap.md` (F1–F3). Tasks mirrored in `prd.json`.
 | F1-F | Preview warnings (net=0, no remuneration) | Done (badges in `PaieView`) |
 | F1-G | Totals bar: commission + primes | Done (synthesis strip) |
 
-**Remaining F1:** F1-D (free-form deduction lines), F1-H (bulk adjustment), F1-I (computed vs override diff), F1-J (forecast payroll mass in Rémunération).
+**Remaining F1:** F1-H (bulk adjustment), F1-I (computed vs override diff), F1-J (forecast payroll mass in Rémunération).
 
 ### Sprint D — done
 
@@ -209,10 +209,9 @@ bun run typecheck && bun run test && bun run build
 
 ## Next session
 
-1. **F1-D** — Structured `deductions[]` per payroll line (disciplinary, absence, cotisation) — schema + draft + close + PDF
-2. **F1-H** — Bulk adjustment: apply amount/rate to selected lines as draft overrides with shared reason
-3. **F2-A/B** — `payrollRunEvents` schema + audit journal timeline on run detail (foundation for reopen)
-4. **Housekeeping** — Push local commits; smoke test Paie with 50% collection deduction rate
+1. **F1-H** — Bulk adjustment: apply amount/rate to selected lines as draft overrides with shared reason
+2. **F1-I** — Computed vs override diff in expanded payroll row
+3. **F2-A/B** — `payrollRunEvents` schema + audit journal timeline on run detail
 
 ---
 

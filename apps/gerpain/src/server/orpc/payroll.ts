@@ -4,12 +4,15 @@ import { z } from 'zod'
 import { db, legacyUserIdForEmail } from '@gerpain/db'
 
 import { getBakeryForOrg } from '#/services/bakeries'
+import { payrollDeductionTypes } from '#/lib/payroll-deduction-lines'
 import {
+  addPayrollDeduction,
   closePayroll,
   getPayrollRun,
   listPayrollRuns,
   PayrollServiceError,
   previewPayroll,
+  removePayrollDeduction,
 } from '#/services/payroll'
 import {
   discardDraftPayrollRun,
@@ -175,7 +178,27 @@ const draftLineInput = periodInput.extend({
         .nullable(),
       advanceInstallmentIds: z.array(z.string().uuid()),
       bonusIds: z.array(z.string().uuid()),
+      deductions: z
+        .array(
+          z.object({
+            id: z.string().uuid(),
+            type: z.enum(payrollDeductionTypes),
+            label: z.string().min(1).max(120),
+            amount: z.number().int().min(0),
+          }),
+        )
+        .optional(),
     })
+    .optional(),
+  deductions: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        type: z.enum(payrollDeductionTypes),
+        label: z.string().min(1).max(120),
+        amount: z.number().int().min(0),
+      }),
+    )
     .optional(),
 })
 
@@ -202,7 +225,12 @@ export const saveDraftLine = orgContext
           startDate,
           endDate,
         },
-        { ...line, computedSnapshot },
+        {
+          ...line,
+          computedSnapshot: computedSnapshot
+            ? { ...computedSnapshot, deductions: computedSnapshot.deductions ?? [] }
+            : undefined,
+        },
       )
     } catch (error) {
       mapPayrollError(error)
@@ -250,6 +278,69 @@ export const discardDraft = orgContext
         endDate: input.endDate,
       })
       return { ok: true as const }
+    } catch (error) {
+      mapPayrollError(error)
+    }
+  })
+
+export const addDeduction = orgContext
+  .input(
+    periodInput.extend({
+      employeeId: z.string().uuid(),
+      type: z.enum(payrollDeductionTypes),
+      label: z.string().min(1).max(120),
+      amount: z.number().int().min(1),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    const { bakeryId, startDate, endDate, employeeId, type, label, amount } =
+      input
+
+    try {
+      return await addPayrollDeduction(
+        db,
+        {
+          organizationId: context.legacyOrganizationId,
+          bakeryId,
+          startDate,
+          endDate,
+        },
+        employeeId,
+        { type, label, amount },
+      )
+    } catch (error) {
+      mapPayrollError(error)
+    }
+  })
+
+export const removeDeduction = orgContext
+  .input(
+    periodInput.extend({
+      employeeId: z.string().uuid(),
+      deductionId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, input }) => {
+    assertManagerRole(context.memberRole)
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    const { bakeryId, startDate, endDate, employeeId, deductionId } = input
+
+    try {
+      return await removePayrollDeduction(
+        db,
+        {
+          organizationId: context.legacyOrganizationId,
+          bakeryId,
+          startDate,
+          endDate,
+        },
+        employeeId,
+        deductionId,
+      )
     } catch (error) {
       mapPayrollError(error)
     }

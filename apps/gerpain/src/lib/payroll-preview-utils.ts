@@ -19,6 +19,11 @@ export function totalsFromPayrollLines(
       (sum, line) => sum + line.collectionDeduction,
       0,
     ),
+    otherDeduction: lines.reduce(
+      (sum, line) =>
+        sum + line.deductions.reduce((inner, row) => inner + row.amount, 0),
+      0,
+    ),
   }
 }
 

@@ -24,6 +24,7 @@ function line(
     netAmount: 0,
     advanceInstallmentIds: [],
     bonusIds: [],
+    deductions: [],
     ...partial,
   }
 }

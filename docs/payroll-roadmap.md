@@ -27,7 +27,7 @@ Reference views/services:
 | F1-A | Remove or wire `employees.commissionRate` | Ghost field, defined in schema, never read by `buildPayrollLines`. Decide: delete or implement % commission. | S |
 | F1-B | Commissions for all roles | Drop `role === 'delivery'` gate in `buildPayrollLines`; any employee with active `employeeProducts` earns commission. | S |
 | F1-C | Configurable collection shortfall rate | Done (bakery settings + `collectionShortfallDeduction`) |
-| F1-D | Free-form deduction lines | `deductions[]` on payroll line (type, label, amount): disciplinary, absence, cotisation. Distinct from advance/collection. Schema + draft + close + PDF. | L |
+| F1-D | Free-form deduction lines | Done (`deductions[]` in detail snapshot + Paie UI + CSV/PDF) |
 | F1-E | Validate `duePeriod` format (`YYYY-MM`) | Zod regex on bonus create + month picker in `BonusesView`. Prevents unmatched bonuses. | S |
 | F1-F | Preview warnings | Flag lines with net = 0 without draft, and active agents with no salary and no products. | S |
 | F1-G | Totals bar: show commission + primes | Already computed in `totals`, just not displayed in `PaieView` synthesis. | S |

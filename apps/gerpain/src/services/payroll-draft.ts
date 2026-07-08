@@ -16,6 +16,10 @@ import {
   snapshotFromPreview,
 } from '#/services/payroll'
 import { periodLabelFromEndDate } from '#/lib/period'
+import {
+  netAfterDeductions,
+  type PayrollDeductionLine,
+} from '#/lib/payroll-deduction-lines'
 
 export type PayrollLineSource = 'computed' | 'manual' | 'override'
 
@@ -36,6 +40,7 @@ export type SaveDraftPayrollLineInput = {
   netAmount: number
   manualReason?: string
   source: 'manual' | 'override'
+  deductions?: PayrollDeductionLine[]
   computedSnapshot?: PayrollLineSnapshot
 }
 
@@ -62,6 +67,7 @@ function snapshotFieldsFromDetail(
   | 'collectionBalance'
   | 'advanceInstallmentIds'
   | 'bonusIds'
+  | 'deductions'
 > {
   if (!detail) {
     return {
@@ -74,6 +80,7 @@ function snapshotFieldsFromDetail(
       collectionBalance: null,
       advanceInstallmentIds: [],
       bonusIds: [],
+      deductions: [],
     }
   }
 
@@ -87,6 +94,7 @@ function snapshotFieldsFromDetail(
     collectionBalance: detail.collectionBalance ?? null,
     advanceInstallmentIds: detail.advanceInstallmentIds ?? [],
     bonusIds: detail.bonusIds ?? [],
+    deductions: detail.deductions ?? [],
   }
 }
 
@@ -282,10 +290,12 @@ function validateDraftAmounts(input: SaveDraftPayrollLineInput): void {
     )
   }
 
-  const expectedNet = Math.max(
-    input.grossAmount - input.advanceDeduction - input.collectionDeduction,
-    0,
-  )
+  const expectedNet = netAfterDeductions({
+    grossAmount: input.grossAmount,
+    advanceDeduction: input.advanceDeduction,
+    collectionDeduction: input.collectionDeduction,
+    deductions: input.deductions ?? [],
+  })
   if (expectedNet !== input.netAmount) {
     throw new PayrollServiceError(
       'INVALID_STATE',
@@ -307,10 +317,12 @@ function buildDetailSnapshot(
     collectionBalance: null,
     advanceInstallmentIds: [],
     bonusIds: [],
+    deductions: [],
   }
 
   return {
     ...base,
+    deductions: input.deductions ?? base.deductions ?? [],
     source: input.source,
     manualReason: input.manualReason?.trim() || null,
     ...(input.source === 'override' && input.computedSnapshot
@@ -358,6 +370,7 @@ export async function saveDraftPayrollLine(
       const existingDetail = parseDetailSnapshot(existingRow?.detailSnapshot)
       const detailSnapshot = buildDetailSnapshot({
         ...line,
+        deductions: line.deductions ?? existingDetail?.deductions ?? [],
         computedSnapshot:
           line.computedSnapshot ?? existingDetail?.computedSnapshot,
       })
