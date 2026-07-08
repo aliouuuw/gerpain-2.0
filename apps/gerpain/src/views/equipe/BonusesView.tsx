@@ -231,12 +231,11 @@ export function BonusesView() {
             />
           </label>
           <label className="settings-form__field">
-            <span>Période due (AAAA-MM)</span>
+            <span>Période due</span>
             <input
-              type="text"
+              type="month"
               value={duePeriod}
               onChange={(e) => setDuePeriod(e.target.value)}
-              placeholder="2026-07"
             />
           </label>
           <label className="settings-form__field">

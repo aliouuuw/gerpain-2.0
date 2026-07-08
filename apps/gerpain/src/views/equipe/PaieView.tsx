@@ -998,7 +998,7 @@ export function PaieView() {
             {totalsScopeLabel(hasSelection, selectedIds.length, roleFilter)} ·{' '}
             {periodTitle}
           </p>
-          <div className="stats-grid stats-grid--3">
+          <div className="stats-grid stats-grid--5">
             <dl className="stats-grid__col">
               <div className="stats-lines__row">
                 <dt>Net à payer</dt>
@@ -1009,6 +1009,18 @@ export function PaieView() {
               <div className="stats-lines__row">
                 <dt>Brut total</dt>
                 <dd>{formatXof(totals.gross)}</dd>
+              </div>
+            </dl>
+            <dl className="stats-grid__col">
+              <div className="stats-lines__row">
+                <dt>Commissions</dt>
+                <dd>{totals.commission > 0 ? formatXof(totals.commission) : '—'}</dd>
+              </div>
+            </dl>
+            <dl className="stats-grid__col">
+              <div className="stats-lines__row">
+                <dt>Primes</dt>
+                <dd>{totals.bonus > 0 ? formatXof(totals.bonus) : '—'}</dd>
               </div>
             </dl>
             <dl className="stats-grid__col">
@@ -1178,6 +1190,17 @@ export function PaieView() {
                             <>
                               {' '}
                               <Badge variant="info">{sourceLabel}</Badge>
+                            </>
+                          ) : null}
+                          {!isClosed && line.netAmount === 0 && line.grossAmount === 0 ? (
+                            <>
+                              {' '}
+                              <Badge variant="warning">Aucune rémunération</Badge>
+                            </>
+                          ) : !isClosed && line.netAmount === 0 && line.grossAmount > 0 ? (
+                            <>
+                              {' '}
+                              <Badge variant="warning">Net = 0</Badge>
                             </>
                           ) : null}
                         </td>

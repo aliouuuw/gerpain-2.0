@@ -384,16 +384,10 @@ async function buildPayrollLines(
   const lines: PayrollLinePreview[] = activeEmployees.map((employee) => {
     const baseSalary = employee.baseSalary ?? 0
     const commissionRow = commissionByEmployee.get(employee.id)
-    const commissionAmount =
-      employee.role === 'delivery' ? (commissionRow?.commissionDue ?? 0) : 0
-    const commissionUnitsSold =
-      employee.role === 'delivery' ? (commissionRow?.unitsSold ?? 0) : 0
-    const commissionValidatedRuns =
-      employee.role === 'delivery' ? (commissionRow?.validatedRuns ?? 0) : 0
-    const commissionProducts =
-      employee.role === 'delivery'
-        ? (commissionProductsByEmployee.get(employee.id) ?? [])
-        : []
+    const commissionAmount = commissionRow?.commissionDue ?? 0
+    const commissionUnitsSold = commissionRow?.unitsSold ?? 0
+    const commissionValidatedRuns = commissionRow?.validatedRuns ?? 0
+    const commissionProducts = commissionProductsByEmployee.get(employee.id) ?? []
     const commissionUnitsCommissioned = commissionProducts.reduce(
       (sum, row) =>
         row.commissionPerUnit > 0 ? sum + row.unitsSold : sum,
@@ -401,7 +395,7 @@ async function buildPayrollLines(
     )
     const collectionRow = collectionBalanceByEmployee.get(employee.id)
     const collectionBalance =
-      employee.role === 'delivery' && collectionRow
+      collectionRow
         ? {
             totalExpected: collectionRow.totalExpected,
             totalCollected: collectionRow.totalCollected,
