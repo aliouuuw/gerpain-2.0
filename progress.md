@@ -62,7 +62,7 @@ Roadmap: `docs/payroll-roadmap.md` (F1–F3). Tasks mirrored in `prd.json`.
 | F1-F | Preview warnings (net=0, no remuneration) | Done (badges in `PaieView`) |
 | F1-G | Totals bar: commission + primes | Done (synthesis strip) |
 
-**Remaining F1:** F1-I (computed vs override diff), F1-J (forecast payroll mass in Rémunération).
+**Remaining F1:** none — Sprint F1 complete. Next: F2 audit foundation.
 
 ### Sprint D — done
 

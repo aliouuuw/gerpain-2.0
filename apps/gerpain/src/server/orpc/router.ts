@@ -109,6 +109,7 @@ export default {
   payroll: {
     preview: payroll.preview,
     list: payroll.list,
+    forecast: payroll.forecast,
     get: payroll.get,
     close: payroll.close,
     saveDraftLine: payroll.saveDraftLine,

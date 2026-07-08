@@ -20,6 +20,7 @@ import {
   netAfterDeductions,
   type PayrollDeductionLine,
 } from '#/lib/payroll-deduction-lines'
+import type { PayrollLineComputedAmounts } from '#/lib/payroll-line-diff'
 
 export type PayrollLineSource = 'computed' | 'manual' | 'override'
 
@@ -27,6 +28,7 @@ export type PayrollLineDetailSnapshot = PayrollLineSnapshot & {
   source?: 'manual' | 'override'
   manualReason?: string | null
   computedSnapshot?: PayrollLineSnapshot
+  computedAmounts?: PayrollLineComputedAmounts
 }
 
 export type SaveDraftPayrollLineInput = {
@@ -42,6 +44,7 @@ export type SaveDraftPayrollLineInput = {
   source: 'manual' | 'override'
   deductions?: PayrollDeductionLine[]
   computedSnapshot?: PayrollLineSnapshot
+  computedAmounts?: PayrollLineComputedAmounts
 }
 
 export type DraftPayrollLineResult = {
@@ -160,6 +163,7 @@ function draftDbLineToPreview(
     lineSource: source,
     manualReason: detail?.manualReason ?? null,
     draftLineId: row.id,
+    computedAmounts: detail?.computedAmounts ?? null,
   }
 }
 
@@ -328,6 +332,9 @@ function buildDetailSnapshot(
     ...(input.source === 'override' && input.computedSnapshot
       ? { computedSnapshot: input.computedSnapshot }
       : {}),
+    ...(input.source === 'override' && input.computedAmounts
+      ? { computedAmounts: input.computedAmounts }
+      : {}),
   }
 }
 
@@ -373,6 +380,8 @@ export async function saveDraftPayrollLine(
         deductions: line.deductions ?? existingDetail?.deductions ?? [],
         computedSnapshot:
           line.computedSnapshot ?? existingDetail?.computedSnapshot,
+        computedAmounts:
+          line.computedAmounts ?? existingDetail?.computedAmounts,
       })
 
       const [updated] = await tx

@@ -37,6 +37,12 @@ import {
   type PayrollDeductionLine,
   type PayrollDeductionType,
 } from '#/lib/payroll-deduction-lines'
+import type { PayrollLineComputedAmounts } from '#/lib/payroll-line-diff'
+import {
+  amountsFromPayrollLine,
+  closeDetailSnapshot,
+  parsePayrollLineDetailMeta,
+} from '#/lib/payroll-line-diff'
 import {
   deleteDraftPayrollRunInTx,
   loadDraftPayrollLines,
@@ -116,6 +122,7 @@ export type PayrollLinePreview = {
   lineSource?: PayrollLineSource
   manualReason?: string | null
   draftLineId?: string | null
+  computedAmounts?: PayrollLineComputedAmounts | null
 }
 
 /** Frozen at close — commission/cash detail for audit without recomputing. */
@@ -637,19 +644,25 @@ export async function getPayrollRun(
     throw new PayrollServiceError('NOT_FOUND', 'Clôture de paie introuvable')
   }
 
-  const lines: PayrollLinePreview[] = run.lines.map((line) => ({
-    employeeId: line.employeeId,
-    employeeName: `${line.employee.firstName} ${line.employee.lastName}`,
-    role: line.employee.role,
-    baseSalary: line.baseSalary,
-    commissionAmount: line.commissionAmount,
-    bonusAmount: line.bonusAmount,
-    advanceDeduction: line.advanceDeduction,
-    collectionDeduction: line.collectionDeduction,
-    grossAmount: line.grossAmount,
-    netAmount: line.netAmount,
-    ...snapshotFields(parseLineSnapshot(line.detailSnapshot)),
-  }))
+  const lines: PayrollLinePreview[] = run.lines.map((line) => {
+    const detailMeta = parsePayrollLineDetailMeta(line.detailSnapshot)
+    return {
+      employeeId: line.employeeId,
+      employeeName: `${line.employee.firstName} ${line.employee.lastName}`,
+      role: line.employee.role,
+      baseSalary: line.baseSalary,
+      commissionAmount: line.commissionAmount,
+      bonusAmount: line.bonusAmount,
+      advanceDeduction: line.advanceDeduction,
+      collectionDeduction: line.collectionDeduction,
+      grossAmount: line.grossAmount,
+      netAmount: line.netAmount,
+      ...snapshotFields(parseLineSnapshot(line.detailSnapshot)),
+      lineSource: detailMeta?.source,
+      manualReason: detailMeta?.manualReason ?? null,
+      computedAmounts: detailMeta?.computedAmounts ?? null,
+    }
+  })
 
   return {
     id: run.id,
@@ -766,7 +779,10 @@ export async function closePayroll(
           collectionDeduction: line.collectionDeduction,
           grossAmount: line.grossAmount,
           netAmount: line.netAmount,
-          detailSnapshot: snapshotFromPreview(line),
+          detailSnapshot: closeDetailSnapshot(
+            line,
+            snapshotFromPreview(line) as Record<string, unknown>,
+          ),
           createdAt: now,
         })),
       )
@@ -898,6 +914,10 @@ function draftLineInputFromPreview(
       line.lineSource === 'computed'
         ? snapshotFromPreview({ ...line, deductions: [] })
         : undefined,
+    computedAmounts:
+      line.lineSource === 'computed'
+        ? amountsFromPayrollLine(line)
+        : line.computedAmounts ?? undefined,
   }
 }
 
@@ -1067,6 +1087,11 @@ export async function bulkAdjustPayrollLines(
       line.manualReason && line.lineSource !== 'computed'
         ? `${line.manualReason}; ${reason}`
         : reason
+    if (line.computedAmounts) {
+      draftInput.computedAmounts = line.computedAmounts
+    } else if (line.lineSource === 'computed') {
+      draftInput.computedAmounts = amountsFromPayrollLine(line)
+    }
 
     await saveDraftPayrollLine(db, input, draftInput)
     adjustedCount += 1
@@ -1080,4 +1105,73 @@ export async function bulkAdjustPayrollLines(
   }
 
   return { adjustedCount }
+}
+
+export type PayrollForecast = {
+  baseSalaryMass: number
+  previousPeriodCommission: number
+  forecastGross: number
+  referencePeriod: {
+    startDate: string
+    endDate: string
+    periodLabel: string
+  } | null
+}
+
+/** Base salaries + commissions from the most recent closed payroll period. */
+export async function getPayrollForecast(
+  db: Database,
+  organizationId: string,
+  bakeryId: string,
+): Promise<PayrollForecast> {
+  const activeEmployees = await listEmployees(db, organizationId, bakeryId, {
+    status: 'active',
+  })
+
+  const baseSalaryMass = activeEmployees.reduce(
+    (sum, employee) => sum + (employee.baseSalary ?? 0),
+    0,
+  )
+
+  const lastRun = await db.query.payrollRuns.findFirst({
+    where: and(
+      eq(payrollRuns.organizationId, organizationId),
+      eq(payrollRuns.bakeryId, bakeryId),
+      eq(payrollRuns.status, 'closed'),
+    ),
+    orderBy: [desc(payrollRuns.endDate)],
+    with: {
+      lines: {
+        columns: {
+          employeeId: true,
+          commissionAmount: true,
+        },
+      },
+    },
+  })
+
+  const commissionByEmployee = new Map(
+    (lastRun?.lines ?? []).map((line) => [
+      line.employeeId,
+      line.commissionAmount,
+    ]),
+  )
+
+  const previousPeriodCommission = activeEmployees.reduce(
+    (sum, employee) => sum + (commissionByEmployee.get(employee.id) ?? 0),
+    0,
+  )
+
+  return {
+    baseSalaryMass,
+    previousPeriodCommission,
+    forecastGross: baseSalaryMass + previousPeriodCommission,
+    referencePeriod: lastRun
+      ? {
+          startDate: lastRun.startDate,
+          endDate: lastRun.endDate,
+          periodLabel: lastRun.periodLabel,
+        }
+      : null,
+  }
 }

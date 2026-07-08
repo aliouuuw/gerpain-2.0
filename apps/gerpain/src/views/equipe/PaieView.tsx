@@ -41,6 +41,11 @@ import {
   sumPayrollDeductions,
   type PayrollDeductionType,
 } from '#/lib/payroll-deduction-lines'
+import {
+  amountsFromPayrollLine,
+  payrollLineDiff,
+  type PayrollLineComputedAmounts,
+} from '#/lib/payroll-line-diff'
 import type { PayrollPreview } from '#/services/payroll'
 import { todayIso } from '#/lib/today'
 import { useToast } from '#/lib/toast'
@@ -104,6 +109,7 @@ type PayrollLine = {
   bonusIds: string[]
   lineSource?: 'computed' | 'manual' | 'override'
   manualReason?: string | null
+  computedAmounts?: PayrollLineComputedAmounts | null
   draftLineId?: string | null
 }
 
@@ -172,6 +178,54 @@ function soldeClass(solde: number): string {
   if (solde < 0) return 'money-strip__value--warn'
   if (solde > 0) return 'money-strip__value--info'
   return 'money-strip__value--ok'
+}
+
+function formatDiffDelta(delta: number): string {
+  if (delta > 0) return `+${formatXof(delta)}`
+  return formatXof(delta)
+}
+
+function diffDeltaClass(delta: number): string {
+  if (delta > 0) return 'pay-diff__delta--pos'
+  if (delta < 0) return 'pay-diff__delta--neg'
+  return ''
+}
+
+function PayrollLineDiffTable({ line }: { line: PayrollLine }) {
+  const diff = useMemo(() => {
+    if (!line.computedAmounts) return []
+    return payrollLineDiff(line.computedAmounts, amountsFromPayrollLine(line))
+  }, [line])
+
+  if (diff.length === 0) return null
+
+  return (
+    <div className="pay-diff">
+      <p className="pay-diff__title">Écart calculé → ajusté</p>
+      <table className="data-table data-table--compact pay-diff__table">
+        <thead>
+          <tr>
+            <th>Poste</th>
+            <th className="num">Calculé</th>
+            <th className="num">Ajusté</th>
+            <th className="num">Écart</th>
+          </tr>
+        </thead>
+        <tbody>
+          {diff.map((row) => (
+            <tr key={row.field}>
+              <td>{row.label}</td>
+              <td className="num">{formatXof(row.before)}</td>
+              <td className="num">{formatXof(row.after)}</td>
+              <td className={`num ${diffDeltaClass(row.delta)}`}>
+                {formatDiffDelta(row.delta)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 function lineRetenues(line: PayrollLine): number {
@@ -432,6 +486,9 @@ function PayrollLineBreakdown({
             </div>
           ) : null}
         </div>
+      ) : null}
+      {line.lineSource === 'override' && line.computedAmounts ? (
+        <PayrollLineDiffTable line={line} />
       ) : null}
     <dl className="fiche-details pay-breakdown">
       <div className="fiche-details__row">
@@ -1005,6 +1062,15 @@ export function PaieView() {
           )
         : undefined
 
+    const computedAmounts =
+      source === 'override'
+        ? existingLine?.lineSource === 'computed'
+          ? amountsFromPayrollLine(existingLine)
+          : (existingLine?.computedAmounts ??
+            editingLine?.computedAmounts ??
+            undefined)
+        : undefined
+
     saveDraftLine.mutate({
       bakeryId,
       startDate,
@@ -1021,6 +1087,7 @@ export function PaieView() {
       source,
       deductions,
       computedSnapshot,
+      computedAmounts,
     })
   }
 

@@ -1244,6 +1244,37 @@ html, body {
   font-style: italic;
 }
 
+.pay-diff {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: var(--surface-2, color-mix(in srgb, var(--border) 12%, var(--surface)));
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.pay-diff__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.pay-diff__table {
+  margin: 0;
+}
+
+.pay-diff__delta--pos {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.pay-diff__delta--neg {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .stats-grid__col {
   margin: 0;
   display: flex;

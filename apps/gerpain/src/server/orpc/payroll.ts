@@ -9,6 +9,7 @@ import {
   addPayrollDeduction,
   bulkAdjustPayrollLines,
   closePayroll,
+  getPayrollForecast,
   getPayrollRun,
   listPayrollRuns,
   PayrollServiceError,
@@ -77,6 +78,18 @@ export const list = orgContext
     await assertBakery(context.legacyOrganizationId, input.bakeryId)
 
     return listPayrollRuns(
+      db,
+      context.legacyOrganizationId,
+      input.bakeryId,
+    )
+  })
+
+export const forecast = orgContext
+  .input(bakeryIdInput)
+  .handler(async ({ context, input }) => {
+    await assertBakery(context.legacyOrganizationId, input.bakeryId)
+
+    return getPayrollForecast(
       db,
       context.legacyOrganizationId,
       input.bakeryId,
@@ -200,6 +213,17 @@ const draftLineInput = periodInput.extend({
         amount: z.number().int().min(0),
       }),
     )
+    .optional(),
+  computedAmounts: z
+    .object({
+      baseSalary: z.number().int().min(0),
+      commissionAmount: z.number().int().min(0),
+      bonusAmount: z.number().int().min(0),
+      advanceDeduction: z.number().int().min(0),
+      collectionDeduction: z.number().int().min(0),
+      grossAmount: z.number().int().min(0),
+      netAmount: z.number().int().min(0),
+    })
     .optional(),
 })
 

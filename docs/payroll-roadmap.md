@@ -32,8 +32,8 @@ Reference views/services:
 | F1-F | Preview warnings | Flag lines with net = 0 without draft, and active agents with no salary and no products. | S |
 | F1-G | Totals bar: show commission + primes | Already computed in `totals`, just not displayed in `PaieView` synthesis. | S |
 | F1-H | Bulk adjustment | Done (selection bar + draft overrides with shared reason) |
-| F1-I | Computed vs override diff in expanded line | `computedSnapshot` already persisted; show old → new values. | M |
-| F1-J | Forecast payroll mass in `RemunerationView` | Base salaries + previous-period average commissions. | M |
+| F1-I | Computed vs override diff in expanded line | Done (`computedAmounts` in detail snapshot + diff table in Paie breakdown) |
+| F1-J | Forecast payroll mass in `RemunerationView` | Done (`payroll.forecast` + synthèse « Masse paie estimée ») |
 
 ## F2 — Closed-period corrections & serious history (ERP-grade)
 

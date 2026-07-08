@@ -37,6 +37,11 @@ export function RemunerationView({
     enabled: Boolean(bakeryId),
   })
 
+  const payrollForecast = useQuery({
+    ...orpc.payroll.forecast.queryOptions({ input: { bakeryId } }),
+    enabled: Boolean(bakeryId),
+  })
+
   const activeEmployees = useMemo(
     () => (employees.data ?? []).filter((e) => e.status === 'active'),
     [employees.data],
@@ -157,6 +162,21 @@ export function RemunerationView({
           <div className="stats-lines__row">
             <dt>Masse salariale / mois</dt>
             <dd>{formatXof(summary.monthlyPayroll)}</dd>
+          </div>
+        </dl>
+        <dl className="stats-grid__col">
+          <div className="stats-lines__row">
+            <dt>Masse paie estimée</dt>
+            <dd>
+              {payrollForecast.isLoading
+                ? '…'
+                : formatXof(payrollForecast.data?.forecastGross ?? summary.monthlyPayroll)}
+              <span className="stats-lines__meta">
+                {payrollForecast.data?.referencePeriod
+                  ? `base + commissions ${payrollForecast.data.referencePeriod.periodLabel}`
+                  : 'base seule (aucune paie clôturée)'}
+              </span>
+            </dd>
           </div>
         </dl>
         <dl className="stats-grid__col">

@@ -622,7 +622,42 @@
         "packages/db"
       ],
       "verification": ["bun run test", "bun run typecheck"],
-      "passes": false
+      "passes": true
+    },
+    {
+      "group": "Sprint F1 — Payroll flexibility",
+      "sprint": "F1",
+      "feature": "Computed vs override diff in expanded payroll row",
+      "description": "F1-I: persist computedAmounts on override draft/close; show calculé → ajusté diff table in Paie breakdown.",
+      "acceptance_criteria": [
+        "Override lines store computedAmounts in detail_snapshot",
+        "Expanded row shows before/after delta for changed amount fields",
+        "Closed runs restore diff metadata from detail_snapshot"
+      ],
+      "files": [
+        "apps/gerpain/src/lib/payroll-line-diff.ts",
+        "apps/gerpain/src/services/payroll.ts",
+        "apps/gerpain/src/views/equipe/PaieView.tsx"
+      ],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": true
+    },
+    {
+      "group": "Sprint F1 — Payroll flexibility",
+      "sprint": "F1",
+      "feature": "Forecast payroll mass in Rémunération view",
+      "description": "F1-J: payroll.forecast returns base salary mass + previous closed period commissions; RemunerationView synthesis shows estimated payroll mass.",
+      "acceptance_criteria": [
+        "Forecast uses active employees base salaries",
+        "Commissions taken from most recent closed payroll run per agent",
+        "UI shows reference period label or fallback when no closed run"
+      ],
+      "files": [
+        "apps/gerpain/src/services/payroll.ts",
+        "apps/gerpain/src/views/equipe/RemunerationView.tsx"
+      ],
+      "verification": ["bun run test", "bun run typecheck"],
+      "passes": true
     },
     {
       "group": "Sprint F2 — Payroll corrections & history",
